@@ -28,11 +28,6 @@ public:
         static_cast<Impl*>(this)->clear_impl();
     }
 
-    bool exec ()
-    {
-        return static_cast<Impl*>(this)->exec_impl();
-    }
-
     template <typename T, bool = std::is_arithmetic<T>::value>
     bool bind (std::string const & placeholder, T value)
     {

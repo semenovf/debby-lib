@@ -9,6 +9,7 @@
 #pragma once
 #include "sqlite3.h"
 #include "statement.hpp"
+#include "pfs/debby/exports.hpp"
 #include "pfs/debby/basic_database.hpp"
 #include <string>
 
@@ -16,7 +17,7 @@ namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-class database: public basic_database<database>
+PFS_DEBBY__EXPORT class database: public basic_database<database>
 {
 public:
     using statement_type = statement;
@@ -44,9 +45,12 @@ private:
         return _dbh != nullptr;
     }
 
+    bool clear_impl ();
+    std::vector<std::string> tables_impl (std::string const & pattern = std::string{});
+    bool exists_impl (std::string const & name);
     statement prepare_impl (std::string const & sql);
 
-    bool query (std::string const & sql);
+    bool query_impl (std::string const & sql);
 
 public:
     database () {}

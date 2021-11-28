@@ -8,6 +8,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "sqlite3.h"
+#include "result.hpp"
+#include "pfs/debby/exports.hpp"
 #include "pfs/debby/basic_statement.hpp"
 #include <functional>
 #include <string>
@@ -16,7 +18,7 @@ namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-class statement: public basic_statement<statement>
+PFS_DEBBY__EXPORT class statement: public basic_statement<statement>
 {
     friend class basic_statement<statement>;
 
@@ -33,7 +35,7 @@ private:
     }
 
     void clear_impl ();
-    bool exec_impl ();
+    result exec_impl ();
 
     bool bind_helper (std::string const & placeholder
         , std::function<int (int /*index*/)> && bind_wrapper);
@@ -48,6 +50,8 @@ private:
     bool bind_impl (std::string const & placeholder, std::uint32_t value);
     bool bind_impl (std::string const & placeholder, std::int64_t value);
     bool bind_impl (std::string const & placeholder, std::uint64_t value);
+    bool bind_impl (std::string const & placeholder, float value);
+    bool bind_impl (std::string const & placeholder, double value);
     bool bind_impl (std::string const & placeholder, std::string const & value);
     bool bind_impl (std::string const & placeholder, char const * value);
 
@@ -82,6 +86,11 @@ public:
     operator bool () const noexcept
     {
         return _sth != nullptr;
+    }
+
+    result exec ()
+    {
+        return exec_impl();
     }
 };
 

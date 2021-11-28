@@ -42,6 +42,10 @@ std::string const INSERT {
         ", :int64, :uint64, :text, :cstr)"
 };
 
+std::string const SELECT_ALL {
+    "SELECT * FROM `{}`"
+};
+
 } // namespace
 
 TEST_CASE("statement") {
@@ -58,7 +62,8 @@ TEST_CASE("statement") {
         auto stmt = db.prepare(fmt::format(CREATE_TABLE, TABLE_NAME));
 
         REQUIRE(stmt);
-        REQUIRE(stmt.exec());
+        auto result = stmt.exec();
+        REQUIRE(result.is_done());
     }
 
     {
@@ -88,7 +93,48 @@ TEST_CASE("statement") {
         }
 
         REQUIRE(success);
-        REQUIRE(stmt.exec());
+        REQUIRE(stmt);
+        auto result = stmt.exec();
+        REQUIRE(result.is_done());
+    }
+
+    {
+        auto stmt = db.prepare(fmt::format(SELECT_ALL, TABLE_NAME));
+
+        if (!stmt) {
+            fmt::print(stderr, "ERROR: {}\n", db.last_error());
+        }
+
+        REQUIRE(stmt);
+
+        auto result = stmt.exec();
+        REQUIRE(result.has_more());
+        REQUIRE_FALSE(result.is_done());
+        REQUIRE_FALSE(result.is_error());
+
+        CHECK_EQ(result.column_count(), 12);
+
+        CHECK_EQ(result.column_name(-1), std::string{});
+        CHECK_EQ(result.column_name(12), std::string{});
+
+        CHECK_EQ(result.column_name(0), std::string{"null"});
+        CHECK_EQ(result.column_name(1), std::string{"bool"});
+        CHECK_EQ(result.column_name(2), std::string{"int8"});
+        CHECK_EQ(result.column_name(3), std::string{"uint8"});
+        CHECK_EQ(result.column_name(4), std::string{"int16"});
+        CHECK_EQ(result.column_name(5), std::string{"uint16"});
+        CHECK_EQ(result.column_name(6), std::string{"int32"});
+        CHECK_EQ(result.column_name(7), std::string{"uint32"});
+        CHECK_EQ(result.column_name(8), std::string{"int64"});
+        CHECK_EQ(result.column_name(9), std::string{"uint64"});
+        CHECK_EQ(result.column_name(10), std::string{"text"});
+        CHECK_EQ(result.column_name(11), std::string{"cstr"});
+
+        while (result.has_more()) {
+            result.next();
+        }
+
+        CHECK(result.is_done());
     }
 
     db.close();

@@ -24,11 +24,11 @@ void statement::clear_impl ()
     }
 }
 
-bool statement::exec_impl ()
+result statement::exec_impl ()
 {
     if (!_sth) {
         _last_error = "statement not initialized";
-        return false;
+        return result{nullptr, result::ERROR};
     }
 
     // Bindings are not cleared by the sqlite3_reset() routine
@@ -37,28 +37,26 @@ bool statement::exec_impl ()
     if (SQLITE_OK != rc) {
         _last_error = sqlite3_errstr(rc);
         clear_impl();
-        return false;
+        return result{nullptr, result::ERROR};
     }
 
     rc = sqlite3_step(_sth);
-    bool success = true;
+    result ret;
 
     switch (rc) {
         case SQLITE_ROW: {
-            fmt::print("SQLITE_ROW\n");
-            // FIXME
+            ret = result{_sth, result::ROW};
             break;
         }
 
         case SQLITE_DONE: {
-            fmt::print("SQLITE_DONE\n");
-            // FIXME
+            ret = result{_sth, result::DONE};
             break;
         }
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
-            success = false;
+            ret = result{_sth, result::ERROR};
             auto dbh = sqlite3_db_handle(_sth);
 
             if (dbh) {
@@ -74,13 +72,13 @@ bool statement::exec_impl ()
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
         default: {
-            success = false;
+            ret = result{_sth, result::ERROR};
             _last_error = sqlite3_errstr(rc);
             break;
         }
     }
 
-    return success;
+    return ret;
 }
 
 bool statement::bind_helper (std::string const & placeholder
@@ -178,6 +176,20 @@ bool statement::bind_impl (std::string const & placeholder, std::uint64_t value)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int64(_sth, index, static_cast<sqlite3_int64>(value));
+    });
+}
+
+bool statement::bind_impl (std::string const & placeholder, float value)
+{
+    return bind_helper(placeholder, [this, value] (int index) {
+        return sqlite3_bind_double(_sth, index, static_cast<double>(value));
+    });
+}
+
+bool statement::bind_impl (std::string const & placeholder, double value)
+{
+    return bind_helper(placeholder, [this, value] (int index) {
+        return sqlite3_bind_double(_sth, index, value);
     });
 }
 
