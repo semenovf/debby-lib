@@ -10,6 +10,8 @@
 #include "pfs/optional.hpp"
 #include "pfs/variant.hpp"
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 namespace pfs {
@@ -22,14 +24,13 @@ public:
     using impl_type = Impl;
     using blob_type = std::vector<std::uint8_t>;
     using value_type = variant<std::nullptr_t
-        , bool
         , std::intmax_t
         , double
         , std::string
         , blob_type>;
 
 public:
-    std::string last_error () const noexcept
+    inline std::string last_error () const noexcept
     {
         return static_cast<Impl const *>(this)->last_error_impl();
     }
@@ -39,40 +40,115 @@ public:
         return static_cast<Impl const *>(this)->has_more_impl();
     }
 
-    bool is_done () const
+    inline bool is_done () const
     {
         return static_cast<Impl const *>(this)->is_done_impl();
     }
 
-    bool is_error () const
+    inline bool is_error () const
     {
         return static_cast<Impl const *>(this)->is_error_impl();
     }
 
-    void next ()
+    inline void next ()
     {
         static_cast<Impl*>(this)->next_impl();
     }
 
-    int column_count () const
+    inline int column_count () const
     {
         return static_cast<Impl const *>(this)->column_count_impl();
     }
 
-    std::string column_name (int column) const
+    inline std::string column_name (int column) const
     {
         return static_cast<Impl const *>(this)->column_name_impl(column);
     }
 
-    optional<value_type> get (int column)
+    inline optional<value_type> fetch (int column)
     {
-        return static_cast<Impl*>(this)->get_impl(column);
+        return static_cast<Impl*>(this)->fetch_impl(column);
     }
 
-//     optional<value_type> get (std::string const & name)
-//     {
-//         return static_cast<Impl*>(this)->get_impl(name);
-//     }
+    inline optional<value_type> fetch (std::string const & name)
+    {
+        return static_cast<Impl*>(this)->fetch_impl(name);
+    }
+
+    template <typename T>
+    inline std::pair<T, bool> get (int column, T const & default_value)
+    {
+        auto name = column_name(column);
+
+        if (!name.empty())
+            return this->get<T>(name, default_value);
+
+        return std::make_pair(default_value, false);
+    }
+
+    template <typename T>
+    std::pair<typename std::enable_if<std::is_integral<T>::value, T>::type
+        , bool> get (std::string const & name, T const & default_value)
+    {
+        auto opt = fetch(name);
+
+        if (opt.has_value()) {
+            auto * p = pfs::get_if<std::intmax_t>(& *opt);
+            return p
+                ? std::make_pair(static_cast<T>(*p), true)
+                : std::make_pair(default_value, false);
+        }
+
+        return std::make_pair(default_value, false);
+    }
+
+    template <typename T>
+    std::pair<typename std::enable_if<std::is_floating_point<T>::value, T>::type
+        , bool> get (std::string const & name, T const & default_value)
+    {
+        auto opt = fetch(name);
+
+        if (opt.has_value()) {
+            auto * p = pfs::get_if<double>(& *opt);
+            return p
+                ? std::make_pair(static_cast<T>(*p), true)
+                : std::make_pair(default_value, false);
+        }
+
+        return std::make_pair(default_value, false);
+    }
+
+    template <typename T>
+    std::pair<typename std::enable_if<std::is_same<T, std::string>::value, T>::type
+        , bool> get (std::string const & name, T const & default_value)
+    {
+        auto opt = fetch(name);
+
+        if (opt.has_value()) {
+            auto * p = pfs::get_if<std::string>(& *opt);
+            return p
+                ? std::make_pair(static_cast<T>(*p), true)
+                : std::make_pair(default_value, false);
+        }
+
+        return std::make_pair(default_value, false);
+    }
+
+    template <typename T>
+    std::pair<typename std::enable_if<std::is_same<T, blob_type>::value, T>::type
+        , bool> get (std::string const & name, T const & default_value)
+    {
+        auto opt = fetch(name);
+
+        if (opt.has_value()) {
+            auto * p = pfs::get_if<blob_type>(& *opt);
+            return p
+                ? std::make_pair(static_cast<T>(*p), true)
+                : std::make_pair(default_value, false);
+        }
+
+        return std::make_pair(default_value, false);
+    }
 };
 
 }} // namespace pfs::debby

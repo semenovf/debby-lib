@@ -76,7 +76,7 @@ PFS_DEBBY__EXPORT std::string result::column_name_impl (int column) const
     return name;
 }
 
-PFS_DEBBY__EXPORT optional<result::value_type> result::get_impl (int column)
+PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (int column)
 {
     assert(_sth);
 
@@ -125,10 +125,24 @@ PFS_DEBBY__EXPORT optional<result::value_type> result::get_impl (int column)
     return optional<result::value_type>{};
 }
 
-// PFS_DEBBY__EXPORT optional<result::value_type> result::get_impl (std::string const & name)
-// {
-//     auto colimn = column_name_impl
-// }
+PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (std::string const & name)
+{
+    assert(_sth);
+
+    if (_column_mapping.empty()) {
+        auto count = sqlite3_column_count(_sth);
+
+        for (int i = 0; i < count; i++)
+            _column_mapping.insert({sqlite3_column_name(_sth, i), i});
+    }
+
+    auto pos = _column_mapping.find(name);
+
+    if (pos != _column_mapping.end())
+        return fetch_impl(pos->second);
+
+    return optional<result::value_type>{};
+}
 
 }}} // namespace pfs::debby::sqlite3
 

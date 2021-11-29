@@ -12,6 +12,7 @@
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/basic_result.hpp"
 #include <string>
+#include <unordered_map>
 
 namespace pfs {
 namespace debby {
@@ -42,6 +43,7 @@ private:
     handle_type _sth {nullptr};
     status _state {INITIAL};
     std::string _last_error;
+    std::unordered_map<std::string, int> _column_mapping;
 
 private:
     result () {}
@@ -74,8 +76,8 @@ private:
     void next_impl ();
     int column_count_impl () const;
     std::string column_name_impl (int column) const;
-    optional<value_type> get_impl (int column);
-    //optional<value_type> get_impl (std::string const & name);
+    optional<value_type> fetch_impl (int column);
+    optional<value_type> fetch_impl (std::string const & name);
 
 public:
     ~result () {};

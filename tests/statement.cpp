@@ -12,6 +12,7 @@
 #include "pfs/fmt.hpp"
 #include "pfs/debby/sqlite3/database.hpp"
 #include "pfs/debby/sqlite3/statement.hpp"
+#include <cmath>
 #include <limits>
 
 namespace {
@@ -29,6 +30,8 @@ std::string const CREATE_TABLE {
         ", `uint32` INTEGER"
         ", `int64` INTEGER"
         ", `uint64` INTEGER"
+        ", `float` REAL"
+        ", `double` REAL"
         ", `text` TEXT"
         ", `cstr` TEXT)"
 };
@@ -36,10 +39,12 @@ std::string const CREATE_TABLE {
 std::string const INSERT {
     "INSERT INTO `{}` (`null`, `bool`, `int8`, `uint8`"
         ", `int16`, `uint16`, `int32`, `uint32`"
-        ", `int64`, `uint64`, `text`, `cstr`)"
+        ", `int64`, `uint64`, `float`, `double`"
+        ", `text`, `cstr`)"
     " VALUES (:null, :bool, :int8, :uint8"
         ", :int16, :uint16, :int32, :uint32"
-        ", :int64, :uint64, :text, :cstr)"
+        ", :int64, :uint64, :float, :double"
+        ", :text, :cstr)"
 };
 
 std::string const SELECT_ALL {
@@ -85,6 +90,8 @@ TEST_CASE("statement") {
             && stmt.bind(":uint32", std::numeric_limits<std::uint32_t>::max())
             && stmt.bind(":int64", std::numeric_limits<std::int64_t>::min())
             && stmt.bind(":uint64", std::numeric_limits<std::uint64_t>::max())
+            && stmt.bind(":float", static_cast<float>(3.14159))
+            && stmt.bind(":double", static_cast<double>(3.14159))
             && stmt.bind(":text", std::string{"Hello"})
             && stmt.bind(":cstr", "World");
 
@@ -112,10 +119,10 @@ TEST_CASE("statement") {
         REQUIRE_FALSE(result.is_done());
         REQUIRE_FALSE(result.is_error());
 
-        CHECK_EQ(result.column_count(), 12);
+        CHECK_EQ(result.column_count(), 14);
 
         CHECK_EQ(result.column_name(-1), std::string{});
-        CHECK_EQ(result.column_name(12), std::string{});
+        CHECK_EQ(result.column_name(14), std::string{});
 
         CHECK_EQ(result.column_name(0), std::string{"null"});
         CHECK_EQ(result.column_name(1), std::string{"bool"});
@@ -127,16 +134,36 @@ TEST_CASE("statement") {
         CHECK_EQ(result.column_name(7), std::string{"uint32"});
         CHECK_EQ(result.column_name(8), std::string{"int64"});
         CHECK_EQ(result.column_name(9), std::string{"uint64"});
-        CHECK_EQ(result.column_name(10), std::string{"text"});
-        CHECK_EQ(result.column_name(11), std::string{"cstr"});
+        CHECK_EQ(result.column_name(10), std::string{"float"});
+        CHECK_EQ(result.column_name(11), std::string{"double"});
+        CHECK_EQ(result.column_name(12), std::string{"text"});
+        CHECK_EQ(result.column_name(13), std::string{"cstr"});
 
         while (result.has_more()) {
+            CHECK((result.fetch("null").has_value() && pfs::get<std::nullptr_t>(*result.fetch("null")) == nullptr));
+
+            CHECK(result.get<bool>("bool", false).first == true);
+            CHECK(result.get<std::int8_t>("int8", 0).first == std::numeric_limits<std::int8_t>::min());
+            CHECK(result.get<std::uint8_t>("uint8", 0).first == std::numeric_limits<std::uint8_t>::max());
+            CHECK(result.get<std::int16_t>("int16", 0).first == std::numeric_limits<std::int16_t>::min());
+            CHECK(result.get<std::uint16_t>("uint16", 0).first == std::numeric_limits<std::uint16_t>::max());
+            CHECK(result.get<std::int32_t>("int32", 0).first == std::numeric_limits<std::int32_t>::min());
+            CHECK(result.get<std::uint32_t>("uint32", 0).first == std::numeric_limits<std::uint32_t>::max());
+            CHECK(result.get<std::int64_t>("int64", 0).first == std::numeric_limits<std::int64_t>::min());
+            CHECK(result.get<std::uint64_t>("uint64", 0).first == std::numeric_limits<std::uint64_t>::max());
+            CHECK(std::abs(result.get<float>("float", 0).first - static_cast<float>(3.14159)) < float{0.001});
+            CHECK(std::abs(result.get<double>("double", 0).first - static_cast<double>(3.14159)) < double(0.001));
+            CHECK(result.get<std::string>("text", "").first == std::string{"Hello"});
+
+            CHECK(result.get<bool>("BAD_FIELD", false).first == false);
+
             result.next();
         }
 
         CHECK(result.is_done());
     }
 
+    db.clear();
     db.close();
 }
 

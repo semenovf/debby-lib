@@ -144,7 +144,7 @@ std::vector<std::string> database::tables_impl (std::string const & pattern)
         auto res = stmt.exec();
 
         while (res.has_more()) {
-            auto value = res.get(0);
+            auto value = res.fetch(0);
 
             auto success = value.has_value() && holds_alternative<std::string>(*value);
             assert(success);
