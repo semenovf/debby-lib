@@ -31,16 +31,7 @@ result statement::exec_impl ()
         return result{nullptr, result::ERROR};
     }
 
-    // Bindings are not cleared by the sqlite3_reset() routine
-    int rc = sqlite3_reset(_sth);
-
-    if (SQLITE_OK != rc) {
-        _last_error = sqlite3_errstr(rc);
-        clear_impl();
-        return result{nullptr, result::ERROR};
-    }
-
-    rc = sqlite3_step(_sth);
+    int rc = sqlite3_step(_sth);
     result ret;
 
     switch (rc) {
@@ -51,6 +42,7 @@ result statement::exec_impl ()
 
         case SQLITE_DONE: {
             ret = result{_sth, result::DONE};
+            sqlite3_reset(_sth);
             break;
         }
 
@@ -73,6 +65,7 @@ result statement::exec_impl ()
         case SQLITE_BUSY:
         default: {
             ret = result{_sth, result::ERROR};
+            rc = sqlite3_reset(_sth);
             _last_error = sqlite3_errstr(rc);
             break;
         }
