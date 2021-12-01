@@ -101,8 +101,13 @@ PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
 
 PFS_DEBBY__EXPORT void database::close_impl ()
 {
+    // Finalize cached statements
+    for (auto & item: _cache)
+        sqlite3_finalize(item.second);
+
     if (_dbh)
         sqlite3_close_v2(_dbh);
+
     _dbh = nullptr;
 };
 

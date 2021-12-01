@@ -21,8 +21,9 @@ void statement::clear_impl ()
     if (_sth) {
         if (!_cached)
             sqlite3_finalize(_sth);
-        _sth = nullptr;
     }
+
+    _sth = nullptr;
 }
 
 result statement::exec_impl ()
