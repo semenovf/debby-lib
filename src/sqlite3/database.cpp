@@ -24,7 +24,7 @@ std::string NOT_OPEN_ERROR      {"database not open"};
 std::string ALLOC_MEMORY_ERROR  {"unable to allocate memory for database handler"};
 } // namespace
 
-bool database::query_impl (std::string const & sql)
+PFS_DEBBY__EXPORT bool database::query_impl (std::string const & sql)
 {
     assert(_dbh);
 
@@ -43,7 +43,7 @@ bool database::query_impl (std::string const & sql)
     return true;
 }
 
-bool database::open_impl (filesystem::path const & path)
+PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
 {
     if (_dbh) {
         _last_error = ALREADY_OPEN_ERROR;
@@ -99,14 +99,14 @@ bool database::open_impl (filesystem::path const & path)
     return success;
 }
 
-void database::close_impl ()
+PFS_DEBBY__EXPORT void database::close_impl ()
 {
     if (_dbh)
         sqlite3_close_v2(_dbh);
     _dbh = nullptr;
 };
 
-bool database::clear_impl ()
+PFS_DEBBY__EXPORT bool database::clear_impl ()
 {
     if (!_dbh) {
         _last_error = NOT_OPEN_ERROR;
@@ -132,7 +132,7 @@ bool database::clear_impl ()
     return success;
 }
 
-std::vector<std::string> database::tables_impl (std::string const & pattern)
+PFS_DEBBY__EXPORT std::vector<std::string> database::tables_impl (std::string const & pattern)
 {
     statement_type stmt = prepare(
         "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name");
@@ -170,7 +170,7 @@ std::vector<std::string> database::tables_impl (std::string const & pattern)
     return list;
 }
 
-bool database::exists_impl (std::string const & name)
+PFS_DEBBY__EXPORT bool database::exists_impl (std::string const & name)
 {
     statement_type stmt = prepare(
         fmt::format("SELECT name FROM sqlite_master"
@@ -187,14 +187,23 @@ bool database::exists_impl (std::string const & name)
     return false;
 }
 
-statement database::prepare_impl (std::string const & sql)
+PFS_DEBBY__EXPORT statement database::prepare_impl (std::string const & sql, bool cache)
 {
     if (!_dbh) {
         _last_error = NOT_OPEN_ERROR;
         return statement{};
     }
 
-    sqlite3_stmt * sth {nullptr};
+    auto pos = _cache.find(sql);
+
+    // Found in cache
+    if (pos != _cache.end()) {
+        sqlite3_reset(pos->second);
+        sqlite3_clear_bindings(pos->second);
+        return statement{pos->second, true};
+    }
+
+    statement_type::native_type sth {nullptr};
 
     auto rc = sqlite3_prepare_v2(_dbh, sql.c_str(), sql.size(), & sth, nullptr);
 
@@ -204,7 +213,27 @@ statement database::prepare_impl (std::string const & sql)
         return statement{};
     }
 
-    return statement{sth};
+    if (cache) {
+        auto res = _cache.emplace(sql, sth);
+        assert(res.second); // key must be unique
+    }
+
+    return statement{sth, cache};
+}
+
+PFS_DEBBY__EXPORT bool database::begin_impl ()
+{
+    return query_impl("BEGIN TRANSACTION");
+}
+
+PFS_DEBBY__EXPORT bool database::commit_impl ()
+{
+    return query_impl("COMMIT TRANSACTION");
+}
+
+PFS_DEBBY__EXPORT bool database::rollback_impl ()
+{
+    return query_impl("ROLLBACK TRANSACTION");
 }
 
 }}} // namespace pfs::debby::sqlite3

@@ -12,6 +12,7 @@
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/basic_database.hpp"
 #include <string>
+#include <unordered_map>
 
 namespace pfs {
 namespace debby {
@@ -20,16 +21,18 @@ namespace sqlite3 {
 PFS_DEBBY__EXPORT class database: public basic_database<database>
 {
 public:
+    friend class basic_database<database>;
     using statement_type = statement;
 
 private:
-    friend class basic_database<database>;
+    using base_class  = basic_database<database>;
+    using native_type = struct sqlite3 *;
+    using cache_type  = std::unordered_map<std::string, statement_type::native_type>;
 
-    using base_class = basic_database<database>;
-    using handle_type = struct sqlite3 *;
-
-    handle_type _dbh {nullptr};
+private:
+    native_type _dbh {nullptr};
     std::string _last_error;
+    cache_type  _cache; // Prepared statements cache
 
 private:
     std::string last_error_impl () const noexcept
@@ -48,9 +51,12 @@ private:
     bool clear_impl ();
     std::vector<std::string> tables_impl (std::string const & pattern = std::string{});
     bool exists_impl (std::string const & name);
-    statement prepare_impl (std::string const & sql);
+    statement prepare_impl (std::string const & sql, bool cache);
 
     bool query_impl (std::string const & sql);
+    bool begin_impl ();
+    bool commit_impl ();
+    bool rollback_impl ();
 
 public:
     database () {}
@@ -76,9 +82,9 @@ public:
         return *this;
     }
 
-    statement_type prepare (std::string const & sql)
+    statement_type prepare (std::string const & sql, bool cache = true)
     {
-        return /*static_cast<Impl*>(this)->*/prepare_impl(sql);
+        return /*static_cast<Impl*>(this)->*/prepare_impl(sql, cache);
     }
 };
 

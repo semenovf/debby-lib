@@ -20,12 +20,16 @@ namespace sqlite3 {
 
 PFS_DEBBY__EXPORT class statement: public basic_statement<statement>
 {
+public:
     friend class basic_statement<statement>;
+    using native_type = struct sqlite3_stmt *;
 
+private:
     using base_class = basic_statement<statement>;
-    using handle_type = struct sqlite3_stmt *;
 
-    handle_type _sth {nullptr};
+private:
+    native_type _sth {nullptr};
+    bool        _cached {false};
     std::string _last_error;
 
 private:
@@ -54,12 +58,14 @@ private:
     bool bind_impl (std::string const & placeholder, double value);
     bool bind_impl (std::string const & placeholder, std::string const & value);
     bool bind_impl (std::string const & placeholder, char const * value);
+    bool bind_impl (std::string const & placeholder, std::vector<std::uint8_t> const & value);
 
 public:
     statement () {}
 
-    statement (handle_type sth)
+    statement (native_type sth, bool cached)
         : _sth(sth)
+        , _cached(cached)
     {}
 
     ~statement ()

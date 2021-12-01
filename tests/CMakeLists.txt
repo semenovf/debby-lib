@@ -20,6 +20,7 @@ endif()
 
 set(TEST_NAMES
     database
+    cached_statement
     statement)
 
 foreach (name ${TEST_NAMES})

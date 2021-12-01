@@ -43,6 +43,21 @@ public:
         return static_cast<Impl *>(this)->query_impl(sql);
     }
 
+    bool begin ()
+    {
+        return static_cast<Impl *>(this)->begin_impl();
+    }
+
+    bool commit ()
+    {
+        return static_cast<Impl *>(this)->commit_impl();
+    }
+
+    bool rollback ()
+    {
+        return static_cast<Impl *>(this)->rollback_impl();
+    }
+
     /**
      * Drop database (delete all tables)
      */

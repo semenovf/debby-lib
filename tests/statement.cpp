@@ -51,6 +51,10 @@ std::string const SELECT_ALL {
     "SELECT * FROM `{}`"
 };
 
+std::string const SELECT {
+    "SELECT * FROM `{}` WHERE `int8` = :int8"
+};
+
 } // namespace
 
 TEST_CASE("statement") {
@@ -161,6 +165,33 @@ TEST_CASE("statement") {
         }
 
         CHECK(result.is_done());
+    }
+
+    {
+        for (int i = 0; i < 2; i++) {
+            auto stmt = db.prepare(fmt::format(SELECT, TABLE_NAME), true);
+
+            if (!stmt) {
+                fmt::print(stderr, "ERROR: {}\n", db.last_error());
+            }
+
+            REQUIRE(stmt);
+
+            bool success = stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
+
+            if (!success) {
+                fmt::print(stderr, "ERROR: {}\n", stmt.last_error());
+            }
+
+            REQUIRE(success);
+            REQUIRE(stmt);
+            auto result = stmt.exec();
+
+            while (result.has_more())
+                result.next();
+
+            REQUIRE(result.is_done());
+        }
     }
 
     db.clear();

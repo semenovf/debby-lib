@@ -19,7 +19,8 @@ namespace sqlite3 {
 void statement::clear_impl ()
 {
     if (_sth) {
-        sqlite3_finalize(_sth);
+        if (!_cached)
+            sqlite3_finalize(_sth);
         _sth = nullptr;
     }
 }
@@ -201,6 +202,25 @@ bool statement::bind_impl (std::string const & placeholder, char const * value)
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_text(_sth, index, value, std::strlen(value), SQLITE_STATIC);
     });
+}
+
+bool statement::bind_impl (std::string const & placeholder, std::vector<std::uint8_t> const & value)
+{
+    if (value.size() > std::numeric_limits<int>::max()) {
+        auto data = value.data();
+        sqlite3_uint64 len = static_cast<int>(value.size());
+
+        return bind_helper(placeholder, [this, data, len] (int index) {
+            return sqlite3_bind_blob64(_sth, index, data, len, SQLITE_TRANSIENT);
+        });
+    } else {
+        auto data = value.data();
+        int len = static_cast<int>(value.size());
+
+        return bind_helper(placeholder, [this, data, len] (int index) {
+            return sqlite3_bind_blob(_sth, index, data, len, SQLITE_TRANSIENT);
+        });
+    }
 }
 
 }}} // namespace pfs::debby::sqlite3

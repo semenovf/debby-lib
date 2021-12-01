@@ -7,6 +7,8 @@
 //      2021.11.24 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include <string>
+#include <vector>
 
 namespace pfs {
 namespace debby {
@@ -42,6 +44,12 @@ public:
 
     template <typename T, bool = std::is_same<char const *, T>::value>
     bool bind (std::string const & placeholder, char const * value)
+    {
+        return static_cast<Impl*>(this)->bind_impl(placeholder, value);
+    }
+
+    template <typename T, bool = std::is_same<std::vector<std::uint8_t>, T>::value>
+    bool bind (std::string const & placeholder, std::vector<std::uint8_t> const & value)
     {
         return static_cast<Impl*>(this)->bind_impl(placeholder, value);
     }
