@@ -105,6 +105,8 @@ PFS_DEBBY__EXPORT void database::close_impl ()
     for (auto & item: _cache)
         sqlite3_finalize(item.second);
 
+    _cache.clear();
+
     if (_dbh)
         sqlite3_close_v2(_dbh);
 
