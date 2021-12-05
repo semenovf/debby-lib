@@ -8,6 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "pfs/optional.hpp"
+#include "pfs/expected.hpp"
 #include "pfs/variant.hpp"
 #include <string>
 #include <type_traits>
@@ -28,6 +29,45 @@ public:
         , double
         , std::string
         , blob_type>;
+
+    template <typename T, typename E>
+    using expected_type = expected<T, E>;
+
+private:
+    template <typename T>
+    inline typename std::enable_if<std::is_same<T, std::nullptr_t>::value, T>::type *
+    get_if_value_pointer (value_type *)
+    {
+        return nullptr;
+    }
+
+    template <typename T>
+    inline typename std::enable_if<std::is_integral<T>::value, std::intmax_t>::type *
+    get_if_value_pointer (value_type * v)
+    {
+        return pfs::get_if<std::intmax_t>(v);
+    }
+
+    template <typename T>
+    inline typename std::enable_if<std::is_floating_point<T>::value, double>::type *
+    get_if_value_pointer (value_type * v)
+    {
+        return pfs::get_if<double>(v);
+    }
+
+    template <typename T>
+    inline typename std::enable_if<std::is_same<T, std::string>::value, T>::type *
+    get_if_value_pointer (value_type * v)
+    {
+        return pfs::get_if<std::string>(v);
+    }
+
+    template <typename T>
+    inline typename std::enable_if<std::is_same<T, blob_type>::value, T>::type *
+    get_if_value_pointer (value_type * v)
+    {
+        return pfs::get_if<blob_type>(v);
+    }
 
 public:
     inline std::string last_error () const noexcept
@@ -75,82 +115,47 @@ public:
         return static_cast<Impl*>(this)->fetch_impl(name);
     }
 
+    /**
+     * Get value for specified column @a name.
+     *
+     * @return One of this values:
+     *      - expected value if column @a column contains any valid value;
+     *      - unexpected value @c false if column @a column contains @c null value;
+     *      - unexpected value @c true if column @a column is out of bounds
+     *        or contains value of unexpected type.
+     */
     template <typename T>
-    inline std::pair<T, bool> get (int column, T const & default_value)
+    expected_type<T, bool> get (std::string const & name)
+    {
+        auto opt = fetch(name);
+
+        if (opt.has_value()) {
+            if (!holds_alternative<std::nullptr_t>(*opt)) {
+                auto p = get_if_value_pointer<T>(& *opt);
+                return std::move(static_cast<T>(*p));
+            } else {
+                return make_unexpected(false);
+            }
+        }
+
+        return make_unexpected(true);
+    }
+
+    /**
+     * Get value for specified @a column.
+     *
+     * @return see @link get(std::string const &) @endlink
+     */
+    template <typename T>
+    inline expected_type<T, bool> get (int column)
     {
         auto name = column_name(column);
 
         if (!name.empty())
-            return this->get<T>(name, default_value);
+            return this->get<T>(name);
 
-        return std::make_pair(default_value, false);
-    }
-
-    template <typename T>
-    std::pair<typename std::enable_if<std::is_integral<T>::value, T>::type
-        , bool> get (std::string const & name, T const & default_value)
-    {
-        auto opt = fetch(name);
-
-        if (opt.has_value()) {
-            auto * p = pfs::get_if<std::intmax_t>(& *opt);
-            return p
-                ? std::make_pair(static_cast<T>(*p), true)
-                : std::make_pair(default_value, false);
-        }
-
-        return std::make_pair(default_value, false);
-    }
-
-    template <typename T>
-    std::pair<typename std::enable_if<std::is_floating_point<T>::value, T>::type
-        , bool> get (std::string const & name, T const & default_value)
-    {
-        auto opt = fetch(name);
-
-        if (opt.has_value()) {
-            auto * p = pfs::get_if<double>(& *opt);
-            return p
-                ? std::make_pair(static_cast<T>(*p), true)
-                : std::make_pair(default_value, false);
-        }
-
-        return std::make_pair(default_value, false);
-    }
-
-    template <typename T>
-    std::pair<typename std::enable_if<std::is_same<T, std::string>::value, T>::type
-        , bool> get (std::string const & name, T const & default_value)
-    {
-        auto opt = fetch(name);
-
-        if (opt.has_value()) {
-            auto * p = pfs::get_if<std::string>(& *opt);
-            return p
-                ? std::make_pair(static_cast<T>(*p), true)
-                : std::make_pair(default_value, false);
-        }
-
-        return std::make_pair(default_value, false);
-    }
-
-    template <typename T>
-    std::pair<typename std::enable_if<std::is_same<T, blob_type>::value, T>::type
-        , bool> get (std::string const & name, T const & default_value)
-    {
-        auto opt = fetch(name);
-
-        if (opt.has_value()) {
-            auto * p = pfs::get_if<blob_type>(& *opt);
-            return p
-                ? std::make_pair(static_cast<T>(*p), true)
-                : std::make_pair(default_value, false);
-        }
-
-        return std::make_pair(default_value, false);
+        return make_unexpected(true);
     }
 };
 
 }} // namespace pfs::debby
-
-

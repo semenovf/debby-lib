@@ -66,6 +66,7 @@ TEST_CASE("statement") {
     database_t db;
 
     REQUIRE(db.open(db_path));
+    db.clear();
 
     {
         auto stmt = db.prepare(fmt::format(CREATE_TABLE, TABLE_NAME));
@@ -144,22 +145,31 @@ TEST_CASE("statement") {
         CHECK_EQ(result.column_name(13), std::string{"cstr"});
 
         while (result.has_more()) {
-            CHECK((result.fetch("null").has_value() && pfs::get<std::nullptr_t>(*result.fetch("null")) == nullptr));
+            // Error for nonexistent column
+            REQUIRE_FALSE(result.get<int>("unknown"));
+            CHECK(result.get<int>("unknown").error() == true);
 
-            CHECK(result.get<bool>("bool", false).first == true);
-            CHECK(result.get<std::int8_t>("int8", 0).first == std::numeric_limits<std::int8_t>::min());
-            CHECK(result.get<std::uint8_t>("uint8", 0).first == std::numeric_limits<std::uint8_t>::max());
-            CHECK(result.get<std::int16_t>("int16", 0).first == std::numeric_limits<std::int16_t>::min());
-            CHECK(result.get<std::uint16_t>("uint16", 0).first == std::numeric_limits<std::uint16_t>::max());
-            CHECK(result.get<std::int32_t>("int32", 0).first == std::numeric_limits<std::int32_t>::min());
-            CHECK(result.get<std::uint32_t>("uint32", 0).first == std::numeric_limits<std::uint32_t>::max());
-            CHECK(result.get<std::int64_t>("int64", 0).first == std::numeric_limits<std::int64_t>::min());
-            CHECK(result.get<std::uint64_t>("uint64", 0).first == std::numeric_limits<std::uint64_t>::max());
-            CHECK(std::abs(result.get<float>("float", 0).first - static_cast<float>(3.14159)) < float{0.001});
-            CHECK(std::abs(result.get<double>("double", 0).first - static_cast<double>(3.14159)) < double(0.001));
-            CHECK(result.get<std::string>("text", "").first == std::string{"Hello"});
+            // Error or column contains `null`
+            REQUIRE_FALSE(result.get<int>("null"));
 
-            CHECK(result.get<bool>("BAD_FIELD", false).first == false);
+            // Column `null` is INTEGER but contains null value, so error() returns true
+            CHECK(result.get<int>("null").error() == false);
+
+            // It is no matter the column type if it contains `null`
+            CHECK(result.get<float>("null").error() == false);
+
+            CHECK(*result.get<bool>("bool") == true);
+            CHECK(*result.get<std::int8_t>("int8") == std::numeric_limits<std::int8_t>::min());
+            CHECK(*result.get<std::uint8_t>("uint8") == std::numeric_limits<std::uint8_t>::max());
+            CHECK(*result.get<std::int16_t>("int16") == std::numeric_limits<std::int16_t>::min());
+            CHECK(*result.get<std::uint16_t>("uint16") == std::numeric_limits<std::uint16_t>::max());
+            CHECK(*result.get<std::int32_t>("int32") == std::numeric_limits<std::int32_t>::min());
+            CHECK(*result.get<std::uint32_t>("uint32") == std::numeric_limits<std::uint32_t>::max());
+            CHECK(*result.get<std::int64_t>("int64") == std::numeric_limits<std::int64_t>::min());
+            CHECK(*result.get<std::uint64_t>("uint64") == std::numeric_limits<std::uint64_t>::max());
+            CHECK(std::abs(*result.get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
+            CHECK(std::abs(*result.get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
+            CHECK(*result.get<std::string>("text") == std::string{"Hello"});
 
             result.next();
         }
@@ -194,7 +204,6 @@ TEST_CASE("statement") {
         }
     }
 
-    db.clear();
     db.close();
 }
 
