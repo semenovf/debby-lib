@@ -18,10 +18,14 @@ if (PFS_DEBBY__ENABLE_COVERAGE)
     set(CMAKE_C_FLAGS "-g -O0 --coverage")
 endif()
 
-set(TEST_NAMES
+list(APPEND TEST_NAMES
     database
     cached_statement
     statement)
+
+if (PFS_DEBBY__ENABLE_ROCKSDB)
+    list(APPEND TEST_NAMES rocksdb_database)
+endif()
 
 foreach (name ${TEST_NAMES})
     if (${name}_SOURCES)

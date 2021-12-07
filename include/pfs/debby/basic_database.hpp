@@ -38,48 +38,12 @@ public:
         return static_cast<Impl const *>(this)->is_opened_impl();
     }
 
-    bool query (std::string const & sql)
-    {
-        return static_cast<Impl *>(this)->query_impl(sql);
-    }
-
-    bool begin ()
-    {
-        return static_cast<Impl *>(this)->begin_impl();
-    }
-
-    bool commit ()
-    {
-        return static_cast<Impl *>(this)->commit_impl();
-    }
-
-    bool rollback ()
-    {
-        return static_cast<Impl *>(this)->rollback_impl();
-    }
-
     /**
      * Drop database (delete all tables)
      */
     bool clear ()
     {
         return static_cast<Impl *>(this)->clear_impl();
-    }
-
-    /**
-     * Lists available tables at database by pattern.
-     */
-    std::vector<std::string> tables (std::string const & pattern = std::string{})
-    {
-        return static_cast<Impl *>(this)->tables_impl(pattern);
-    }
-
-    /**
-     * Checks if named table exists at database.
-     */
-    bool exists (std::string const & name)
-    {
-        return static_cast<Impl *>(this)->exists_impl(name);
     }
 };
 

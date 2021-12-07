@@ -20,8 +20,9 @@ namespace sqlite3 {
 
 PFS_DEBBY__EXPORT class statement: public basic_statement<statement>
 {
-public:
     friend class basic_statement<statement>;
+
+public:
     using native_type = struct sqlite3_stmt *;
 
 private:

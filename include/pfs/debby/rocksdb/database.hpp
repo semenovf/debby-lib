@@ -4,35 +4,34 @@
 // This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
 //
 // Changelog:
-//      2021.11.24 Initial version.
+//      2021.12.07 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "sqlite3.h"
-#include "statement.hpp"
 #include "pfs/debby/exports.hpp"
-#include "pfs/debby/relational_database.hpp"
+#include "pfs/debby/keyvalue_database.hpp"
 #include <string>
 #include <unordered_map>
 
+namespace rocksdb {
+class DB;
+} // namespace rocksdb
+
 namespace pfs {
 namespace debby {
-namespace sqlite3 {
+namespace rocksdb {
 
-PFS_DEBBY__EXPORT class database: public relational_database<database>
+PFS_DEBBY__EXPORT class database: public keyvalue_database<database>
 {
     friend class basic_database<database>;
-    friend class relational_database<database>;
-    using statement_type = statement;
+    friend class keyvalue_database<database>;
 
 private:
-    using base_class  = relational_database<database>;
-    using native_type = struct sqlite3 *;
-    using cache_type  = std::unordered_map<std::string, statement_type::native_type>;
+    using base_class  = keyvalue_database<database>;
+    using native_type = ::rocksdb::DB *;
 
 private:
     native_type _dbh {nullptr};
     std::string _last_error;
-    cache_type  _cache; // Prepared statements cache
 
 private:
     std::string last_error_impl () const noexcept
@@ -48,15 +47,15 @@ private:
         return _dbh != nullptr;
     }
 
-    bool clear_impl ();
-    std::vector<std::string> tables_impl (std::string const & pattern = std::string{});
-    bool exists_impl (std::string const & name);
-    statement prepare_impl (std::string const & sql, bool cache);
-
-    bool query_impl (std::string const & sql);
-    bool begin_impl ();
-    bool commit_impl ();
-    bool rollback_impl ();
+//     bool clear_impl ();
+//     std::vector<std::string> tables_impl (std::string const & pattern = std::string{});
+//     bool exists_impl (std::string const & name);
+//     statement prepare_impl (std::string const & sql, bool cache);
+//
+//     bool query_impl (std::string const & sql);
+//     bool begin_impl ();
+//     bool commit_impl ();
+//     bool rollback_impl ();
 
 public:
     database () {}
@@ -81,11 +80,6 @@ public:
         other._dbh = nullptr;
         return *this;
     }
-
-    statement_type prepare (std::string const & sql, bool cache = true)
-    {
-        return /*static_cast<Impl*>(this)->*/prepare_impl(sql, cache);
-    }
 };
 
-}}} // namespace pfs::debby::sqlite3
+}}} // namespace pfs::debby::rocksdb
