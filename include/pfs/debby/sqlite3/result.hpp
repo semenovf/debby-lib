@@ -7,12 +7,13 @@
 //      2021.11.26 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "sqlite3.h"
 #include "pfs/optional.hpp"
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/basic_result.hpp"
 #include <string>
 #include <unordered_map>
+
+struct sqlite3_stmt;
 
 namespace pfs {
 namespace debby {

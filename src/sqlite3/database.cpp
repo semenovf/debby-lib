@@ -6,6 +6,8 @@
 // Changelog:
 //      2021.11.24 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
+#include "sqlite3.h"
+#include "errstr_builder.hpp"
 #include "pfs/bits/compiler.h"
 #include "pfs/fmt.hpp"
 #include "pfs/debby/sqlite3/database.hpp"
@@ -17,30 +19,27 @@ namespace debby {
 namespace sqlite3 {
 
 namespace {
+
 int constexpr MAX_BUSY_TIMEOUT = 1000; // 1 second
 
 std::string ALREADY_OPEN_ERROR  {"database is already open"};
 std::string NOT_OPEN_ERROR      {"database not open"};
 std::string ALLOC_MEMORY_ERROR  {"unable to allocate memory for database handler"};
+
 } // namespace
 
 PFS_DEBBY__EXPORT bool database::query_impl (std::string const & sql)
 {
     assert(_dbh);
 
-    char * errmsg {nullptr};
-    int rc = sqlite3_exec(_dbh, sql.c_str(), nullptr, nullptr, & errmsg);
+    int rc = sqlite3_exec(_dbh, sql.c_str(), nullptr, nullptr, nullptr);
+    bool success = SQLITE_OK == rc;
 
-    if (SQLITE_OK != rc) {
-        if (errmsg)
-            _last_error = errmsg;
-        else
-            _last_error = "sqlite3_exec() failure";
-
-        return false;
+    if (! success) {
+        _last_error = build_errstr("query failure", rc, _dbh);
     }
 
-    return true;
+    return success;
 }
 
 PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
@@ -56,9 +55,12 @@ PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
     // that is less restrictive than that specified by the flags passed
     // in the third parameter to sqlite3_open_v2().
     flags |= SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+        // | SQLITE_OPEN_PRIVATECACHE;
 
     // Use default `sqlite3_vfs` object.
     char const * default_vfs = nullptr;
+
+    assert(sqlite3_enable_shared_cache(0) == SQLITE_OK);
 
 #if PFS_COMPILER_MSVC
     auto utf8_path = pfs::utf8_encode(path.c_str(), std::wcslen(path.c_str()));
@@ -75,7 +77,7 @@ PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
             // Internal error code.
             _last_error = ALLOC_MEMORY_ERROR;
         } else {
-            _last_error = fmt::format("sqlite3_open_v2(): {}", sqlite3_errstr(rc));
+            _last_error = build_errstr("sqlite3_open_v2", rc, _dbh);
             sqlite3_close_v2(_dbh);
             _dbh = nullptr;
         }
@@ -121,20 +123,27 @@ PFS_DEBBY__EXPORT bool database::clear_impl ()
     }
 
     auto list = tables_impl(std::string{});
-    auto success = query("PRAGMA foreign_keys = OFF");
+
+    auto success = begin_impl() && query_impl("PRAGMA foreign_keys = OFF");
 
     if (!success)
         return false;
 
     for (auto const & t: list) {
         auto sql = fmt::format("DROP TABLE IF EXISTS `{}`", t);
-        success = query(sql);
+        success = query_impl(sql);
 
         if (!success)
             break;
     }
 
-    success = query("PRAGMA foreign_keys = ON") && success;
+    success = success && query_impl("PRAGMA foreign_keys = ON");
+
+    if (success) {
+        commit_impl();
+    } else {
+        rollback_impl();
+    }
 
     return success;
 }

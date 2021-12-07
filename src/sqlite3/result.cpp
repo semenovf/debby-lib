@@ -6,6 +6,8 @@
 // Changelog:
 //      2021.11.24 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
+#include "sqlite3.h"
+#include "errstr_builder.hpp"
 #include "pfs/fmt.hpp"
 #include "pfs/debby/sqlite3/result.hpp"
 #include <cstring>
@@ -37,15 +39,7 @@ PFS_DEBBY__EXPORT void result::next_impl ()
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
             _state = ERROR;
-
-            auto dbh = sqlite3_db_handle(_sth);
-
-            if (dbh) {
-                _last_error = sqlite3_errmsg(dbh);
-            } else {
-                rc = sqlite3_reset(_sth);
-                _last_error = sqlite3_errstr(rc);
-            }
+            _last_error = build_errstr("result failure", rc, _sth);
             break;
         }
 
@@ -53,9 +47,12 @@ PFS_DEBBY__EXPORT void result::next_impl ()
         case SQLITE_BUSY:
         default:
             _state = ERROR;
-            _last_error = sqlite3_errstr(rc);
+            _last_error = build_errstr("result failure", rc, _sth);
             break;
     }
+
+    if (rc != SQLITE_ROW)
+        sqlite3_reset(_sth);
 }
 
 PFS_DEBBY__EXPORT int result::column_count_impl () const

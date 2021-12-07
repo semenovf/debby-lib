@@ -6,6 +6,8 @@
 // Changelog:
 //      2021.11.24 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
+#include "sqlite3.h"
+#include "errstr_builder.hpp"
 #include "pfs/bits/compiler.h"
 #include "pfs/fmt.hpp"
 #include "pfs/debby/sqlite3/statement.hpp"
@@ -21,6 +23,8 @@ void statement::clear_impl ()
     if (_sth) {
         if (!_cached)
             sqlite3_finalize(_sth);
+        else
+            sqlite3_reset(_sth);
     }
 
     _sth = nullptr;
@@ -44,22 +48,13 @@ result statement::exec_impl ()
 
         case SQLITE_DONE: {
             ret = result{_sth, result::DONE};
-            sqlite3_reset(_sth);
             break;
         }
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
             ret = result{_sth, result::ERROR};
-            auto dbh = sqlite3_db_handle(_sth);
-
-            if (dbh) {
-                _last_error = sqlite3_errmsg(dbh);
-            } else {
-                rc = sqlite3_reset(_sth);
-                _last_error = sqlite3_errstr(rc);
-            }
-
+            _last_error = build_errstr("statement execution failure", rc, _sth);
             break;
         }
 
@@ -67,11 +62,13 @@ result statement::exec_impl ()
         case SQLITE_BUSY:
         default: {
             ret = result{_sth, result::ERROR};
-            rc = sqlite3_reset(_sth);
-            _last_error = sqlite3_errstr(rc);
+            _last_error = build_errstr("statement execution failure", rc, _sth);
             break;
         }
     }
+
+    if (rc != SQLITE_ROW)
+        sqlite3_reset(_sth);
 
     return ret;
 }
@@ -96,7 +93,7 @@ bool statement::bind_helper (std::string const & placeholder
         int rc = bind_wrapper(index);
 
         if (SQLITE_OK != rc) {
-            _last_error = sqlite3_errstr(rc);
+            _last_error = build_errstr("bind failure", rc, _sth);
             return false;
         }
     }
