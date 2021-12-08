@@ -30,26 +30,29 @@ public:
         static_cast<Impl*>(this)->clear_impl();
     }
 
-    template <typename T, bool = std::is_arithmetic<T>::value>
-    bool bind (std::string const & placeholder, T value)
+    template <typename T>
+    inline typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
+    bind (std::string const & placeholder, T value)
     {
         return static_cast<Impl*>(this)->bind_impl(placeholder, value);
     }
 
-    template <typename T, bool = std::is_same<std::string, T>::value>
-    bool bind (std::string const & placeholder, std::string const & value)
+    inline bool bind (std::string const & placeholder, std::string const & value)
     {
         return static_cast<Impl*>(this)->bind_impl(placeholder, value);
     }
 
-    template <typename T, bool = std::is_same<char const *, T>::value>
-    bool bind (std::string const & placeholder, char const * value)
+    inline bool bind (std::string const & placeholder, char const * value, std::size_t len)
     {
-        return static_cast<Impl*>(this)->bind_impl(placeholder, value);
+        return static_cast<Impl*>(this)->bind_impl(placeholder, value, len);
     }
 
-    template <typename T, bool = std::is_same<std::vector<std::uint8_t>, T>::value>
-    bool bind (std::string const & placeholder, std::vector<std::uint8_t> const & value)
+    inline bool bind (std::string const & placeholder, char const * value)
+    {
+        return static_cast<Impl*>(this)->bind_impl(placeholder, value, std::strlen(value));
+    }
+
+    inline bool bind (std::string const & placeholder, std::vector<std::uint8_t> const & value)
     {
         return static_cast<Impl*>(this)->bind_impl(placeholder, value);
     }

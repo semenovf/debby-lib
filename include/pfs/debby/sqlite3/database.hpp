@@ -19,16 +19,21 @@ namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-PFS_DEBBY__EXPORT class database: public relational_database<database>
+struct database_traits
+{
+    using statement_type = statement;
+};
+
+PFS_DEBBY__EXPORT class database: public relational_database<database, database_traits>
 {
     friend class basic_database<database>;
-    friend class relational_database<database>;
-    using statement_type = statement;
+    friend class relational_database<database, database_traits>;
 
 private:
-    using base_class  = relational_database<database>;
-    using native_type = struct sqlite3 *;
-    using cache_type  = std::unordered_map<std::string, statement_type::native_type>;
+    using base_class     = relational_database<database, database_traits>;
+    using native_type    = struct sqlite3 *;
+    using statement_type = database_traits::statement_type;
+    using cache_type     = std::unordered_map<std::string, statement_type::native_type>;
 
 private:
     native_type _dbh {nullptr};
@@ -81,11 +86,6 @@ public:
         _dbh = other._dbh;
         other._dbh = nullptr;
         return *this;
-    }
-
-    statement_type prepare (std::string const & sql, bool cache = true)
-    {
-        return /*static_cast<Impl*>(this)->*/prepare_impl(sql, cache);
     }
 };
 

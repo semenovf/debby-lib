@@ -185,20 +185,10 @@ bool statement::bind_impl (std::string const & placeholder, double value)
     });
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::string const & value)
+bool statement::bind_impl (std::string const & placeholder, char const * value, std::size_t len)
 {
-    char const * text = value.c_str();
-    int len = static_cast<int>(value.size());
-
-    return bind_helper(placeholder, [this, text, len] (int index) {
-        return sqlite3_bind_text(_sth, index, text, len, SQLITE_TRANSIENT);
-    });
-}
-
-bool statement::bind_impl (std::string const & placeholder, char const * value)
-{
-    return bind_helper(placeholder, [this, value] (int index) {
-        return sqlite3_bind_text(_sth, index, value, std::strlen(value), SQLITE_STATIC);
+    return bind_helper(placeholder, [this, value, len] (int index) {
+        return sqlite3_bind_text(_sth, index, value, static_cast<int>(len), SQLITE_TRANSIENT);
     });
 }
 
@@ -206,7 +196,7 @@ bool statement::bind_impl (std::string const & placeholder, std::vector<std::uin
 {
     if (value.size() > std::numeric_limits<int>::max()) {
         auto data = value.data();
-        sqlite3_uint64 len = static_cast<int>(value.size());
+        sqlite3_uint64 len = value.size();
 
         return bind_helper(placeholder, [this, data, len] (int index) {
             return sqlite3_bind_blob64(_sth, index, data, len, SQLITE_TRANSIENT);

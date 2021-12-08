@@ -14,9 +14,11 @@
 namespace pfs {
 namespace debby {
 
-template <typename Impl>
+template <typename Impl, typename Traits>
 class relational_database : public basic_database<Impl>
 {
+    using statement_type = typename Traits::statement_type;
+
 public:
     bool query (std::string const & sql)
     {
@@ -52,6 +54,11 @@ public:
     bool exists (std::string const & name)
     {
         return static_cast<Impl *>(this)->exists_impl(name);
+    }
+
+    statement_type prepare (std::string const & sql, bool cache = true)
+    {
+        return static_cast<Impl*>(this)->prepare_impl(sql, cache);
     }
 };
 

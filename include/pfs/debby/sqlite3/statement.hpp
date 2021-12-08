@@ -58,9 +58,13 @@ private:
     bool bind_impl (std::string const & placeholder, std::uint64_t value);
     bool bind_impl (std::string const & placeholder, float value);
     bool bind_impl (std::string const & placeholder, double value);
-    bool bind_impl (std::string const & placeholder, std::string const & value);
-    bool bind_impl (std::string const & placeholder, char const * value);
+    bool bind_impl (std::string const & placeholder, char const * value, std::size_t len);
     bool bind_impl (std::string const & placeholder, std::vector<std::uint8_t> const & value);
+
+    inline bool bind_impl (std::string const & placeholder, std::string const & value)
+    {
+        return bind_impl(placeholder, value.data(), value.size());
+    }
 
 public:
     statement () {}
