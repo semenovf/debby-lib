@@ -37,14 +37,6 @@ public:
     {
         return static_cast<Impl const *>(this)->is_opened_impl();
     }
-
-    /**
-     * Drop database (delete all tables)
-     */
-    bool clear ()
-    {
-        return static_cast<Impl *>(this)->clear_impl();
-    }
 };
 
 }} // namespace pfs::debby

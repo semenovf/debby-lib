@@ -21,6 +21,7 @@ namespace {
 
 std::string ALREADY_OPEN_ERROR {"database is already open"};
 std::string OPEN_ERROR         {"create/open database failure `{}`: {}"};
+std::string NOT_OPEN_ERROR     {"database not open"};
 
 } // namespace
 
@@ -87,8 +88,7 @@ PFS_DEBBY__EXPORT bool database::write (key_type const & key
     return false;
 }
 
-PFS_DEBBY__EXPORT database::expected_type<std::string, bool>
-database::read (key_type const & key)
+PFS_DEBBY__EXPORT expected<std::string, bool> database::read (key_type const & key)
 {
     std::string s;
     auto status = _dbh->Get(::rocksdb::ReadOptions(), key, & s);
@@ -105,31 +105,5 @@ database::read (key_type const & key)
 
     return s;
 }
-
-// PFS_DEBBY__EXPORT bool database::clear_impl ()
-// {
-//     if (!_dbh) {
-//         _last_error = NOT_OPEN_ERROR;
-//         return false;
-//     }
-//
-//     auto list = tables_impl(std::string{});
-//     auto success = query("PRAGMA foreign_keys = OFF");
-//
-//     if (!success)
-//         return false;
-//
-//     for (auto const & t: list) {
-//         auto sql = fmt::format("DROP TABLE IF EXISTS `{}`", t);
-//         success = query(sql);
-//
-//         if (!success)
-//             break;
-//     }
-//
-//     success = query("PRAGMA foreign_keys = ON") && success;
-//
-//     return success;
-// }
 
 }}} // namespace pfs::debby::rocksdb

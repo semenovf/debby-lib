@@ -8,6 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "pfs/expected.hpp"
+#include "pfs/fmt.hpp"
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/keyvalue_database.hpp"
 #include <string>
@@ -39,9 +40,6 @@ private:
     using base_class  = keyvalue_database<database, database_traits>;
     using native_type = ::rocksdb::DB *;
 
-    template <typename T, typename E>
-    using expected_type = expected<T, E>;
-
     template <typename T>
     union fixed_packer
     {
@@ -54,21 +52,6 @@ private:
     std::string _last_error;
 
 private:
-    template <typename T>
-    inline T unpack_fixed (char const * s, std::size_t count, bool & ok)
-    {
-        ok = true;
-
-        if (sizeof(T) != count) {
-            ok = false;
-            return T{};
-        }
-
-        fixed_packer<T> p;
-        std::memcpy(p.bytes, s, count);
-        return p.value;
-    }
-
     std::string last_error_impl () const noexcept
     {
         return _last_error;
@@ -82,23 +65,12 @@ private:
         return _dbh != nullptr;
     }
 
-//     bool clear_impl ();
-
     bool write (key_type const & key, char const * data, std::size_t len);
+    expected<std::string, bool> read (key_type const & key);
 
-    /**
-     * Read value by @a key.
-     *
-     * @return One of this values:
-     *      - expected value if @a key contains any valid value;
-     *      - unexpected value @c false if value not found by @a key;
-     *      - unexpected value @c true if an error occurred while searching
-     *        value by @a key.
-     */
-    expected_type<std::string, bool> read (key_type const & key);
-
-    template <typename T, bool = std::is_arithmetic<T>::value>
-    inline bool set_impl (key_type const & key, T value)
+    template <typename T>
+    typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
+    set_impl (key_type const & key, T value)
     {
         fixed_packer<T> p;
         p.value = value;
@@ -113,6 +85,37 @@ private:
     inline bool set_impl (key_type const & key, char const * value, std::size_t len)
     {
         return write(key, value, len);
+    }
+
+    template <typename T>
+    typename std::enable_if<std::is_arithmetic<T>::value, expected<T, bool>>::type
+    get_impl (key_type const & key)
+    {
+        auto res = read(key);
+
+        if (res) {
+            if (sizeof(T) != res->size()) {
+                _last_error = fmt::format("unsuitable value stored by key: `{}`");
+                return make_unexpected(true);
+            }
+        } else {
+            if (res.error()) {
+                return make_unexpected(true);
+            } else {
+                return make_unexpected(false);
+            }
+        }
+
+        fixed_packer<T> p;
+        std::memcpy(p.bytes, res->data(), res->size());
+        return p.value;
+    }
+
+    template <typename T>
+    typename std::enable_if<std::is_same<std::string, T>::value, expected<T, bool>>::type
+    get_impl (key_type const & key)
+    {
+        return read(key);
     }
 
 public:

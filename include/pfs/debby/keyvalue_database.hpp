@@ -43,6 +43,20 @@ public:
         return static_cast<Impl*>(this)->set_impl(key, value, std::strlen(value));
     }
 
+    /**
+     * Read value by @a key.
+     *
+     * @return One of this values:
+     *      - expected value if @a key contains any valid value;
+     *      - unexpected value @c false if value not found by @a key;
+     *      - unexpected value @c true if an error occurred while searching
+     *        value by @a key.
+     */
+    template <typename T>
+    expected<T, bool> get (key_type const & key)
+    {
+        return static_cast<Impl*>(this)->template get_impl<T>(key);
+    }
 };
 
 }} // namespace pfs::debby

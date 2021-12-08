@@ -20,6 +20,14 @@ class relational_database : public basic_database<Impl>
     using statement_type = typename Traits::statement_type;
 
 public:
+    /**
+     * Drop database (delete all tables)
+     */
+    bool clear ()
+    {
+        return static_cast<Impl *>(this)->clear_impl();
+    }
+
     bool query (std::string const & sql)
     {
         return static_cast<Impl *>(this)->query_impl(sql);
