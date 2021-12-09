@@ -56,6 +56,11 @@ public:
     {
         return static_cast<Impl*>(this)->bind_impl(placeholder, value);
     }
+
+    inline bool bind (std::string const & placeholder, std::nullptr_t value)
+    {
+        return static_cast<Impl*>(this)->bind_impl(placeholder, value);
+    }
 };
 
 }} // namespace pfs::debby

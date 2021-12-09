@@ -9,6 +9,20 @@ project(debby-lib CXX C)
 option(PFS_DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` library" ON)
 option(PFS_DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` library" OFF)
 
+if (NOT TARGET pfs::common)
+    portable_target(INCLUDE_PROJECT
+        ${CMAKE_CURRENT_LIST_DIR}/3rdparty/pfs/common/library.cmake)
+endif()
+
+if (PFS_DEBBY__ENABLE_ROCKSDB)
+    if (NOT PFS_DEBBY__ROCKSDB_ROOT)
+        set(PFS_DEBBY__ROCKSDB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb" CACHE INTERNAL "")
+    endif()
+
+    portable_target(INCLUDE_PROJECT
+        ${CMAKE_CURRENT_LIST_DIR}/cmake/RocksDB.cmake)
+endif()
+
 portable_target(LIBRARY ${PROJECT_NAME} ALIAS pfs::debby)
 portable_target(INCLUDE_DIRS ${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 portable_target(LINK ${PROJECT_NAME} PUBLIC pfs::common)
@@ -25,24 +39,11 @@ if (PFS_DEBBY__ENABLE_SQLITE3)
     message(STATUS "`sqlite3` enabled")
 endif()
 
-# Set default `rocksdb` root path
-if (PFS_DEBBY__ENABLE_ROCKSDB AND NOT PFS_ROCKSDB__ROOT)
-    set(PFS_ROCKSDB__ROOT "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb")
-endif()
-
 if (PFS_DEBBY__ENABLE_ROCKSDB)
-    include(FindRocksDB)
+    portable_target(SOURCES ${PROJECT_NAME}
+        ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
+    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "-DPFS_DEBBY__ROCKSDB_ENABLED=1")
+    portable_target(LINK ${PROJECT_NAME} PRIVATE rocksdb)
 
-    if (PFS_ROCKSDB__STATIC_LIBRARY)
-        portable_target(SOURCES ${PROJECT_NAME}
-            ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
-        portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "-DPFS_DEBBY__ROCKSDB_ENABLED=1")
-        portable_target(LINK ${PROJECT_NAME} PRIVATE ${PFS_ROCKSDB__STATIC_LIBRARY})
-
-        if (PFS_ROCKSDB__INCLUDE_DIR)
-            portable_target(INCLUDE_DIRS ${PROJECT_NAME} PRIVATE ${PFS_ROCKSDB__INCLUDE_DIR})
-        endif()
-
-        message(STATUS "`RocksDB` enabled")
-    endif()
+    message(STATUS "`RocksDB` enabled")
 endif()

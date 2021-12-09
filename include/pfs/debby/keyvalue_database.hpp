@@ -57,6 +57,11 @@ public:
     {
         return static_cast<Impl*>(this)->template get_impl<T>(key);
     }
+
+    bool remove (key_type const & key)
+    {
+        return static_cast<Impl*>(this)->remove_impl(key);
+    }
 };
 
 }} // namespace pfs::debby

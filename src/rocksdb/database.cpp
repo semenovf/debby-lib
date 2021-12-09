@@ -22,6 +22,9 @@ namespace {
 std::string ALREADY_OPEN_ERROR {"database is already open"};
 std::string OPEN_ERROR         {"create/open database failure `{}`: {}"};
 std::string NOT_OPEN_ERROR     {"database not open"};
+std::string WRITE_ERROR        {"failed to store value by key `{}`: {}"};
+std::string READ_ERROR         {"failed to fetch value by key `{}`: {}"};
+std::string REMOVE_ERROR       {"failed to remove value by key `{}`: {}"};
 
 } // namespace
 
@@ -76,14 +79,17 @@ PFS_DEBBY__EXPORT void database::close_impl ()
 PFS_DEBBY__EXPORT bool database::write (key_type const & key
     , char const * data, std::size_t len)
 {
-    auto status = _dbh->Put(::rocksdb::WriteOptions(), key, ::rocksdb::Slice(data, len));
+    // Attempt to write `null` data interpreted as delete operation for key
+    if (data) {
+        auto status = _dbh->Put(::rocksdb::WriteOptions(), key, ::rocksdb::Slice(data, len));
 
-    if (status.ok())
-        return true;
+        if (status.ok())
+            return true;
 
-    _last_error = fmt::format("failed to store value by key `{}': {}"
-        , key
-        , status.ToString());
+        _last_error = fmt::format(WRITE_ERROR, key, status.ToString());
+    } else {
+        return remove_impl(key);
+    }
 
     return false;
 }
@@ -97,13 +103,26 @@ PFS_DEBBY__EXPORT expected<std::string, bool> database::read (key_type const & k
         if (status.IsNotFound()) {
             return make_unexpected(false);
         } else {
-            _last_error = fmt::format("failed to fetch value by key `{}': {}"
-                , key, status.ToString());
+            _last_error = fmt::format(READ_ERROR, key, status.ToString());
             return make_unexpected(true);
         }
     }
 
     return s;
+}
+
+PFS_DEBBY__EXPORT bool database::remove_impl (key_type const & key)
+{
+    auto status = _dbh->SingleDelete(::rocksdb::WriteOptions(), key);
+
+    if (!status.ok()) {
+        if (!status.IsNotFound()) {
+            _last_error = fmt::format(REMOVE_ERROR, key, status.ToString());
+            return false;
+        }
+    }
+
+    return true;
 }
 
 }}} // namespace pfs::debby::rocksdb

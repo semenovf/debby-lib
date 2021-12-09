@@ -59,6 +59,9 @@ TEST_CASE("rocksdb_database") {
     CHECK(*db.get<std::string>("text") == std::string{"Hello"});
     CHECK(db.get<std::string>("empty")->empty());
 
+    CHECK(db.remove("text"));
+    CHECK(db.get<std::string>("text").error() == false);
+
     db.close();
     REQUIRE_FALSE(db.is_opened());
 }

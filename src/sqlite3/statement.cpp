@@ -187,9 +187,13 @@ bool statement::bind_impl (std::string const & placeholder, double value)
 
 bool statement::bind_impl (std::string const & placeholder, char const * value, std::size_t len)
 {
-    return bind_helper(placeholder, [this, value, len] (int index) {
-        return sqlite3_bind_text(_sth, index, value, static_cast<int>(len), SQLITE_TRANSIENT);
-    });
+    if (value == nullptr) {
+        return bind_impl(placeholder, nullptr);
+    } else {
+        return bind_helper(placeholder, [this, value, len] (int index) {
+            return sqlite3_bind_text(_sth, index, value, static_cast<int>(len), SQLITE_TRANSIENT);
+        });
+    }
 }
 
 bool statement::bind_impl (std::string const & placeholder, std::vector<std::uint8_t> const & value)

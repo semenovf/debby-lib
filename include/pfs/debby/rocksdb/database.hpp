@@ -118,6 +118,8 @@ private:
         return read(key);
     }
 
+    bool remove_impl (key_type const & key);
+
 public:
     database () {}
 
