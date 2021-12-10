@@ -5,22 +5,14 @@
 #
 # Changelog:
 #      2021.11.24 Initial version.
+#      2021.12.10 Refactored for using portable_target `ADD_TEST`.
 ################################################################################
 project(debby-lib-TESTS CXX C)
-
-if (PFS_DEBBY__ENABLE_COVERAGE)
-    message(STATUS "Coverage feature enabled")
-    if (NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-        message(FATAL_ERROR "Coverage feature requires GCC")
-    endif()
-
-    set(CMAKE_CXX_FLAGS "-g -O0 --coverage")
-    set(CMAKE_C_FLAGS "-g -O0 --coverage")
-endif()
 
 list(APPEND TEST_NAMES
     database
     cached_statement
+    sqlite3_affinity
     statement)
 
 if (PFS_DEBBY__ENABLE_ROCKSDB)
@@ -28,28 +20,8 @@ if (PFS_DEBBY__ENABLE_ROCKSDB)
 endif()
 
 foreach (name ${TEST_NAMES})
-    if (${name}_SOURCES)
-        add_executable(${name} ${${name}_SOURCES} ${name}.cpp)
-    else ()
-        add_executable(${name} ${name}.cpp)
-    endif()
-
-    # https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html#Instrumentation-Options
-    #
-    # --coverage
-    #       This option is used to compile and link code instrumented for
-    #       coverage analysis. The option is a synonym for -fprofile-arcs
-    #       -ftest-coverage (when compiling) and -lgcov (when linking).
-    if (PFS_DEBBY__ENABLE_COVERAGE)
-        target_compile_options(${name} PRIVATE -g -O0 --coverage)
-        target_link_libraries(${name} PRIVATE -g -O0 --coverage)
-    endif()
-
-    target_link_libraries(${name} PRIVATE pfs::debby)
-    add_test(NAME ${name} COMMAND ${name})
+    portable_target(ADD_TEST ${name}
+        PFS_DEBBY__ENABLE_COVERAGE ${PFS_DEBBY__ENABLE_COVERAGE}
+        SOURCES ${name}.cpp ${${name}_SOURCES}
+        LINK pfs::debby)
 endforeach()
-
-if (PFS_DEBBY__ENABLE_COVERAGE)
-    include(${CMAKE_SOURCE_DIR}/cmake/Coverage.cmake)
-    coverage_target("'/usr/*';'*/doctest.h'")
-endif()
