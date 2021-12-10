@@ -29,7 +29,7 @@ struct cast_traits<NativeType, typename std::enable_if<
         return static_cast<storage_type>(value);
     }
 
-    static NativeType to_native (storage_type const & value)
+    static optional<NativeType> to_native (storage_type const & value)
     {
         return static_cast<NativeType>(value);
     }
@@ -46,7 +46,7 @@ struct cast_traits<NativeType, typename std::enable_if<
         return value;
     }
 
-    static NativeType to_native (storage_type const & value)
+    static optional<NativeType> to_native (storage_type const & value)
     {
         return value;
     }
