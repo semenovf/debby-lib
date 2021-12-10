@@ -8,43 +8,52 @@
 ////////////////////////////////////////////////////////////////////////////////
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
-#include "pfs/debby/sqlite3/affinity.hpp"
+#include "pfs/string_view.hpp"
+#include "pfs/debby/sqlite3/affinity_traits.hpp"
 
 using namespace pfs::debby::sqlite3;
 
 template <typename IntegralT>
 void test_integral_type ()
 {
-    CHECK(std::is_same<int, typename affinity<IntegralT>::storage_type>::value);
-    CHECK(std::is_same<int, typename affinity<IntegralT const>::storage_type>::value);
-    CHECK(std::is_same<int, typename affinity<IntegralT const &>::storage_type>::value);
+    CHECK(std::is_same<int, typename affinity_traits<IntegralT>::storage_type>::value);
+    CHECK(std::is_same<int, typename affinity_traits<IntegralT const>::storage_type>::value);
+    CHECK(std::is_same<int, typename affinity_traits<IntegralT const &>::storage_type>::value);
 
     // Compile error (it should be )
     //CHECK(std::is_same<int, typename affinity<IntegralT const *>::storage_type>::value);
+
+    CHECK(affinity_traits<IntegralT const &>::name() == "INTEGER");
 }
 
 template <typename IntegralT>
 void test_integral64_type ()
 {
-    CHECK(std::is_same<std::int64_t, typename affinity<IntegralT>::storage_type>::value);
-    CHECK(std::is_same<std::int64_t, typename affinity<IntegralT const>::storage_type>::value);
-    CHECK(std::is_same<std::int64_t, typename affinity<IntegralT const &>::storage_type>::value);
+    CHECK(std::is_same<std::int64_t, typename affinity_traits<IntegralT>::storage_type>::value);
+    CHECK(std::is_same<std::int64_t, typename affinity_traits<IntegralT const>::storage_type>::value);
+    CHECK(std::is_same<std::int64_t, typename affinity_traits<IntegralT const &>::storage_type>::value);
+
+    CHECK(affinity_traits<IntegralT const &>::name() == "INTEGER");
 }
 
 template <typename IntegralT>
 void test_floating_type ()
 {
-    CHECK(std::is_same<double, typename affinity<IntegralT>::storage_type>::value);
-    CHECK(std::is_same<double, typename affinity<IntegralT const>::storage_type>::value);
-    CHECK(std::is_same<double, typename affinity<IntegralT const &>::storage_type>::value);
+    CHECK(std::is_same<double, typename affinity_traits<IntegralT>::storage_type>::value);
+    CHECK(std::is_same<double, typename affinity_traits<IntegralT const>::storage_type>::value);
+    CHECK(std::is_same<double, typename affinity_traits<IntegralT const &>::storage_type>::value);
+
+    CHECK(affinity_traits<IntegralT const &>::name() == "REAL");
 }
 
 template <typename IntegralT>
 void test_string_type ()
 {
-    CHECK(std::is_same<std::string, typename affinity<IntegralT>::storage_type>::value);
-    CHECK(std::is_same<std::string, typename affinity<IntegralT const>::storage_type>::value);
-    CHECK(std::is_same<std::string, typename affinity<IntegralT const &>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<IntegralT>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<IntegralT const>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<IntegralT const &>::storage_type>::value);
+
+    CHECK(affinity_traits<IntegralT const &>::name() == "TEXT");
 }
 
 TEST_CASE("sqlite3 affinity") {
@@ -63,5 +72,6 @@ TEST_CASE("sqlite3 affinity") {
     test_floating_type<double>();
 
     test_string_type<std::string>();
+    test_string_type<pfs::string_view>();
 }
 
