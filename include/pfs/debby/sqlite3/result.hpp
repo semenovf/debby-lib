@@ -8,6 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "pfs/optional.hpp"
+#include "pfs/string_view.hpp"
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/basic_result.hpp"
 #include <string>
@@ -44,7 +45,7 @@ private:
     handle_type _sth {nullptr};
     status _state {INITIAL};
     std::string _last_error;
-    std::unordered_map<std::string, int> _column_mapping;
+    std::unordered_map<string_view, int> _column_mapping;
 
 private:
     result () {}
@@ -76,9 +77,9 @@ private:
 
     void next_impl ();
     int column_count_impl () const;
-    std::string column_name_impl (int column) const;
+    string_view column_name_impl (int column) const;
     optional<value_type> fetch_impl (int column);
-    optional<value_type> fetch_impl (std::string const & name);
+    optional<value_type> fetch_impl (string_view name);
 
 public:
     ~result () {};

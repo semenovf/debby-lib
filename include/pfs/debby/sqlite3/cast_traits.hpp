@@ -67,6 +67,19 @@ struct cast_traits<NativeType, typename std::enable_if<
     // static NativeType to_native (storage_type const & value)
 };
 
+template <typename NativeType>
+struct cast_traits<optional<NativeType>, void>: cast_traits<NativeType> {};
+
+template <typename NativeType>
+inline typename affinity_traits<NativeType>::storage_type to_storage (NativeType const & value)
+{
+    return cast_traits<NativeType>::to_storage(value);
+}
+
+template <typename NativeType>
+inline optional<NativeType> to_native (typename affinity_traits<NativeType>::storage_type const & value)
+{
+    return cast_traits<NativeType>::to_native(value);
+}
+
 }}} // namespace pfs::debby::sqlite3
-
-

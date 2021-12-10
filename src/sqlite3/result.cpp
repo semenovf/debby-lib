@@ -61,13 +61,13 @@ PFS_DEBBY__EXPORT int result::column_count_impl () const
     return sqlite3_column_count(_sth);
 }
 
-PFS_DEBBY__EXPORT std::string result::column_name_impl (int column) const
+PFS_DEBBY__EXPORT string_view result::column_name_impl (int column) const
 {
     assert(_sth);
-    std::string name;
+    string_view name;
 
     if (column >= 0 && column < sqlite3_column_count(_sth)) {
-        name = std::string {sqlite3_column_name(_sth, column)};
+        name = string_view {sqlite3_column_name(_sth, column)};
     }
 
     return name;
@@ -122,7 +122,7 @@ PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (int column)
     return optional<result::value_type>{};
 }
 
-PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (std::string const & name)
+PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (string_view name)
 {
     assert(_sth);
 
@@ -130,7 +130,7 @@ PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (std::string c
         auto count = sqlite3_column_count(_sth);
 
         for (int i = 0; i < count; i++)
-            _column_mapping.insert({sqlite3_column_name(_sth, i), i});
+            _column_mapping.insert({string_view{sqlite3_column_name(_sth, i)}, i});
     }
 
     auto pos = _column_mapping.find(name);

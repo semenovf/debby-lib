@@ -9,6 +9,7 @@
 #pragma once
 #include "pfs/type_traits.hpp"
 #include "pfs/string_view.hpp"
+#include "pfs/optional.hpp"
 #include <cstdint>
 #include <string>
 
@@ -76,6 +77,9 @@ struct affinity_traits<NativeType, typename std::enable_if<
     std::is_same<pfs::remove_cvref_t<NativeType>, pfs::string_view>::value, void>::type>
     : text_affinity_traits
 {};
+
+template <typename NativeType>
+struct affinity_traits<optional<NativeType>, void>: affinity_traits<NativeType> {};
 
 }}} // namespace pfs::debby::sqlite3
 

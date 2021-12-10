@@ -9,6 +9,7 @@
 #pragma once
 #include "pfs/optional.hpp"
 #include "pfs/expected.hpp"
+#include "pfs/string_view.hpp"
 #include "pfs/variant.hpp"
 #include <string>
 #include <type_traits>
@@ -110,9 +111,14 @@ public:
         return static_cast<Impl*>(this)->fetch_impl(column);
     }
 
-    inline optional<value_type> fetch (std::string const & name)
+    inline optional<value_type> fetch (string_view const & name)
     {
         return static_cast<Impl*>(this)->fetch_impl(name);
+    }
+
+    inline optional<value_type> fetch (std::string const & name)
+    {
+        return static_cast<Impl*>(this)->fetch_impl(string_view{name});
     }
 
     /**
@@ -125,7 +131,7 @@ public:
      *        or contains value of unexpected type.
      */
     template <typename T>
-    expected_type<T, bool> get (std::string const & name)
+    expected_type<T, bool> get (string_view name)
     {
         auto opt = fetch(name);
 
@@ -139,6 +145,12 @@ public:
         }
 
         return make_unexpected(true);
+    }
+
+    template <typename T>
+    expected_type<T, bool> get (std::string const & name)
+    {
+        return this->get<T>(string_view{name});
     }
 
     /**
