@@ -229,6 +229,31 @@ TEST_CASE("statement") {
                 CHECK(s == "Hello");
             }
 
+            {
+                // `null` value results false for `direct` variable
+                int n;
+                REQUIRE_FALSE(in.assign("null").to(n));
+
+                pfs::optional<int> opt;
+
+                // `null` value results true for optional variable
+                REQUIRE(in.assign("null").to(opt));
+
+                REQUIRE_FALSE(opt.has_value());
+            }
+
+            {
+                // unknown column results false for `direct` variable
+                int n;
+                REQUIRE_FALSE(in.assign("unknown").to(n));
+
+                pfs::optional<int> opt;
+
+                // unknown column results false for optional variable
+                REQUIRE_FALSE(in.assign("unknown").to(opt));
+                REQUIRE_FALSE(opt.has_value());
+            }
+
             result.next();
         }
 

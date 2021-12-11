@@ -67,7 +67,7 @@ public:
                 if (opt.has_value())
                     *target = *opt;
                 else
-                    success = false;
+                    *target = nullopt;
             } else {
                 // `null` value at column
                 if (!expected_value.error()) {
@@ -88,7 +88,7 @@ public:
         template <typename NativeType>
         inline bool to (optional<NativeType> & target)
         {
-            return to<optional<NativeType>>(& target);
+            return to<NativeType>(& target);
         }
 
         template <typename NativeType>
