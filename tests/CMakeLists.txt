@@ -22,7 +22,7 @@ endif()
 
 foreach (t ${TESTS})
     portable_target(ADD_TEST ${t}
-        PFS_DEBBY__ENABLE_COVERAGE ${PFS_DEBBY__ENABLE_COVERAGE}
+        ENABLE_COVERAGE ${PFS_DEBBY__ENABLE_COVERAGE}
         SOURCES ${t}.cpp ${${t}_SOURCES}
         LINK pfs::debby)
 endforeach()
