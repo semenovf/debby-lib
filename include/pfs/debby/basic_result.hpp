@@ -101,7 +101,7 @@ public:
         return static_cast<Impl const *>(this)->column_count_impl();
     }
 
-    inline std::string column_name (int column) const
+    inline string_view column_name (int column) const
     {
         return static_cast<Impl const *>(this)->column_name_impl(column);
     }
@@ -111,14 +111,9 @@ public:
         return static_cast<Impl*>(this)->fetch_impl(column);
     }
 
-    inline optional<value_type> fetch (string_view const & name)
+    inline optional<value_type> fetch (string_view name)
     {
         return static_cast<Impl*>(this)->fetch_impl(name);
-    }
-
-    inline optional<value_type> fetch (std::string const & name)
-    {
-        return static_cast<Impl*>(this)->fetch_impl(string_view{name});
     }
 
     /**
@@ -145,12 +140,6 @@ public:
         }
 
         return make_unexpected(true);
-    }
-
-    template <typename T>
-    expected_type<T, bool> get (std::string const & name)
-    {
-        return this->get<T>(string_view{name});
     }
 
     /**

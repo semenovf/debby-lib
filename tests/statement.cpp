@@ -10,6 +10,7 @@
 #include "doctest.h"
 #include "pfs/filesystem.hpp"
 #include "pfs/fmt.hpp"
+#include "pfs/debby/sqlite3/input_record.hpp"
 #include "pfs/debby/sqlite3/database.hpp"
 #include "pfs/debby/sqlite3/statement.hpp"
 #include <cmath>
@@ -170,6 +171,63 @@ TEST_CASE("statement") {
             CHECK(std::abs(*result.get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
             CHECK(std::abs(*result.get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
             CHECK(*result.get<std::string>("text") == std::string{"Hello"});
+
+            // And using `input_record`
+            pfs::debby::sqlite3::input_record in {result};
+
+            {
+                bool b;
+                CHECK(in.assign("bool").to(b));
+                CHECK(b == true);
+            }
+
+            {
+                bool b;
+                in["bool"] >> b;
+                CHECK(b == true);
+            }
+
+            {
+                std::int8_t i8;
+                CHECK(in.assign("int8").to(i8));
+                CHECK(i8 == std::numeric_limits<std::int8_t>::min());
+            }
+
+            {
+                std::int8_t i8;
+                in["int8"] >> i8;
+                CHECK(i8 == std::numeric_limits<std::int8_t>::min());
+            }
+
+            {
+                std::uint64_t u64;
+                CHECK(in.assign("uint64").to(u64));
+                CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
+            }
+
+            {
+                std::uint64_t u64;
+                in["uint64"] >> u64;
+                CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
+            }
+
+            {
+                float f;
+                CHECK(in.assign("float").to(f));
+                CHECK(std::abs(f - static_cast<float>(3.14159)) < float{0.001});
+            }
+
+            {
+                double f;
+                in["double"] >> f;
+                CHECK(std::abs(f - static_cast<double>(3.14159)) < double{0.001});
+            }
+
+            {
+                std::string s;
+                in["text"] >> s;
+                CHECK(s == "Hello");
+            }
 
             result.next();
         }

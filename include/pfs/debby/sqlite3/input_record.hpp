@@ -80,15 +80,39 @@ public:
         }
 
         template <typename NativeType>
-        bool to (NativeType & target)
+        inline bool to (NativeType & target)
         {
             return to<NativeType>(& target);
         }
 
         template <typename NativeType>
-        bool to (optional<NativeType> & target)
+        inline bool to (optional<NativeType> & target)
         {
             return to<optional<NativeType>>(& target);
+        }
+
+        template <typename NativeType>
+        inline bool operator >> (NativeType * target)
+        {
+            return to<NativeType>(target);
+        }
+
+        template <typename NativeType>
+        inline bool operator >> (optional<NativeType> * target)
+        {
+            return to<NativeType>(target);
+        }
+
+        template <typename NativeType>
+        inline bool operator >> (NativeType & target)
+        {
+            return to<NativeType>(target);
+        }
+
+        template <typename NativeType>
+        inline bool operator >> (optional<NativeType> & target)
+        {
+            return to<NativeType>(target);
         }
     };
 
@@ -101,6 +125,14 @@ public:
     {}
 
     inline assign_wrapper assign (string_view column_name)
+    {
+        assign_wrapper aw;
+        aw._res = _res;
+        aw._column_name = column_name;
+        return aw;
+    }
+
+    inline assign_wrapper operator [] (string_view column_name)
     {
         assign_wrapper aw;
         aw._res = _res;
