@@ -30,47 +30,46 @@ std::string const CREATE_TABLE_THREE {
 namespace fs = pfs::filesystem;
 using database_t = pfs::debby::sqlite3::database;
 
-class database_wrapper
-{
-    database_t * _db {nullptr};
-
-public:
-    database_wrapper (database_t * db)
-        : _db(db)
-    {}
-
-    ~database_wrapper ()
-    {
-        auto last_error = _db->last_error();
-
-        if (!last_error.empty())
-            fmt::print(stderr, "ERROR: {}\n", last_error);
-    }
-
-    database_t * operator -> () { return _db; }
-};
+// class database_wrapper
+// {
+//     database_t * _db {nullptr};
+//
+// public:
+//     database_wrapper (database_t * db)
+//         : _db(db)
+//     {}
+//
+//     ~database_wrapper ()
+//     {
+//         auto last_error = _db->last_error();
+//
+//         if (!last_error.empty())
+//             fmt::print(stderr, "ERROR: {}\n", last_error);
+//     }
+//
+//     database_t * operator -> () { return _db; }
+// };
 
 TEST_CASE("database") {
 
     auto db_path = fs::temp_directory_path() / "debby.db";
 
     database_t db;
-    database_wrapper dbw {& db};
 
-    REQUIRE(dbw->open(db_path));
-    REQUIRE(dbw->is_opened());
-    REQUIRE(dbw->clear());
-    REQUIRE(dbw->query(CREATE_TABLE_ONE));
-    REQUIRE(dbw->query(CREATE_TABLE_TWO));
-    REQUIRE(dbw->query(CREATE_TABLE_THREE));
+    REQUIRE(db.open(db_path));
+    REQUIRE(db.is_opened());
+    REQUIRE(db.clear());
+    REQUIRE(db.query(CREATE_TABLE_ONE));
+    REQUIRE(db.query(CREATE_TABLE_TWO));
+    REQUIRE(db.query(CREATE_TABLE_THREE));
 
-    CHECK(dbw->exists("one"));
-    CHECK(dbw->exists("two"));
-    CHECK(dbw->exists("three"));
-    CHECK_FALSE(dbw->exists("four"));
+    CHECK(db.exists("one"));
+    CHECK(db.exists("two"));
+    CHECK(db.exists("three"));
+    CHECK_FALSE(db.exists("four"));
 
     {
-        auto tables = dbw->tables();
+        auto tables = db.tables();
         CHECK(std::find(tables.begin(), tables.end(), "one") != std::end(tables));
         CHECK(std::find(tables.begin(), tables.end(), "two") != std::end(tables));
         CHECK(std::find(tables.begin(), tables.end(), "three") != std::end(tables));
@@ -78,13 +77,13 @@ TEST_CASE("database") {
     }
 
     {
-        auto tables = dbw->tables("^t.*");
+        auto tables = db.tables("^t.*");
         CHECK(std::find(tables.begin(), tables.end(), "one") == std::end(tables));
         CHECK(std::find(tables.begin(), tables.end(), "two") != std::end(tables));
         CHECK(std::find(tables.begin(), tables.end(), "three") != std::end(tables));
         CHECK(std::find(tables.begin(), tables.end(), "ten") == std::end(tables));
     }
 
-    dbw->close();
-    REQUIRE_FALSE(dbw->is_opened());
+    db.close();
+    REQUIRE_FALSE(db.is_opened());
 }

@@ -80,10 +80,6 @@ TEST_CASE("statement") {
     {
         auto stmt = db.prepare(fmt::format(INSERT, TABLE_NAME));
 
-        if (!stmt) {
-            fmt::print(stderr, "ERROR: {}\n", db.last_error());
-        }
-
         REQUIRE(stmt);
 
         bool success = stmt.bind(":null", nullptr)
@@ -101,10 +97,6 @@ TEST_CASE("statement") {
             && stmt.bind(":text", std::string{"Hello"})
             && stmt.bind(":cstr", "World");
 
-        if (!success) {
-            fmt::print(stderr, "ERROR: {}\n", stmt.last_error());
-        }
-
         REQUIRE(success);
         REQUIRE(stmt);
         auto result = stmt.exec();
@@ -113,10 +105,6 @@ TEST_CASE("statement") {
 
     {
         auto stmt = db.prepare(fmt::format(SELECT_ALL, TABLE_NAME));
-
-        if (!stmt) {
-            fmt::print(stderr, "ERROR: {}\n", db.last_error());
-        }
 
         REQUIRE(stmt);
 
@@ -148,29 +136,28 @@ TEST_CASE("statement") {
         while (result.has_more()) {
             // Error for nonexistent column
             REQUIRE_FALSE(result.get<int>("unknown"));
-            CHECK(result.get<int>("unknown").error() == true);
 
             // Error or column contains `null`
             REQUIRE_FALSE(result.get<int>("null"));
 
-            // Column `null` is INTEGER but contains null value, so error() returns true
-            CHECK(result.get<int>("null").error() == false);
-
-            // It is no matter the column type if it contains `null`
-            CHECK(result.get<float>("null").error() == false);
-
-            CHECK(*result.get<bool>("bool") == true);
-            CHECK(*result.get<std::int8_t>("int8") == std::numeric_limits<std::int8_t>::min());
-            CHECK(*result.get<std::uint8_t>("uint8") == std::numeric_limits<std::uint8_t>::max());
-            CHECK(*result.get<std::int16_t>("int16") == std::numeric_limits<std::int16_t>::min());
-            CHECK(*result.get<std::uint16_t>("uint16") == std::numeric_limits<std::uint16_t>::max());
-            CHECK(*result.get<std::int32_t>("int32") == std::numeric_limits<std::int32_t>::min());
-            CHECK(*result.get<std::uint32_t>("uint32") == std::numeric_limits<std::uint32_t>::max());
-            CHECK(*result.get<std::int64_t>("int64") == std::numeric_limits<std::int64_t>::min());
-            CHECK(*result.get<std::uint64_t>("uint64") == std::numeric_limits<std::uint64_t>::max());
-            CHECK(std::abs(*result.get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
-            CHECK(std::abs(*result.get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
-            CHECK(*result.get<std::string>("text") == std::string{"Hello"});
+//             // Column `null` is INTEGER but contains null value, so error() returns true
+//             CHECK(result.get<int>("null").error() == false);
+//
+//             // It is no matter the column type if it contains `null`
+//             CHECK(result.get<float>("null").error() == false);
+//
+//             CHECK(*result.get<bool>("bool") == true);
+//             CHECK(*result.get<std::int8_t>("int8") == std::numeric_limits<std::int8_t>::min());
+//             CHECK(*result.get<std::uint8_t>("uint8") == std::numeric_limits<std::uint8_t>::max());
+//             CHECK(*result.get<std::int16_t>("int16") == std::numeric_limits<std::int16_t>::min());
+//             CHECK(*result.get<std::uint16_t>("uint16") == std::numeric_limits<std::uint16_t>::max());
+//             CHECK(*result.get<std::int32_t>("int32") == std::numeric_limits<std::int32_t>::min());
+//             CHECK(*result.get<std::uint32_t>("uint32") == std::numeric_limits<std::uint32_t>::max());
+//             CHECK(*result.get<std::int64_t>("int64") == std::numeric_limits<std::int64_t>::min());
+//             CHECK(*result.get<std::uint64_t>("uint64") == std::numeric_limits<std::uint64_t>::max());
+//             CHECK(std::abs(*result.get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
+//             CHECK(std::abs(*result.get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
+//             CHECK(*result.get<std::string>("text") == std::string{"Hello"});
 
             // And using `input_record`
             pfs::debby::sqlite3::input_record in {result};
@@ -264,17 +251,9 @@ TEST_CASE("statement") {
         for (int i = 0; i < 2; i++) {
             auto stmt = db.prepare(fmt::format(SELECT, TABLE_NAME), true);
 
-            if (!stmt) {
-                fmt::print(stderr, "ERROR: {}\n", db.last_error());
-            }
-
             REQUIRE(stmt);
 
             bool success = stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
-
-            if (!success) {
-                fmt::print(stderr, "ERROR: {}\n", stmt.last_error());
-            }
 
             REQUIRE(success);
             REQUIRE(stmt);

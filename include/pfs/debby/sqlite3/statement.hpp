@@ -19,30 +19,43 @@ namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-PFS_DEBBY__EXPORT class statement: public basic_statement<statement>
+struct statement_traits
 {
-    friend class basic_statement<statement>;
+    using result_type = result;
+};
+
+PFS_DEBBY__EXPORT class statement: public basic_statement<statement, statement_traits>
+{
+    friend class basic_statement<statement, statement_traits>;
 
 public:
     using native_type = struct sqlite3_stmt *;
+    using result_type = statement_traits::result_type;
 
 private:
-    using base_class = basic_statement<statement>;
+    using base_class = basic_statement<statement, statement_traits>;
+
+private:
+    static std::string const ERROR_DOMAIN;
 
 private:
     native_type _sth {nullptr};
     bool        _cached {false};
-    std::string _last_error;
 
 private:
-    std::string last_error_impl () const noexcept
+    std::string current_sql () const noexcept;
+
+    inline bool bool_cast_impl () const noexcept
     {
-        return _last_error;
+        return _sth != nullptr;
     }
 
-    void clear_impl ();
-    result exec_impl ();
+    void clear_impl () noexcept;
 
+    // throws sql_error
+    result_type exec_impl ();
+
+    // throws sql_error
     bool bind_helper (std::string const & placeholder
         , std::function<int (int /*index*/)> && bind_wrapper);
 
@@ -67,7 +80,7 @@ private:
     }
 
 public:
-    statement () {}
+    statement () = delete;
 
     statement (native_type sth, bool cached)
         : _sth(sth)
@@ -93,16 +106,6 @@ public:
         _sth = other._sth;
         other._sth = nullptr;
         return *this;
-    }
-
-    operator bool () const noexcept
-    {
-        return _sth != nullptr;
-    }
-
-    result exec ()
-    {
-        return exec_impl();
     }
 };
 

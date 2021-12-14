@@ -7,8 +7,9 @@
 //      2021.12.07 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "pfs/expected.hpp"
 #include "pfs/fmt.hpp"
+#include "pfs/optional.hpp"
+#include "pfs/debby/error.hpp"
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/keyvalue_database.hpp"
 #include <string>
@@ -37,6 +38,9 @@ public:
     using key_type = database_traits::key_type;
 
 private:
+    static std::string const ERROR_DOMAIN;
+
+private:
     using base_class  = keyvalue_database<database, database_traits>;
     using native_type = ::rocksdb::DB *;
 
@@ -49,15 +53,11 @@ private:
 
 private:
     native_type _dbh {nullptr};
-    std::string _last_error;
 
 private:
-    std::string last_error_impl () const noexcept
-    {
-        return _last_error;
-    }
+    // throws runtime_error
+    bool open_impl (filesystem::path const & path, bool create_if_missing);
 
-    bool open_impl (filesystem::path const & path);
     void close_impl ();
 
     bool is_opened_impl () const noexcept
@@ -65,8 +65,14 @@ private:
         return _dbh != nullptr;
     }
 
+    // throws runtime_error
     bool write (key_type const & key, char const * data, std::size_t len);
-    expected<std::string, bool> read (key_type const & key);
+
+    // throws runtime_error
+    optional<std::string> read (key_type const & key);
+
+    // throws runtime_error
+    bool remove_impl (key_type const & key);
 
     template <typename T>
     typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
@@ -77,48 +83,51 @@ private:
         return write(key, p.bytes, sizeof(T));
     }
 
+    // throws runtime_error
     inline bool set_impl (key_type const & key, std::string const & value)
     {
         return write(key, value.data(), value.size());
     }
 
+    // throws runtime_error
     inline bool set_impl (key_type const & key, char const * value, std::size_t len)
     {
         return write(key, value, len);
     }
 
+    // throws runtime_error
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value, expected<T, bool>>::type
+    typename std::enable_if<std::is_arithmetic<T>::value, optional<T>>::type
     get_impl (key_type const & key)
     {
-        auto res = read(key);
+        try {
+            auto res = read(key);
 
-        if (res) {
-            if (sizeof(T) != res->size()) {
-                _last_error = fmt::format("unsuitable value stored by key: `{}`");
-                return make_unexpected(true);
+            if (res) {
+                if (sizeof(T) != res->size()) {
+                    PFS_DEBBY_THROW((runtime_error{
+                        ERROR_DOMAIN
+                        , fmt::format("unsuitable value stored by key: '{}'", key)
+                    }));
+                }
+
+                fixed_packer<T> p;
+                std::memcpy(p.bytes, res->data(), res->size());
+                return p.value;
             }
-        } else {
-            if (res.error()) {
-                return make_unexpected(true);
-            } else {
-                return make_unexpected(false);
-            }
+        } catch (...) {
+            std::rethrow_exception(std::current_exception());
         }
 
-        fixed_packer<T> p;
-        std::memcpy(p.bytes, res->data(), res->size());
-        return p.value;
+        return nullopt;
     }
 
     template <typename T>
-    typename std::enable_if<std::is_same<std::string, T>::value, expected<T, bool>>::type
+    typename std::enable_if<std::is_same<std::string, T>::value, optional<T>>::type
     get_impl (key_type const & key)
     {
         return read(key);
     }
-
-    bool remove_impl (key_type const & key);
 
 public:
     database () {}

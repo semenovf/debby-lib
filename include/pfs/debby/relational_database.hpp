@@ -21,35 +21,29 @@ class relational_database : public basic_database<Impl>
 
 public:
     /**
-     * Drop database (delete all tables)
+     * Prepares statement.
+     *
+     * @throw debby::sql_error on backend failure.
      */
-    bool clear ()
+    statement_type prepare (std::string const & sql, bool cache = true)
     {
-        return static_cast<Impl *>(this)->clear_impl();
+        return static_cast<Impl*>(this)->prepare_impl(sql, cache);
     }
 
+    /**
+     * Executes SQL query.
+     *
+     * @throw debby::sql_error on backend failure.
+     */
     bool query (std::string const & sql)
     {
         return static_cast<Impl *>(this)->query_impl(sql);
     }
 
-    bool begin ()
-    {
-        return static_cast<Impl *>(this)->begin_impl();
-    }
-
-    bool commit ()
-    {
-        return static_cast<Impl *>(this)->commit_impl();
-    }
-
-    bool rollback ()
-    {
-        return static_cast<Impl *>(this)->rollback_impl();
-    }
-
     /**
      * Lists available tables at database by pattern.
+     *
+     * @throw debby::sql_error on backend failure.
      */
     std::vector<std::string> tables (std::string const & pattern = std::string{})
     {
@@ -57,16 +51,47 @@ public:
     }
 
     /**
+     * Drops database (delete all tables).
+     *
+     * @throw debby::sql_error on backend failure.
+     */
+    bool clear ()
+    {
+        return static_cast<Impl *>(this)->clear_impl();
+    }
+
+    /**
+     * @throw debby::sql_error on backend failure.
+     */
+    bool begin ()
+    {
+        return static_cast<Impl *>(this)->begin_impl();
+    }
+
+    /**
+     * @throw debby::sql_error on backend failure.
+     */
+    bool commit ()
+    {
+        return static_cast<Impl *>(this)->commit_impl();
+    }
+
+    /**
+     * @throw debby::sql_error on backend failure.
+     */
+    bool rollback ()
+    {
+        return static_cast<Impl *>(this)->rollback_impl();
+    }
+
+    /**
      * Checks if named table exists at database.
+     *
+     * @throw debby::sql_error on backend failure.
      */
     bool exists (std::string const & name)
     {
         return static_cast<Impl *>(this)->exists_impl(name);
-    }
-
-    statement_type prepare (std::string const & sql, bool cache = true)
-    {
-        return static_cast<Impl*>(this)->prepare_impl(sql, cache);
     }
 };
 

@@ -7,8 +7,8 @@
 //      2021.11.26 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "error.hpp"
 #include "pfs/optional.hpp"
-#include "pfs/expected.hpp"
 #include "pfs/string_view.hpp"
 #include "pfs/variant.hpp"
 #include <string>
@@ -31,10 +31,7 @@ public:
         , std::string
         , blob_type>;
 
-    template <typename T, typename E>
-    using expected_type = expected<T, E>;
-
-private:
+protected:
     template <typename T>
     inline typename std::enable_if<std::is_same<T, std::nullptr_t>::value, T>::type *
     get_if_value_pointer (value_type *)
@@ -70,48 +67,67 @@ private:
         return pfs::get_if<blob_type>(v);
     }
 
-public:
-    inline std::string last_error () const noexcept
-    {
-        return static_cast<Impl const *>(this)->last_error_impl();
-    }
+protected:
+    basic_result () = default;
 
-    bool has_more () const
+public:
+    bool has_more () const noexcept
     {
         return static_cast<Impl const *>(this)->has_more_impl();
     }
 
-    inline bool is_done () const
+    inline bool is_done () const noexcept
     {
         return static_cast<Impl const *>(this)->is_done_impl();
     }
 
-    inline bool is_error () const
+    inline bool is_error () const noexcept
     {
         return static_cast<Impl const *>(this)->is_error_impl();
     }
 
+    /**
+     * Steps to next record.
+     *
+     * @throw sql_error on backend error.
+     */
     inline void next ()
     {
         static_cast<Impl*>(this)->next_impl();
     }
 
-    inline int column_count () const
+    /**
+     * Returns column count for this result.
+     */
+    inline int column_count () const noexcept
     {
         return static_cast<Impl const *>(this)->column_count_impl();
     }
 
-    inline string_view column_name (int column) const
+    /**
+     * Return column name for @a column.
+     */
+    inline string_view column_name (int column) const noexcept
     {
         return static_cast<Impl const *>(this)->column_name_impl(column);
     }
 
-    inline optional<value_type> fetch (int column)
+    /**
+     * Fetches data for specified @a column
+     *
+     * @throw invalid_argument if column is out of bounds.
+     */
+    inline value_type fetch (int column)
     {
         return static_cast<Impl*>(this)->fetch_impl(column);
     }
 
-    inline optional<value_type> fetch (string_view name)
+    /**
+     * Fetches data for specified column @a name
+     *
+     * @throw invalid_argument if column @a name is invalid.
+     */
+    inline value_type fetch (string_view name)
     {
         return static_cast<Impl*>(this)->fetch_impl(name);
     }
@@ -119,43 +135,30 @@ public:
     /**
      * Get value for specified column @a name.
      *
-     * @return One of this values:
-     *      - expected value if column @a column contains any valid value;
-     *      - unexpected value @c false if column @a column contains @c null value;
-     *      - unexpected value @c true if column @a column is out of bounds
-     *        or contains value of unexpected type.
+     * @return Requested value (inside @c optional) on success fetching and
+     *         casting to specified type,
+     *         or @c nullopt if column specified by @a name contains @c null value.
+     *
+     * @throw invalid_argument if column @a name is invalid.
+     * @throws bad_cast if unable to cast to requested type.
      */
     template <typename T>
-    expected_type<T, bool> get (string_view name)
+    inline optional<T> get (string_view name)
     {
-        auto opt = fetch(name);
-
-        if (opt.has_value()) {
-            if (!holds_alternative<std::nullptr_t>(*opt)) {
-                auto p = get_if_value_pointer<T>(& *opt);
-                return std::move(static_cast<T>(*p));
-            } else {
-                return make_unexpected(false);
-            }
-        }
-
-        return make_unexpected(true);
+        return static_cast<Impl*>(this)->template get_impl<T>(name);
     }
 
     /**
      * Get value for specified @a column.
      *
-     * @return see @link get(std::string const &) @endlink
+     * @return see @link get(string_view) @endlink
+     *
+     * @throws invalid_argument if column is out of bounds.
      */
     template <typename T>
-    inline expected_type<T, bool> get (int column)
+    inline optional<T> get (int column)
     {
-        auto name = column_name(column);
-
-        if (!name.empty())
-            return this->get<T>(name);
-
-        return make_unexpected(true);
+        return static_cast<Impl*>(this)->template get_impl<T>(column);
     }
 };
 

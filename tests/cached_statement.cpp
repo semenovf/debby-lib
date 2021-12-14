@@ -83,13 +83,7 @@ void benchmark_select_op (database_t * db, std::string const & table_name, bool 
     for (int i = 0; i < MAX_ITERATIONS; i++) {
         auto stmt = db->prepare(fmt::format(SELECT, table_name), cache);
         REQUIRE(stmt);
-
-        bool success = stmt.bind(":id", i);
-
-        if (!success)
-            fmt::print(stderr, "ERROR: {}\n", stmt.last_error());
-
-        REQUIRE(success);
+        REQUIRE_NOTHROW(stmt.bind(":id", i));
         auto result = stmt.exec();
     }
 

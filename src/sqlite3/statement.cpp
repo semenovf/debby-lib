@@ -7,7 +7,7 @@
 //      2021.11.24 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
-#include "errstr_builder.hpp"
+#include "utils.hpp"
 #include "pfs/bits/compiler.h"
 #include "pfs/fmt.hpp"
 #include "pfs/debby/sqlite3/statement.hpp"
@@ -18,7 +18,15 @@ namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-void statement::clear_impl ()
+std::string const statement::ERROR_DOMAIN {"SQLITE3"};
+
+std::string statement::current_sql () const noexcept
+{
+    assert(_sth);
+    return sqlite3::current_sql(_sth);
+}
+
+void statement::clear_impl () noexcept
 {
     if (_sth) {
         if (!_cached)
@@ -30,39 +38,46 @@ void statement::clear_impl ()
     _sth = nullptr;
 }
 
-result statement::exec_impl ()
+statement::result_type statement::exec_impl ()
 {
-    if (!_sth) {
-        _last_error = "statement not initialized";
-        return result{nullptr, result::ERROR};
-    }
+    assert(_sth);
 
+    result_type::status status {result_type::INITIAL};
     int rc = sqlite3_step(_sth);
-    result ret;
 
     switch (rc) {
         case SQLITE_ROW: {
-            ret = result{_sth, result::ROW};
+            status = result_type::ROW;
             break;
         }
 
         case SQLITE_DONE: {
-            ret = result{_sth, result::DONE};
+            status = result_type::DONE;
             break;
         }
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
-            ret = result{_sth, result::ERROR};
-            _last_error = build_errstr("statement execution failure", rc, _sth);
+            PFS_DEBBY_THROW((sql_error{
+                  ERROR_DOMAIN
+                , fmt::format("statement execution failure: {}", build_errstr(rc, _sth))
+                , current_sql()
+            }));
+
+            status = result_type::ERROR;
             break;
         }
 
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
         default: {
-            ret = result{_sth, result::ERROR};
-            _last_error = build_errstr("statement execution failure", rc, _sth);
+            PFS_DEBBY_THROW((sql_error{
+                  ERROR_DOMAIN
+                , fmt::format("statement execution failure: {}", build_errstr(rc, _sth))
+                , current_sql()
+            }));
+
+            status = result_type::ERROR;
             break;
         }
     }
@@ -70,22 +85,24 @@ result statement::exec_impl ()
     if (rc != SQLITE_ROW)
         sqlite3_reset(_sth);
 
-    return ret;
+    return result_type{_sth, status};
 }
 
 bool statement::bind_helper (std::string const & placeholder
     , std::function<int (int /*index*/)> && bind_wrapper)
 {
-    if (!_sth) {
-        _last_error = "statement not initialized";
-        return false;
-    }
+    assert(_sth);
 
     bool success = true;
     int index = sqlite3_bind_parameter_index(_sth, placeholder.c_str());
 
     if (index == 0) {
-        _last_error = fmt::format("bad bind parameter name: {}", placeholder);
+        PFS_DEBBY_THROW((sql_error{
+                ERROR_DOMAIN
+            , fmt::format("bad bind parameter name: {}", placeholder)
+            , current_sql()
+        }));
+
         success = false;
     }
 
@@ -93,8 +110,13 @@ bool statement::bind_helper (std::string const & placeholder
         int rc = bind_wrapper(index);
 
         if (SQLITE_OK != rc) {
-            _last_error = build_errstr("bind failure", rc, _sth);
-            return false;
+            PFS_DEBBY_THROW((sql_error{
+                  ERROR_DOMAIN
+                , fmt::format("bind failure: {}", build_errstr(rc, _sth))
+                , current_sql()
+            }));
+
+            success = false;
         }
     }
 

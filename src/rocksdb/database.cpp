@@ -17,21 +17,16 @@ namespace pfs {
 namespace debby {
 namespace rocksdb {
 
-namespace {
+std::string const database::ERROR_DOMAIN {"ROCKSDB"};
 
-std::string ALREADY_OPEN_ERROR {"database is already open"};
-std::string OPEN_ERROR         {"create/open database failure `{}`: {}"};
-std::string NOT_OPEN_ERROR     {"database not open"};
-std::string WRITE_ERROR        {"failed to store value by key `{}`: {}"};
-std::string READ_ERROR         {"failed to fetch value by key `{}`: {}"};
-std::string REMOVE_ERROR       {"failed to remove value by key `{}`: {}"};
-
-} // namespace
-
-PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
+bool database::open_impl (filesystem::path const & path, bool create_if_missing)
 {
     if (_dbh) {
-        _last_error = ALREADY_OPEN_ERROR;
+        PFS_DEBBY_THROW((runtime_error{
+              ERROR_DOMAIN
+            , fmt::format("database is already open: {}", path.c_str())
+        }));
+
         return false;
     }
 
@@ -48,7 +43,7 @@ PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
         options.create_if_missing = false;
     } else {
         // Create the DB if it's not already present.
-        options.create_if_missing = true;
+        options.create_if_missing = create_if_missing;
     }
 
     // Open DB.
@@ -56,7 +51,12 @@ PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
     ::rocksdb::Status status = ::rocksdb::DB::Open(options, path, & _dbh);
 
     if (!status.ok()) {
-        _last_error = fmt::format(OPEN_ERROR, path.native(), status.ToString());
+        PFS_DEBBY_THROW((runtime_error{
+              ERROR_DOMAIN
+            , fmt::format("create/open database failure: {}", path.c_str())
+            , status.ToString()
+        }));
+
         return false;
     }
 
@@ -68,7 +68,7 @@ PFS_DEBBY__EXPORT bool database::open_impl (filesystem::path const & path)
     return true;
 }
 
-PFS_DEBBY__EXPORT void database::close_impl ()
+void database::close_impl ()
 {
     if (_dbh)
         delete _dbh;
@@ -76,7 +76,7 @@ PFS_DEBBY__EXPORT void database::close_impl ()
     _dbh = nullptr;
 };
 
-PFS_DEBBY__EXPORT bool database::write (key_type const & key
+bool database::write (key_type const & key
     , char const * data, std::size_t len)
 {
     // Attempt to write `null` data interpreted as delete operation for key
@@ -86,7 +86,11 @@ PFS_DEBBY__EXPORT bool database::write (key_type const & key
         if (status.ok())
             return true;
 
-        _last_error = fmt::format(WRITE_ERROR, key, status.ToString());
+        PFS_DEBBY_THROW((runtime_error{
+              ERROR_DOMAIN
+            , fmt::format("failed to store value by key: '{}'", key)
+            , status.ToString()
+        }));
     } else {
         return remove_impl(key);
     }
@@ -94,30 +98,38 @@ PFS_DEBBY__EXPORT bool database::write (key_type const & key
     return false;
 }
 
-PFS_DEBBY__EXPORT expected<std::string, bool> database::read (key_type const & key)
+optional<std::string> database::read (key_type const & key)
 {
     std::string s;
     auto status = _dbh->Get(::rocksdb::ReadOptions(), key, & s);
 
     if (!status.ok()) {
         if (status.IsNotFound()) {
-            return make_unexpected(false);
+            return nullopt;
         } else {
-            _last_error = fmt::format(READ_ERROR, key, status.ToString());
-            return make_unexpected(true);
+            PFS_DEBBY_THROW((runtime_error{
+                ERROR_DOMAIN
+                , fmt::format("failed to fetch value by key: '{}'", key)
+                , status.ToString()
+            }));
         }
     }
 
     return s;
 }
 
-PFS_DEBBY__EXPORT bool database::remove_impl (key_type const & key)
+bool database::remove_impl (key_type const & key)
 {
     auto status = _dbh->SingleDelete(::rocksdb::WriteOptions(), key);
 
     if (!status.ok()) {
         if (!status.IsNotFound()) {
-            _last_error = fmt::format(REMOVE_ERROR, key, status.ToString());
+            PFS_DEBBY_THROW((runtime_error{
+                ERROR_DOMAIN
+                , fmt::format("failed to remove value by key '{}'", key)
+                , status.ToString()
+            }));
+
             return false;
         }
     }

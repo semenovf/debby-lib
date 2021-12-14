@@ -17,7 +17,7 @@ list(APPEND TESTS
     statement)
 
 if (PFS_DEBBY__ENABLE_ROCKSDB)
-    list(APPEND TEST_NAMES rocksdb_database)
+    list(APPEND TESTS rocksdb_database)
 endif()
 
 foreach (t ${TESTS})

@@ -7,7 +7,7 @@
 //      2021.11.24 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
-#include "errstr_builder.hpp"
+#include "utils.hpp"
 #include "pfs/fmt.hpp"
 #include "pfs/debby/sqlite3/result.hpp"
 #include <cstring>
@@ -17,13 +17,21 @@ namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-PFS_DEBBY__EXPORT void result::next_impl ()
+std::string const result::ERROR_DOMAIN {"SQLITE3"};
+
+namespace {
+    std::string UNITIALIZED_STATEMENT_ERROR {"statement not initialized"};
+} // namespace
+
+std::string result::current_sql () const noexcept
 {
-    if (!_sth) {
-        _last_error = "statement not initialized";
-        _state = ERROR;
-        return;
-    }
+    assert(_sth);
+    return sqlite3::current_sql(_sth);
+}
+
+void result::next_impl ()
+{
+    assert(_sth);
 
     auto rc = sqlite3_step(_sth);
 
@@ -38,16 +46,23 @@ PFS_DEBBY__EXPORT void result::next_impl ()
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
+            PFS_DEBBY_THROW((sql_error{
+                  ERROR_DOMAIN
+                , fmt::format("result failure: {}", build_errstr(rc, _sth))
+                , current_sql()
+            }));
             _state = ERROR;
-            _last_error = build_errstr("result failure", rc, _sth);
             break;
         }
 
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
         default:
-            _state = ERROR;
-            _last_error = build_errstr("result failure", rc, _sth);
+            PFS_DEBBY_THROW((sql_error{
+                  ERROR_DOMAIN
+                , fmt::format("result failure: {}", build_errstr(rc, _sth))
+                , current_sql()
+            }));
             break;
     }
 
@@ -55,50 +70,55 @@ PFS_DEBBY__EXPORT void result::next_impl ()
         sqlite3_reset(_sth);
 }
 
-PFS_DEBBY__EXPORT int result::column_count_impl () const
+int result::column_count_impl () const noexcept
 {
     assert(_sth);
     return sqlite3_column_count(_sth);
 }
 
-PFS_DEBBY__EXPORT string_view result::column_name_impl (int column) const
+string_view result::column_name_impl (int column) const noexcept
 {
     assert(_sth);
-    string_view name;
 
-    if (column >= 0 && column < sqlite3_column_count(_sth)) {
-        name = string_view {sqlite3_column_name(_sth, column)};
-    }
+    if (column >= 0 && column < sqlite3_column_count(_sth))
+        return string_view {sqlite3_column_name(_sth, column)};
 
-    return name;
+    return string_view{};
 }
 
-PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (int column)
+result::value_type result::fetch_impl (int column)
 {
     assert(_sth);
 
     if (column < 0 || column >= sqlite3_column_count(_sth)) {
         _state = ERROR;
-        _last_error = fmt::format("column is out of bounds: {} [0,{})"
-            , column, sqlite3_column_count(_sth));
-        return optional<result::value_type>{};
+
+        PFS_DEBBY_THROW((invalid_argument{
+              ERROR_DOMAIN
+            , fmt::format("bad column index: {}", column)
+            , current_sql()
+        }));
+
+        return result::value_type{};
     }
 
-    switch (sqlite3_column_type(_sth, column)) {
+    auto column_type = sqlite3_column_type(_sth, column);
+
+    switch (column_type) {
         case SQLITE_INTEGER: {
             sqlite3_int64 n = sqlite3_column_int64(_sth, column);
-            return optional<result::value_type>{static_cast<std::intmax_t>(n)};
+            return result::value_type{static_cast<std::intmax_t>(n)};
         }
 
         case SQLITE_FLOAT: {
             double f = sqlite3_column_double(_sth, column);
-            return optional<result::value_type>{f};
+            return result::value_type{f};
         }
 
         case SQLITE_TEXT: {
             auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(_sth, column));
             int size = sqlite3_column_bytes(_sth, column);
-            return optional<result::value_type>{std::string(cstr, size)};
+            return result::value_type{std::string(cstr, size)};
         }
 
         case SQLITE_BLOB: {
@@ -107,22 +127,26 @@ PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (int column)
             blob_type blob;
             blob.resize(size);
             std::memcpy(blob.data(), data, size);
-            return optional<result::value_type>{std::move(blob)};
+            return result::value_type{std::move(blob)};
         }
 
         case SQLITE_NULL:
-            return optional<result::value_type>{nullptr};
+            return result::value_type{nullptr};
 
         default:
-            assert(false); // Unexpected column type, need to handle it
+            PFS_DEBBY_THROW((unexpected_error{
+                  ERROR_DOMAIN
+                , fmt::format("unexpected column type: {}, need to handle it", column_type)
+            }));
+
             break;
     }
 
     // Unreachable in ordinary situation
-    return optional<result::value_type>{};
+    return result::value_type{}; // nullptr
 }
 
-PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (string_view name)
+result::value_type result::fetch_impl (string_view name)
 {
     assert(_sth);
 
@@ -138,8 +162,15 @@ PFS_DEBBY__EXPORT optional<result::value_type> result::fetch_impl (string_view n
     if (pos != _column_mapping.end())
         return fetch_impl(pos->second);
 
-    return optional<result::value_type>{};
+    _state = ERROR;
+
+    PFS_DEBBY_THROW((invalid_argument{
+          ERROR_DOMAIN
+        , fmt::format("column name is invalid: {}", name.to_string())
+        , current_sql()
+    }));
+
+    return result::value_type{}; // nullptr
 }
 
 }}} // namespace pfs::debby::sqlite3
-

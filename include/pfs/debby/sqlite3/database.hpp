@@ -8,10 +8,12 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "statement.hpp"
+#include "pfs/debby/error.hpp"
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/relational_database.hpp"
 #include <string>
 #include <unordered_map>
+#include <stdexcept>
 
 struct sqlite3;
 
@@ -36,17 +38,16 @@ private:
     using cache_type     = std::unordered_map<std::string, statement_type::native_type>;
 
 private:
+    static std::string const ERROR_DOMAIN;
+
+private:
     native_type _dbh {nullptr};
-    std::string _last_error;
     cache_type  _cache; // Prepared statements cache
 
 private:
-    std::string last_error_impl () const noexcept
-    {
-        return _last_error;
-    }
+    // throws bad_alloc, runtime_error
+    bool open_impl (filesystem::path const & path, bool create_if_missing);
 
-    bool open_impl (filesystem::path const & path);
     void close_impl ();
 
     bool is_opened_impl () const noexcept
@@ -54,14 +55,28 @@ private:
         return _dbh != nullptr;
     }
 
-    bool clear_impl ();
-    std::vector<std::string> tables_impl (std::string const & pattern = std::string{});
-    bool exists_impl (std::string const & name);
-    statement prepare_impl (std::string const & sql, bool cache);
+    // throws sql_error
+    statement_type prepare_impl (std::string const & sql, bool cache);
 
+    // throws sql_error
     bool query_impl (std::string const & sql);
+
+    // throws sql_error on prepearing statement failure.
+    std::vector<std::string> tables_impl (std::string const & pattern);
+
+    // throws sql_error
+    bool clear_impl ();
+
+    // throws sql_error
+    bool exists_impl (std::string const & name);
+
+    // throws sql_error
     bool begin_impl ();
+
+    // throws sql_error
     bool commit_impl ();
+
+    // throws sql_error
     bool rollback_impl ();
 
 public:

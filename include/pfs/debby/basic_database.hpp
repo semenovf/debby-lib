@@ -18,14 +18,17 @@ template <typename Impl>
 class basic_database
 {
 public:
-    std::string last_error () const noexcept
+    /**
+     * Open database specified by @a path.
+     *
+     * @return @c true on success, @c false on failure
+     *
+     * @throw pfs::bad_alloc
+     * @throw pfs::runtime_error
+     */
+    bool open (filesystem::path const & path, bool create_if_missing = false)
     {
-        return static_cast<Impl const *>(this)->last_error_impl();
-    }
-
-    bool open (filesystem::path const & path)
-    {
-        return static_cast<Impl*>(this)->open_impl(path);
+        return static_cast<Impl*>(this)->open_impl(path, create_if_missing);
     }
 
     void close ()

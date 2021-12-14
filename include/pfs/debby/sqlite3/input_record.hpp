@@ -33,24 +33,25 @@ public:
         string_view _column_name;
 
     public:
+        // throws `invalid_argument` if column name is invalid
+        // throws `bad_cast` if unable to cast to requested type
         template <typename NativeType>
         bool to (NativeType * target)
         {
             using storage_type = typename debby::sqlite3::affinity_traits<NativeType>::storage_type;
 
-            auto expected_value = _res->template get<storage_type>(_column_name);
-            bool success = !!expected_value;
+            auto opt_value = _res->template get<storage_type>(_column_name);
 
-            if (success) {
-                auto opt = to_native<NativeType>(*expected_value);
+            if (opt_value.has_value()) {
+                auto opt = to_native<NativeType>(*opt_value);
 
-                if (opt.has_value())
+                if (opt.has_value()) {
                     *target = *opt;
-                else
-                    success = false;
+                    return true;
+                }
             }
 
-            return success;
+            return false;
         }
 
         template <typename NativeType>
@@ -58,25 +59,21 @@ public:
         {
             using storage_type = typename debby::sqlite3::affinity_traits<optional<NativeType>>::storage_type;
 
-            auto expected_value = _res->template get<storage_type>(_column_name);
-            bool success = !!expected_value;
+            auto opt_value = _res->template get<storage_type>(_column_name);
 
-            if (success) {
-                auto opt = debby::sqlite3::to_native<optional<NativeType>>(*expected_value);
+            if (opt_value.has_value()) {
+                auto opt = to_native<NativeType>(*opt_value);
 
-                if (opt.has_value())
+                if (opt.has_value()) {
                     *target = *opt;
-                else
-                    *target = nullopt;
-            } else {
-                // `null` value at column
-                if (!expected_value.error()) {
-                    *target = nullopt;
-                    success = true;
+                    return true;
                 }
+            } else {
+                *target = nullopt;
+                return true;
             }
 
-            return success;
+            return false;
         }
 
         template <typename NativeType>
