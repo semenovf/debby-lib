@@ -46,18 +46,20 @@ void result::next_impl ()
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
+            _state = ERROR;
+
             PFS_DEBBY_THROW((sql_error{
                   ERROR_DOMAIN
                 , fmt::format("result failure: {}", build_errstr(rc, _sth))
                 , current_sql()
             }));
-            _state = ERROR;
             break;
         }
 
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
         default:
+            _state = ERROR;
             PFS_DEBBY_THROW((sql_error{
                   ERROR_DOMAIN
                 , fmt::format("result failure: {}", build_errstr(rc, _sth))

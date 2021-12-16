@@ -10,11 +10,12 @@
 project(debby-lib-TESTS CXX C)
 
 list(APPEND TESTS
-    cached_statement
-    database
-    sqlite3_affinity
-    sqlite3_cast_traits
-    statement)
+#     cached_statement
+#     sqlite3_database
+#     sqlite3_affinity
+#     sqlite3_cast_traits
+#     statement
+    )
 
 if (PFS_DEBBY__ENABLE_ROCKSDB)
     list(APPEND TESTS rocksdb_database)

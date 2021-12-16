@@ -7,42 +7,99 @@
 //      2021.12.14 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "pfs/expected.hpp"
-#include "pfs/fmt.hpp"
+#include "pfs/filesystem.hpp"
+#include <functional>
 #include <string>
+#include <system_error>
 
 namespace pfs {
+namespace debby {
 
-// TODO
-// Move into common-lib is expirience will be success
+////////////////////////////////////////////////////////////////////////////////
+// Error codes, category, exception class
+////////////////////////////////////////////////////////////////////////////////
+using error_code = std::error_code;
+
+enum class errc
+{
+      success = 0
+    , backend_error  // Error from underlying subsystem
+                     // (i.e. sqlite3, RrocksDb,... specific errors)
+    , bad_alloc
+    , database_already_open
+    , database_not_found
+    , bad_value      // Bad/unsuitable value stored
+    , sql_error
+};
+
+class error_category : public std::error_category
+{
+public:
+    virtual char const * name () const noexcept override;
+    virtual std::string message (int ev) const override;
+};
+
+inline std::error_category const & get_error_category ()
+{
+    static error_category instance;
+    return instance;
+}
+
+inline std::error_code make_error_code (errc e)
+{
+    return std::error_code(static_cast<int>(e), get_error_category());
+}
 
 class exception
 {
-    std::string _domain;
+public:
+    static
+#if PFS_DEBBY__EXCEPTIONS_ENABLED
+    const
+#endif
+    std::function<void(exception &&)> failure;
+
+private:
+    std::error_code _ec;
     std::string _description;
     std::string _cause;
 
 public:
-    exception (std::string const & domain
+    exception (std::error_code ec)
+        : _ec(ec)
+    {}
+
+    exception (std::error_code ec
         , std::string const & description
         , std::string const & cause)
-        : _domain(domain)
+        : _ec(ec)
         , _description(description)
         , _cause(cause)
     {}
 
-    exception (std::string const & domain
-        , std::string const & description)
-        : exception(domain, description, std::string{})
+    exception (std::error_code ec
+        , filesystem::path const & path)
+        : _ec(ec)
+        , _description(path.c_str())
     {}
 
-    exception (std::string const & description)
-        : exception(std::string{}, description, std::string{})
+    exception (std::error_code ec
+        , filesystem::path const & path
+        , std::string const & cause)
+        : _ec(ec)
+        , _description(path.c_str())
+        , _cause(cause)
     {}
 
-    std::string const & domain () const noexcept
+
+    std::error_code code () const noexcept
     {
-        return _domain;
+        return _ec;
+    }
+
+    std::string error_message () const noexcept
+    {
+        return _ec.message();
     }
 
     std::string const & description () const noexcept
@@ -55,78 +112,7 @@ public:
         return _cause;
     }
 
-    virtual std::string what () const noexcept
-    {
-        std::string result;
-        //std::string format = "[{}]: {} ({})";
-        result.reserve(_domain.size() + _description.size() + _cause.size()
-            + 10 /*format.size()*/); // <= no scrupulous accuracy needed
-
-        if (!_domain.empty())
-            result += '[' + _domain + "]";
-
-        if (!_description.empty())
-            result += std::string{(result.empty() ? "" : ": ")} + _description;
-
-        if (!_cause.empty())
-            result += std::string{(result.empty() ? "" : " ")} + '(' + _cause + ')';
-
-        return result;
-    }
+    std::string what () const noexcept;
 };
-
-class runtime_error: public exception
-{
-public:
-    using exception::exception;
-};
-
-class logic_error: public exception
-{
-public:
-    using exception::exception;
-};
-
-class bad_alloc: public exception
-{
-public:
-    using exception::exception;
-};
-
-class bad_cast: public exception
-{
-public:
-    using exception::exception;
-};
-
-class invalid_argument: public logic_error
-{
-public:
-    using logic_error::logic_error;
-};
-
-class unexpected_error: public runtime_error
-{
-public:
-    using runtime_error::runtime_error;
-};
-
-} // namespace pfs
-
-namespace pfs {
-namespace debby {
-
-class sql_error: public pfs::exception
-{
-public:
-    sql_error (std::string const & domain
-        , std::string const & description
-        , std::string const & sql)
-        : pfs::exception(domain, description, sql)
-    {}
-};
-
-#define PFS_DEBBY_THROW(x) throw x
 
 }} // namespace pfs::debby
-

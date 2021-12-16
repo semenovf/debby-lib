@@ -6,6 +6,7 @@
 cmake_minimum_required (VERSION 3.11)
 project(debby-lib CXX C)
 
+option(PFS_DEBBY__ENABLE_EXCEPTIONS "Enable exceptions for library" OFF)
 option(PFS_DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` library" ON)
 option(PFS_DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` library" OFF)
 
@@ -28,12 +29,18 @@ portable_target(INCLUDE_DIRS ${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/in
 portable_target(LINK ${PROJECT_NAME} PUBLIC pfs::common)
 portable_target(EXPORTS ${PROJECT_NAME} PFS_DEBBY__EXPORTS PFS_DEBBY__STATIC)
 
+if (PFS_DEBBY__ENABLE_EXCEPTIONS)
+    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "-DPFS_DEBBY__EXCEPTIONS_ENABLED=1")
+endif()
+
 if (PFS_DEBBY__ENABLE_SQLITE3)
     portable_target(SOURCES ${PROJECT_NAME}
-        ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
-        ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/database.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp)
+        ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp
+#         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
+#         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/database.cpp
+#         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
+#         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp
+        )
 
     portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "-DPFS_DEBBY__SQLITE3_ENABLED=1")
     message(STATUS "`sqlite3` enabled")
