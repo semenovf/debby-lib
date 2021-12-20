@@ -9,7 +9,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "pfs/fmt.hpp"
-#include "pfs/expected.hpp"
 #include "pfs/optional.hpp"
 #include "pfs/debby/error.hpp"
 #include "pfs/debby/exports.hpp"
@@ -22,7 +21,6 @@ namespace rocksdb {
 class DB;
 } // namespace rocksdb
 
-namespace pfs {
 namespace debby {
 namespace rocksdb {
 
@@ -54,27 +52,13 @@ private:
     native_type _dbh {nullptr};
 
 private:
-    /**
-     * Open database specified by @a path and create it if
-     * missing when @a create_if_missing set to @c true.
-     *
-     * @return Zero error code on success, but on error one of the following:
-     *         - errc::database_already_open
-     *         - errc::database_not_found
-     *         - errc::backend_error
-     *
-     * @throws pfs::debby::exception.
-     */
-    std::error_code open_impl (filesystem::path const & path, bool create_if_missing);
+    bool open (pfs::filesystem::path const & path
+        , bool create_if_missing
+        , error * err) noexcept;
 
-    /**
-     * Close database.
-     *
-     * @return Zero error code.
-     */
-    std::error_code close_impl ();
+    void close () noexcept;
 
-    bool is_opened_impl () const noexcept
+    bool is_opened () const noexcept
     {
         return _dbh != nullptr;
     }
@@ -87,127 +71,117 @@ private:
      * @return Zero error code on success, but on error one of the following:
      *         - errc::backend_error
      *
-     * @throws pfs::debby::exception.
+     * @throws debby::exception.
      */
-    std::error_code write (key_type const & key, char const * data, std::size_t len);
+    bool write (key_type const & key, char const * data
+        , std::size_t len
+        , error * perr);
 
     /**
      * Reads value by @a key from database.
      *
      * @return Value associated with @a key, or @c nullopt if specified key not found.
-     *         On error one of the following error code stored at @a ec:
-     *         - errc::backend_error
-     *
-     * @throws pfs::debby::exception @c errc::backend_error if any backend error occured.
      */
-    optional<std::string> read (key_type const & key, std::error_code & ec);
+    bool read (key_type const & key, pfs::optional<std::string> & target, error * perr);
 
     /**
      * Removes value for @a key.
-     *
-     * @return Zero error code on success, but on error one of the following:
-     *         - errc::backend_error
-     *
-     * @throws pfs::debby::exception.
      */
-    std::error_code remove_impl (key_type const & key);
+    bool remove_impl (key_type const & key, error * perr);
 
-    /**
-     * Stores arithmetic type @a value associated with @a key into database.
-     *
-     * @return Zero error code on success, but on error one of the following:
-     *         - errc::backend_error
-     *
-     * @throws pfs::debby::exception.
-     */
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value, std::error_code>::type
-    set_impl (key_type const & key, T value)
+    typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
+    set_impl (key_type const & key, T value, error * perr)
     {
         fixed_packer<T> p;
         p.value = value;
-        return write(key, p.bytes, sizeof(T));
+        return write(key, p.bytes, sizeof(T), perr);
     }
 
-    inline std::error_code set_impl (key_type const & key
-        , std::string const & value)
+    bool set_impl (key_type const & key, std::string const & value, error * perr)
     {
-        return write(key, value.data(), value.size());
+        return write(key, value.data(), value.size(), perr);
     }
 
-    inline std::error_code set_impl (key_type const & key
-        , char const * value
-        , std::size_t len)
+    bool set_impl (key_type const & key, char const * value
+        , std::size_t len, error * perr)
     {
-        return write(key, value, len);
+        return write(key, value, len, perr);
     }
 
     /**
-     * Fetch arithmetic type value associated with @a key from database.
-     *
-     * @return Value or @c nullopt (value not found by @a key ) success and
-     *         zero error code, but on error one of the following error codes:
-     *         - errc::backend_error
-     *         - errc::bad_value
-     *
-     * @throws pfs::debby::exception.
+     * Pulls arithmetic type value associated with @a key from database.
      */
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value, expected_result<optional<T>>>::type
-    get_impl (key_type const & key)
+    typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
+    pull_impl (key_type const & key, pfs::optional<T> & target, error * perr)
     {
-        std::error_code ec;
-        auto opt = read(key, ec);
+        pfs::optional<std::string> opt;
 
-        if (ec) {
-#if !PFS_DEBBY__EXCEPTIONS_ENABLED
-            return make_unexpected(ec);
-#endif
+        if (!read(key, opt, perr))
+            return false;
+
+        if (!opt) {
+            target = pfs::nullopt;
+            return true;
         }
 
-        if (!opt)
-            return nullopt;
-
         if (sizeof(T) != opt->size()) {
-            auto rc = make_error_code(errc::bad_value);
-            exception::failure(exception{rc
-                , fmt::format("unsuitable value stored by key: '{}'", key)
-            });
+            auto ec = make_error_code(errc::bad_value);
+            auto err = error{ec, fmt::format("unsuitable value stored by key: {}"
+                , key)};
+            if (perr) *perr = err; else DEBBY__THROW(err);
+            return false;
         }
 
         fixed_packer<T> p;
         std::memcpy(p.bytes, opt->data(), opt->size());
-        return p.value;
+        target = p.value;
+        return true;
     }
 
     /**
-     * Fetch string value associated with @a key from database.
-     *
-     * @return Value or @c nullopt (value not found by @a key ) success and
-     *         zero error code, but on error one of the following error codes:
-     *         - errc::backend_error
-     *         - errc::bad_value
-     *
-     * @throws pfs::debby::exception.
+     * Pulls string value associated with @a key from database.
      */
-    template <typename T>
-    typename std::enable_if<std::is_same<std::string, T>::value, expected_result<optional<T>>>::type
-    get_impl (key_type const & key)
+    bool pull_impl (key_type const & key, pfs::optional<std::string> & target
+        , error * perr)
     {
-        std::error_code ec;
-        auto opt = read(key, ec);
-
-        if (ec) {
-#if !PFS_DEBBY__EXCEPTIONS_ENABLED
-            return make_unexpected(ec);
-#endif
-        }
-
-        return opt;
+        return read(key, target, perr);
     }
 
 public:
     database () = default;
+
+    /**
+     * Open database specified by @a path and create it if
+     * missing when @a create_if_missing set to @c true.
+     *
+     * @param path Path to the database.
+     * @param create_if_missing If @c true create database if it missing.
+     * @param ec Store error code one of the following:
+     *         - errc::database_not_found
+     *         - errc::backend_error
+     *
+     * @throws debby::exception.
+     */
+    database (pfs::filesystem::path const & path, bool create_if_missing
+        , error * perr = nullptr)
+    {
+        open(path, create_if_missing, perr);
+    }
+
+    database (pfs::filesystem::path const & path)
+    {
+        open(path, true, nullptr);
+    }
+
+    /**
+     * Release database data
+     */
+    ~database ()
+    {
+        close();
+    }
 
     database (database && other)
     {
@@ -216,11 +190,11 @@ public:
 
     database & operator = (database && other)
     {
-        close_impl();
+        close();
         _dbh = other._dbh;
         other._dbh = nullptr;
         return *this;
     }
 };
 
-}}} // namespace pfs::debby::rocksdb
+}} // namespace debby::rocksdb

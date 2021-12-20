@@ -11,7 +11,6 @@
 #include "pfs/optional.hpp"
 #include "pfs/string_view.hpp"
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
@@ -29,7 +28,7 @@ struct cast_traits<NativeType, typename std::enable_if<
         return static_cast<storage_type>(value);
     }
 
-    static optional<NativeType> to_native (storage_type const & value)
+    static pfs::optional<NativeType> to_native (storage_type const & value)
     {
         return static_cast<NativeType>(value);
     }
@@ -46,7 +45,7 @@ struct cast_traits<NativeType, typename std::enable_if<
         return value;
     }
 
-    static optional<NativeType> to_native (storage_type const & value)
+    static pfs::optional<NativeType> to_native (storage_type const & value)
     {
         return value;
     }
@@ -68,7 +67,7 @@ struct cast_traits<NativeType, typename std::enable_if<
 };
 
 template <typename NativeType>
-struct cast_traits<optional<NativeType>, void>: cast_traits<NativeType> {};
+struct cast_traits<pfs::optional<NativeType>, void>: cast_traits<NativeType> {};
 
 template <typename NativeType>
 inline typename affinity_traits<NativeType>::storage_type to_storage (NativeType const & value)
@@ -77,9 +76,9 @@ inline typename affinity_traits<NativeType>::storage_type to_storage (NativeType
 }
 
 template <typename NativeType>
-inline optional<NativeType> to_native (typename affinity_traits<NativeType>::storage_type const & value)
+inline pfs::optional<NativeType> to_native (typename affinity_traits<NativeType>::storage_type const & value)
 {
     return cast_traits<NativeType>::to_native(value);
 }
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3

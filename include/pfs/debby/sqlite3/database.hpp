@@ -5,6 +5,7 @@
 //
 // Changelog:
 //      2021.11.24 Initial version.
+//      2021.12.18 Reimplemented with new error handling.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "statement.hpp"
@@ -17,7 +18,6 @@
 
 struct sqlite3;
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
@@ -26,7 +26,7 @@ struct database_traits
     using statement_type = statement;
 };
 
-PFS_DEBBY__EXPORT class database: public relational_database<database, database_traits>
+class database: public relational_database<database, database_traits>
 {
     friend class basic_database<database>;
     friend class relational_database<database, database_traits>;
@@ -38,57 +38,79 @@ private:
     using cache_type     = std::unordered_map<std::string, statement_type::native_type>;
 
 private:
-    static std::string const ERROR_DOMAIN;
-
-private:
     native_type _dbh {nullptr};
     cache_type  _cache; // Prepared statements cache
 
 private:
-    // throws bad_alloc, runtime_error
-    bool open_impl (filesystem::path const & path, bool create_if_missing);
+    bool open (pfs::filesystem::path const & path
+        , bool create_if_missing
+        , error * err) noexcept;
 
-    void close_impl ();
+    void close () noexcept;
 
-    bool is_opened_impl () const noexcept
+    bool is_opened () const noexcept
     {
         return _dbh != nullptr;
     }
 
-    // throws sql_error
-    statement_type prepare_impl (std::string const & sql, bool cache);
+    statement_type prepare_impl (std::string const & sql
+        , bool cache
+        , error * err);
 
-    // throws sql_error
-    bool query_impl (std::string const & sql);
+    bool query_impl (std::string const & sql, error * perr);
 
-    // throws sql_error on prepearing statement failure.
-    std::vector<std::string> tables_impl (std::string const & pattern);
+    std::vector<std::string> tables_impl (std::string const & pattern
+        , error * perr);
 
-    // throws sql_error
-    bool clear_impl ();
-
-    // throws sql_error
-    bool exists_impl (std::string const & name);
-
-    // throws sql_error
+    /**
+     * Removes named @a table or drop all tables if @a table is empty.
+     */
+    bool remove_impl (std::string const & table, error * perr);
+    bool exists_impl (std::string const & name, error * perr);
     bool begin_impl ();
-
-    // throws sql_error
     bool commit_impl ();
-
-    // throws sql_error
     bool rollback_impl ();
 
 public:
-    database () {}
+    database () = default;
+
+    /**
+     * Open database specified by @a path and create it if
+     * missing when @a create_if_missing set to @c true.
+     *
+     * @details If the filename is an empty string, then a private, temporary
+     *          on-disk database will be created. This private database will be
+     *          automatically deleted as soon as the database connection is
+     *          closed.
+     *          If the filename is ":memory:", then a private, temporary
+     *          in-memory database is created for the connection. This in-memory
+     *          database will vanish when the database connection is closed.
+     *          Future versions of SQLite might make use of additional special
+     *          filenames that begin with the ":" character. It is recommended
+     *          that when a database filename actually does begin with a ":"
+     *          character you should prefix the filename with a pathname such
+     *          as "./" to avoid ambiguity.
+     *          For more details see @c sqlite3 documentation (sqlite3_open_v2).
+     *
+     * @param path Path to the database.
+     * @param create_if_missing If @c true create database if it missing.
+     * @param ec Store error code one of the following:
+     *         - errc::database_not_found
+     *         - errc::backend_error
+     *
+     * @throws debby::exception.
+     */
+    database (pfs::filesystem::path const & path
+        , bool create_if_missing = true
+        , error * perr = nullptr)
+    {
+        open(path, create_if_missing, perr);
+    }
 
     ~database ()
     {
-        close_impl();
+        close();
     }
-
-    database (database const &) = delete;
-    database & operator = (database const &) = delete;
 
     database (database && other)
     {
@@ -97,11 +119,11 @@ public:
 
     database & operator = (database && other)
     {
-        close_impl();
+        close();
         _dbh = other._dbh;
         other._dbh = nullptr;
         return *this;
     }
 };
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3

@@ -14,18 +14,18 @@
 #include <rocksdb/slice.h>
 #include <rocksdb/options.h>
 
-namespace pfs {
 namespace debby {
 namespace rocksdb {
 
-std::error_code
-database::open_impl (filesystem::path const & path, bool create_if_missing)
+namespace {
+char const * NULL_HANDLER = "uninitialized database handler";
+} // namespace
+
+bool database::open (pfs::filesystem::path const & path
+    , bool create_if_missing
+    , error * perr) noexcept
 {
-    if (_dbh) {
-        auto rc = make_error_code(errc::database_already_open);
-        exception::failure(exception{rc, path});
-        return rc;
-    }
+    DEBBY__ASSERT(!_dbh, NULL_HANDLER);
 
     ::rocksdb::Options options;
 
@@ -36,7 +36,7 @@ database::open_impl (filesystem::path const & path, bool create_if_missing)
     // Aggressively check consistency of the data.
     options.paranoid_checks = true;
 
-    if (filesystem::exists(path)) {
+    if (pfs::filesystem::exists(path)) {
         options.create_if_missing = false;
     } else {
         // Create the DB if it's not already present.
@@ -53,10 +53,12 @@ database::open_impl (filesystem::path const & path, bool create_if_missing)
     // See appropriate code at `db/db_impl/db_impl_open.cc`, method
     // `Status DBImpl::Open(const DBOptions& db_options...`.
     // Need to use workaround:
-    if (!filesystem::exists(path) && !options.create_if_missing) {
-        auto rc = make_error_code(errc::database_not_found);
-        exception::failure(exception{rc, path});
-        return rc;
+    if (!pfs::filesystem::exists(path) && !options.create_if_missing) {
+        auto ec = make_error_code(errc::database_not_found);
+        auto err = error{ec, PFS_UTF8_ENCODE_PATH(path.c_str())};
+        if (perr) *perr = err; else DEBBY__THROW(err);
+
+        return false;
     }
 
     // Open DB.
@@ -64,15 +66,13 @@ database::open_impl (filesystem::path const & path, bool create_if_missing)
     ::rocksdb::Status status = ::rocksdb::DB::Open(options, path, & _dbh);
 
     if (!status.ok()) {
-        auto rc = make_error_code(errc::backend_error);
-        exception::failure(exception{rc
-            , fmt::format("{} database failure: {}"
-                , create_if_missing ? "create/open" : "open"
-                , path.c_str())
-            , status.ToString()
-        });
+        auto ec = make_error_code(errc::backend_error);
+        auto err = error{ec
+            , PFS_UTF8_ENCODE_PATH(path.c_str())
+            , status.ToString()};
+        if (perr) *perr = err; else DEBBY__THROW(err);
 
-        return rc;
+        return false;
     }
 
     // Database just created
@@ -80,82 +80,86 @@ database::open_impl (filesystem::path const & path, bool create_if_missing)
     //      // ...
     // }
 
-    return std::error_code{};
+    return true;
 }
 
-std::error_code database::close_impl ()
+void database::close () noexcept
 {
     if (_dbh)
         delete _dbh;
 
     _dbh = nullptr;
-
-    return std::error_code{};
 };
 
-std::error_code database::write (key_type const & key
-    , char const * data, std::size_t len)
+bool database::write (key_type const & key
+    , char const * data, std::size_t len
+    , error * perr)
 {
+    DEBBY__ASSERT(_dbh, NULL_HANDLER);
+
     // Attempt to write `null` data interpreted as delete operation for key
     if (data) {
         auto status = _dbh->Put(::rocksdb::WriteOptions(), key, ::rocksdb::Slice(data, len));
 
         if (!status.ok()) {
-            auto rc = make_error_code(errc::backend_error);
-            exception::failure(exception{rc
+            auto ec = make_error_code(errc::backend_error);
+            auto err = error{ec
                 , fmt::format("write failure for key: '{}'", key)
-                , status.ToString()
-            });
-
-            return rc;
+                , status.ToString()};
+            if (perr) *perr = err; else DEBBY__THROW(err);
+            return false;
         }
     } else {
-        return remove_impl(key);
+        return remove_impl(key, perr);
     }
 
-    return std::error_code{};
+    return true;
 }
 
-optional<std::string> database::read (key_type const & key, std::error_code & ec)
+bool database::read (key_type const & key, pfs::optional<std::string> & target
+    , error * perr)
 {
+    DEBBY__ASSERT(_dbh, NULL_HANDLER);
+
     std::string s;
     auto status = _dbh->Get(::rocksdb::ReadOptions(), key, & s);
 
     if (!status.ok()) {
         if (status.IsNotFound()) {
-            return nullopt;
+            target = pfs::nullopt;
+            return true;
         } else {
-            ec = make_error_code(errc::backend_error);
-
-            exception::failure(exception{ec
+            auto ec = make_error_code(errc::backend_error);
+            auto err = error{ec
                 , fmt::format("read failure for key: '{}'", key)
-                , status.ToString()
-            });
-
-            return nullopt;
+                , status.ToString()};
+            if (perr) *perr = err; else DEBBY__THROW(err);
+            return false;
         }
     }
 
-    return s;
+    target = std::move(s);
+    return true;
 }
 
-std::error_code database::remove_impl (key_type const & key)
+bool database::remove_impl (key_type const & key, error * perr)
 {
+    DEBBY__ASSERT(_dbh, NULL_HANDLER);
+
     auto status = _dbh->SingleDelete(::rocksdb::WriteOptions(), key);
 
     if (!status.ok()) {
         if (!status.IsNotFound()) {
-            auto rc = make_error_code(errc::backend_error);
-            exception::failure(exception{rc
+            auto ec = make_error_code(errc::backend_error);
+            auto err = error{ec
                 , fmt::format("remove failure for key: '{}'", key)
-                , status.ToString()
-            });
-
-            return rc;
+                , status.ToString()};
+            if (perr) *perr = err; else DEBBY__THROW(err);
+            return false;
         }
     }
 
-    return std::error_code{};
+    return true;
 }
 
-}}} // namespace pfs::debby::rocksdb
+}} // namespace debby::rocksdb

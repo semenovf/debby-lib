@@ -5,6 +5,7 @@
 //
 // Changelog:
 //      2021.11.24 Initial version.
+//      2021.12.18 Reimplemented with new error handling.
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
 #include "utils.hpp"
@@ -14,19 +15,16 @@
 #include <cstring>
 #include <cassert>
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-std::string const statement::ERROR_DOMAIN {"SQLITE3"};
-
-std::string statement::current_sql () const noexcept
+inline std::string statement::current_sql () const noexcept
 {
     assert(_sth);
     return sqlite3::current_sql(_sth);
 }
 
-void statement::clear_impl () noexcept
+void statement::clear () noexcept
 {
     if (_sth) {
         if (!_cached)
@@ -38,46 +36,40 @@ void statement::clear_impl () noexcept
     _sth = nullptr;
 }
 
-statement::result_type statement::exec_impl ()
+statement::result_type statement::exec_impl (error * perr)
 {
     assert(_sth);
 
+    std::error_code ec;
     result_type::status status {result_type::INITIAL};
     int rc = sqlite3_step(_sth);
 
     switch (rc) {
-        case SQLITE_ROW: {
+        case SQLITE_ROW:
             status = result_type::ROW;
             break;
-        }
 
-        case SQLITE_DONE: {
+        case SQLITE_DONE:
             status = result_type::DONE;
             break;
-        }
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
-            PFS_DEBBY_THROW((sql_error{
-                  ERROR_DOMAIN
-                , fmt::format("statement execution failure: {}", build_errstr(rc, _sth))
-                , current_sql()
-            }));
-
             status = result_type::ERROR;
+            ec = make_error_code(errc::sql_error);
+            auto err = error{ec, build_errstr(rc, _sth), current_sql()};
+            if (perr) *perr = err; else DEBBY__THROW(err);
             break;
         }
 
+        // Perhaps the error handling should be different from the above.
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
         default: {
-            PFS_DEBBY_THROW((sql_error{
-                  ERROR_DOMAIN
-                , fmt::format("statement execution failure: {}", build_errstr(rc, _sth))
-                , current_sql()
-            }));
-
             status = result_type::ERROR;
+            ec = make_error_code(errc::sql_error);
+            auto err = error{ec, build_errstr(rc, _sth), current_sql()};
+            if (perr) *perr = err; else DEBBY__THROW(err);
             break;
         }
     }
@@ -85,156 +77,185 @@ statement::result_type statement::exec_impl ()
     if (rc != SQLITE_ROW)
         sqlite3_reset(_sth);
 
-    return result_type{_sth, status};
+    return ec ? result_type{nullptr, status} : result_type{_sth, status};
 }
 
 bool statement::bind_helper (std::string const & placeholder
-    , std::function<int (int /*index*/)> && bind_wrapper)
+    , std::function<int (int /*index*/)> && sqlite3_binder_func
+    , error * perr)
 {
     assert(_sth);
 
-    bool success = true;
     int index = sqlite3_bind_parameter_index(_sth, placeholder.c_str());
 
     if (index == 0) {
-        PFS_DEBBY_THROW((sql_error{
-                ERROR_DOMAIN
-            , fmt::format("bad bind parameter name: {}", placeholder)
-            , current_sql()
-        }));
-
-        success = false;
+        auto ec = make_error_code(errc::invalid_argument);
+        auto err = error{ec, std::string{"bad bind parameter name"}
+            , placeholder};
+        if (perr) *perr = err; else DEBBY__THROW(err);
+        return false;
     }
 
-    if (success) {
-        int rc = bind_wrapper(index);
+    int rc = sqlite3_binder_func(index);
 
-        if (SQLITE_OK != rc) {
-            PFS_DEBBY_THROW((sql_error{
-                  ERROR_DOMAIN
-                , fmt::format("bind failure: {}", build_errstr(rc, _sth))
-                , current_sql()
-            }));
+    if (SQLITE_OK != rc) {
+        auto ec = make_error_code(errc::backend_error);
+        auto err = error{ec, build_errstr(rc, _sth), current_sql()};
+        if (perr) *perr = err; else DEBBY__THROW(err);
 
-            success = false;
-        }
+        return false;
     }
 
-    return success;
+    return true;
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::nullptr_t)
+bool statement::bind_impl (std::string const & placeholder
+    , std::nullptr_t
+    , error * perr)
 {
     return bind_helper(placeholder, [this] (int index) {
         return sqlite3_bind_null(_sth, index);
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, bool value)
+bool statement::bind_impl (std::string const & placeholder
+    , bool value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int(_sth, index, (value ? 1 : 0));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::int8_t value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::int8_t value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int(_sth, index, static_cast<int>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::uint8_t value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::uint8_t value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int(_sth, index, static_cast<int>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::int16_t value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::int16_t value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int(_sth, index, static_cast<int>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::uint16_t value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::uint16_t value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int(_sth, index, static_cast<int>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::int32_t value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::int32_t value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int(_sth, index, static_cast<int>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::uint32_t value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::uint32_t value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int(_sth, index, static_cast<int>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::int64_t value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::int64_t value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int64(_sth, index, static_cast<sqlite3_int64>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::uint64_t value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::uint64_t value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_int64(_sth, index, static_cast<sqlite3_int64>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, float value)
+bool statement::bind_impl (std::string const & placeholder
+    , float value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_double(_sth, index, static_cast<double>(value));
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, double value)
+bool statement::bind_impl (std::string const & placeholder
+    , double value
+    , error * perr)
 {
     return bind_helper(placeholder, [this, value] (int index) {
         return sqlite3_bind_double(_sth, index, value);
-    });
+    }, perr);
 }
 
-bool statement::bind_impl (std::string const & placeholder, char const * value, std::size_t len)
+bool statement::bind_impl (std::string const & placeholder
+    , char const * value, std::size_t len
+    , bool static_value
+    , error * perr)
 {
     if (value == nullptr) {
-        return bind_impl(placeholder, nullptr);
+        return bind_impl(placeholder, nullptr, perr);
     } else {
-        return bind_helper(placeholder, [this, value, len] (int index) {
-            return sqlite3_bind_text(_sth, index, value, static_cast<int>(len), SQLITE_TRANSIENT);
-        });
+        return bind_helper(placeholder, [this, value, len, static_value] (int index) {
+            return sqlite3_bind_text(_sth, index, value
+                , static_cast<int>(len)
+                , static_value ? SQLITE_STATIC : SQLITE_TRANSIENT);
+        }, perr);
     }
 }
 
-bool statement::bind_impl (std::string const & placeholder, std::vector<std::uint8_t> const & value)
+bool statement::bind_impl (std::string const & placeholder
+    , std::vector<std::uint8_t> const & value
+    , bool static_value
+    , error * perr)
 {
     if (value.size() > std::numeric_limits<int>::max()) {
         auto data = value.data();
         sqlite3_uint64 len = value.size();
 
-        return bind_helper(placeholder, [this, data, len] (int index) {
-            return sqlite3_bind_blob64(_sth, index, data, len, SQLITE_TRANSIENT);
-        });
+        return bind_helper(placeholder, [this, data, len, static_value] (int index) {
+            return sqlite3_bind_blob64(_sth, index, data, len
+                , static_value ? SQLITE_STATIC : SQLITE_TRANSIENT);
+        }, perr);
     } else {
         auto data = value.data();
         int len = static_cast<int>(value.size());
 
-        return bind_helper(placeholder, [this, data, len] (int index) {
-            return sqlite3_bind_blob(_sth, index, data, len, SQLITE_TRANSIENT);
-        });
+        return bind_helper(placeholder, [this, data, len,  static_value] (int index) {
+            return sqlite3_bind_blob(_sth, index, data, len
+                , static_value ? SQLITE_STATIC : SQLITE_TRANSIENT
+            );
+        }, perr);
     }
 }
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3

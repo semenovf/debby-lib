@@ -9,12 +9,11 @@
 #include "pfs/fmt.hpp"
 #include "pfs/debby/error.hpp"
 
-namespace pfs {
 namespace debby {
 
 char const * error_category::name () const noexcept
 {
-    return "pfs::debby::error_category";
+    return "debby::error_category";
 }
 
 std::string error_category::message (int ev) const
@@ -22,21 +21,30 @@ std::string error_category::message (int ev) const
     switch (ev) {
         case static_cast<int>(errc::success):
             return std::string{"no error"};
+
+        case static_cast<int>(errc::bad_alloc):
+            return std::string{"bad alloc"};
+
         case static_cast<int>(errc::backend_error):
             return std::string{"backend error"};
-        case static_cast<int>(errc::database_already_open):
-            return std::string{"database is already open"};
+
         case static_cast<int>(errc::database_not_found):
             return std::string{"database not found"};
 
         case static_cast<int>(errc::bad_value):
             return std::string{"bad/unsuitable value"};
 
-        default: return std::string{"unknown pfs::debby error"};
+        case static_cast<int>(errc::sql_error):
+            return std::string{"sql error"};
+
+        case static_cast<int>(errc::invalid_argument):
+            return std::string{"invalid argument"};
+
+        default: return std::string{"unknown debby error"};
     }
 };
 
-std::string exception::what () const noexcept
+std::string error::what () const noexcept
 {
     if (!_ec)
         return _ec.message();
@@ -55,20 +63,4 @@ std::string exception::what () const noexcept
     return result;
 }
 
-#if PFS_DEBBY__EXCEPTIONS_ENABLED
-std::function<void(exception &&)> const exception::failure =
-    [] (pfs::debby::exception && ex) {
-        throw ex;
-    };
-#else
-    // By default output into console, it can be modified at any point of
-    // user code.
-std::function<void(exception &&)> exception::failure =
-    [] (pfs::debby::exception && ex) {
-        fmt::print(stderr, "ERROR: {}\n", ex.what());
-    };
-#endif
-
-}} // namespace pfs::debby
-
-
+} // namespace debby

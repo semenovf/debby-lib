@@ -10,11 +10,16 @@
 #include "doctest.h"
 #include "pfs/filesystem.hpp"
 #include "pfs/fmt.hpp"
-#include "pfs/debby/sqlite3/input_record.hpp"
-#include "pfs/debby/sqlite3/database.hpp"
-#include "pfs/debby/sqlite3/statement.hpp"
 #include <cmath>
 #include <limits>
+
+#if DEBBY__SQLITE3_ENABLED
+#   include "pfs/debby/sqlite3/database.hpp"
+#   include "pfs/debby/sqlite3/input_record.hpp"
+#   include "pfs/debby/sqlite3/statement.hpp"
+#endif
+
+namespace fs = pfs::filesystem;
 
 namespace {
 std::string TABLE_NAME {"test"};
@@ -58,16 +63,19 @@ std::string const SELECT {
 
 } // namespace
 
-TEST_CASE("statement") {
-    namespace fs = pfs::filesystem;
-    using database_t = pfs::debby::sqlite3::database;
+template <typename T>
+void check (pfs::filesystem::path const & db_path)
+{
+    using database_t = T;
 
-    auto db_path = fs::temp_directory_path() / "debby.db";
+    if (fs::exists(db_path) && fs::is_regular_file(db_path))
+        fs::remove(db_path);
 
-    database_t db;
+    database_t db {db_path};
 
-    REQUIRE(db.open(db_path));
-    db.clear();
+    REQUIRE(db);
+
+    REQUIRE(db.clear());
 
     {
         auto stmt = db.prepare(fmt::format(CREATE_TABLE, TABLE_NAME));
@@ -134,33 +142,41 @@ TEST_CASE("statement") {
         CHECK_EQ(result.column_name(13), std::string{"cstr"});
 
         while (result.has_more()) {
-            // Error for nonexistent column
-            REQUIRE_FALSE(result.get<int>("unknown"));
+            {
+                // Error for nonexistent column
+                debby::error err;
+                REQUIRE_FALSE(result.template get<int>("unknown", & err).has_value());
+                CHECK_EQ(err.code(), make_error_code(debby::errc::invalid_argument));
+            }
 
-            // Error or column contains `null`
-            REQUIRE_FALSE(result.get<int>("null"));
+            {
+                // Column contains `null`
+                debby::error err;
+                REQUIRE_FALSE(result.template get<int>("null", & err).has_value());
+                CHECK_EQ(err.code(), std::error_code{});
+            }
 
-//             // Column `null` is INTEGER but contains null value, so error() returns true
-//             CHECK(result.get<int>("null").error() == false);
-//
-//             // It is no matter the column type if it contains `null`
-//             CHECK(result.get<float>("null").error() == false);
-//
-//             CHECK(*result.get<bool>("bool") == true);
-//             CHECK(*result.get<std::int8_t>("int8") == std::numeric_limits<std::int8_t>::min());
-//             CHECK(*result.get<std::uint8_t>("uint8") == std::numeric_limits<std::uint8_t>::max());
-//             CHECK(*result.get<std::int16_t>("int16") == std::numeric_limits<std::int16_t>::min());
-//             CHECK(*result.get<std::uint16_t>("uint16") == std::numeric_limits<std::uint16_t>::max());
-//             CHECK(*result.get<std::int32_t>("int32") == std::numeric_limits<std::int32_t>::min());
-//             CHECK(*result.get<std::uint32_t>("uint32") == std::numeric_limits<std::uint32_t>::max());
-//             CHECK(*result.get<std::int64_t>("int64") == std::numeric_limits<std::int64_t>::min());
-//             CHECK(*result.get<std::uint64_t>("uint64") == std::numeric_limits<std::uint64_t>::max());
-//             CHECK(std::abs(*result.get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
-//             CHECK(std::abs(*result.get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
-//             CHECK(*result.get<std::string>("text") == std::string{"Hello"});
+            // Column `null` is INTEGER but contains null value, so error() returns true
+            CHECK_FALSE(result.template get<int>("null").has_value());
+
+            // It is no matter the column type if it contains `null`
+            CHECK_FALSE(result.template get<float>("null").has_value());
+
+            CHECK_EQ(*result.template get<bool>("bool"), true);
+            CHECK_EQ(*result.template get<std::int8_t>("int8"), std::numeric_limits<std::int8_t>::min());
+            CHECK_EQ(*result.template get<std::uint8_t>("uint8"), std::numeric_limits<std::uint8_t>::max());
+            CHECK_EQ(*result.template get<std::int16_t>("int16"), std::numeric_limits<std::int16_t>::min());
+            CHECK_EQ(*result.template get<std::uint16_t>("uint16"), std::numeric_limits<std::uint16_t>::max());
+            CHECK_EQ(*result.template get<std::int32_t>("int32"), std::numeric_limits<std::int32_t>::min());
+            CHECK_EQ(*result.template get<std::uint32_t>("uint32"), std::numeric_limits<std::uint32_t>::max());
+            CHECK_EQ(*result.template get<std::int64_t>("int64"), std::numeric_limits<std::int64_t>::min());
+            CHECK_EQ(*result.template get<std::uint64_t>("uint64"), std::numeric_limits<std::uint64_t>::max());
+            CHECK(std::abs(*result.template get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
+            CHECK(std::abs(*result.template get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
+            CHECK_EQ(*result.template get<std::string>("text"), std::string{"Hello"});
 
             // And using `input_record`
-            pfs::debby::sqlite3::input_record in {result};
+            debby::sqlite3::input_record in {result};
 
             {
                 bool b;
@@ -236,8 +252,9 @@ TEST_CASE("statement") {
 
                 pfs::optional<int> opt;
 
-                // unknown column results false for optional variable
-                REQUIRE_FALSE(in.assign("unknown").to(opt));
+                // unknown column results true for optional variable and it
+                // has no value
+                REQUIRE(in.assign("unknown").to(opt));
                 REQUIRE_FALSE(opt.has_value());
             }
 
@@ -265,7 +282,11 @@ TEST_CASE("statement") {
             REQUIRE(result.is_done());
         }
     }
-
-    db.close();
 }
 
+#if DEBBY__SQLITE3_ENABLED
+TEST_CASE("sqlite3 statement") {
+    auto db_path = fs::temp_directory_path() / PFS_PLATFORM_LITERAL("debby-sqlite3.db");
+    check<debby::sqlite3::database>(db_path);
+}
+#endif

@@ -11,7 +11,6 @@
 #include <string>
 #include <cassert>
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
@@ -62,4 +61,4 @@ inline std::string current_sql (struct sqlite3_stmt * sth) noexcept
     return sql ? std::string(sql) : std::string{};
 }
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3

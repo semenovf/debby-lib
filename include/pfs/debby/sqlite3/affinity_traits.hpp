@@ -13,7 +13,6 @@
 #include <cstdint>
 #include <string>
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
@@ -79,7 +78,6 @@ struct affinity_traits<NativeType, typename std::enable_if<
 {};
 
 template <typename NativeType>
-struct affinity_traits<optional<NativeType>, void>: affinity_traits<NativeType> {};
+struct affinity_traits<pfs::optional<NativeType>, void>: affinity_traits<NativeType> {};
 
-}}} // namespace pfs::debby::sqlite3
-
+}} // namespace debby::sqlite3

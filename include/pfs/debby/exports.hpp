@@ -9,18 +9,18 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 
-#ifndef PFS_DEBBY__STATIC
-#   ifndef PFS_DEBBY__EXPORT
+#ifndef DEBBY__STATIC
+#   ifndef DEBBY__EXPORT
 #       if _MSC_VER
-#           if defined(PFS_DEBBY__EXPORTS)
-#               define PFS_DEBBY__EXPORT __declspec(dllexport)
+#           if defined(DEBBY__EXPORTS)
+#               define DEBBY__EXPORT __declspec(dllexport)
 #           else
-#               define PFS_DEBBY__EXPORT __declspec(dllimport)
+#               define DEBBY__EXPORT __declspec(dllimport)
 #           endif
 #       else
-#           define PFS_DEBBY__EXPORT
+#           define DEBBY__EXPORT
 #       endif
 #   endif
 #else
-#   define PFS_DEBBY__EXPORT
-#endif // !PFS_DEBBY__STATIC
+#   define DEBBY__EXPORT
+#endif // !DEBBY__STATIC

@@ -5,6 +5,7 @@
 //
 // Changelog:
 //      2021.11.24 Initial version.
+//      2021.12.18 Reimplemented with new error handling.
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
 #include "utils.hpp"
@@ -13,25 +14,38 @@
 #include <cstring>
 #include <cassert>
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-std::string const result::ERROR_DOMAIN {"SQLITE3"};
-
 namespace {
-    std::string UNITIALIZED_STATEMENT_ERROR {"statement not initialized"};
+char const * NULL_HANDLER = "uninitialized statement handler";
 } // namespace
 
 std::string result::current_sql () const noexcept
 {
-    assert(_sth);
+    DEBBY__ASSERT(_sth, NULL_HANDLER);
     return sqlite3::current_sql(_sth);
 }
 
-void result::next_impl ()
+int result::column_count_impl () const noexcept
 {
-    assert(_sth);
+    DEBBY__ASSERT(_sth, NULL_HANDLER);
+    return sqlite3_column_count(_sth);
+}
+
+pfs::string_view result::column_name_impl (int column) const noexcept
+{
+    DEBBY__ASSERT(_sth, NULL_HANDLER);
+
+    if (column >= 0 && column < sqlite3_column_count(_sth))
+        return pfs::string_view {sqlite3_column_name(_sth, column)};
+
+    return pfs::string_view{};
+}
+
+void result::next_impl (error * perr)
+{
+    DEBBY__ASSERT(_sth, NULL_HANDLER);
 
     auto rc = sqlite3_step(_sth);
 
@@ -47,61 +61,43 @@ void result::next_impl ()
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
             _state = ERROR;
-
-            PFS_DEBBY_THROW((sql_error{
-                  ERROR_DOMAIN
-                , fmt::format("result failure: {}", build_errstr(rc, _sth))
-                , current_sql()
-            }));
+            auto ec = make_error_code(errc::sql_error);
+            auto err = error{ec, build_errstr(rc, _sth), current_sql()};
+            if (perr) *perr = err; else DEBBY__THROW(err);
             break;
         }
 
+        // Perhaps the error handling should be different from the above.
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
-        default:
+        default: {
             _state = ERROR;
-            PFS_DEBBY_THROW((sql_error{
-                  ERROR_DOMAIN
-                , fmt::format("result failure: {}", build_errstr(rc, _sth))
-                , current_sql()
-            }));
+            auto ec = make_error_code(errc::sql_error);
+            auto err = error{ec, build_errstr(rc, _sth), current_sql()};
+            if (perr) *perr = err; else DEBBY__THROW(err);
             break;
+        }
     }
 
     if (rc != SQLITE_ROW)
         sqlite3_reset(_sth);
 }
 
-int result::column_count_impl () const noexcept
+result::value_type result::fetch_impl (int column, error * perr)
 {
-    assert(_sth);
-    return sqlite3_column_count(_sth);
-}
+    DEBBY__ASSERT(_sth, NULL_HANDLER);
 
-string_view result::column_name_impl (int column) const noexcept
-{
-    assert(_sth);
+    auto upper_limit = sqlite3_column_count(_sth);
 
-    if (column >= 0 && column < sqlite3_column_count(_sth))
-        return string_view {sqlite3_column_name(_sth, column)};
-
-    return string_view{};
-}
-
-result::value_type result::fetch_impl (int column)
-{
-    assert(_sth);
-
-    if (column < 0 || column >= sqlite3_column_count(_sth)) {
+    if (column < 0 || column >= upper_limit) {
         _state = ERROR;
 
-        PFS_DEBBY_THROW((invalid_argument{
-              ERROR_DOMAIN
-            , fmt::format("bad column index: {}", column)
-            , current_sql()
-        }));
-
-        return result::value_type{};
+        auto ec = make_error_code(errc::invalid_argument);
+        auto err = error{ec
+            , fmt::format("bad column: {}, expected greater or equal to 0 and"
+                " less than {}", column, upper_limit)};
+        if (perr) *perr = err; else DEBBY__THROW(err);
+        return result::value_type{nullptr};
     }
 
     auto column_type = sqlite3_column_type(_sth, column);
@@ -136,43 +132,38 @@ result::value_type result::fetch_impl (int column)
             return result::value_type{nullptr};
 
         default:
-            PFS_DEBBY_THROW((unexpected_error{
-                  ERROR_DOMAIN
-                , fmt::format("unexpected column type: {}, need to handle it", column_type)
-            }));
-
+            // Unexpected column type, need to handle it.
+            DEBBY__ASSERT(false, "Unexpected column type");
             break;
     }
 
     // Unreachable in ordinary situation
-    return result::value_type{}; // nullptr
+    return result::value_type{nullptr};
 }
 
-result::value_type result::fetch_impl (string_view name)
+result::value_type result::fetch_impl (pfs::string_view name, error * perr)
 {
-    assert(_sth);
+    DEBBY__ASSERT(_sth, NULL_HANDLER);
 
     if (_column_mapping.empty()) {
         auto count = sqlite3_column_count(_sth);
 
         for (int i = 0; i < count; i++)
-            _column_mapping.insert({string_view{sqlite3_column_name(_sth, i)}, i});
+            _column_mapping.insert({pfs::string_view{sqlite3_column_name(_sth, i)}, i});
     }
 
     auto pos = _column_mapping.find(name);
 
     if (pos != _column_mapping.end())
-        return fetch_impl(pos->second);
+        return fetch_impl(pos->second, perr);
 
     _state = ERROR;
 
-    PFS_DEBBY_THROW((invalid_argument{
-          ERROR_DOMAIN
-        , fmt::format("column name is invalid: {}", name.to_string())
-        , current_sql()
-    }));
+    auto ec = make_error_code(errc::invalid_argument);
+    auto err = error{ec, fmt::format("bad column name: {}", name.to_string())};
+    if (perr) *perr = err; else DEBBY__THROW(err);
 
-    return result::value_type{}; // nullptr
+    return result::value_type{nullptr};
 }
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3

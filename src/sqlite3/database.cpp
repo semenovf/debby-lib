@@ -5,37 +5,29 @@
 //
 // Changelog:
 //      2021.11.24 Initial version.
+//      2021.12.18 Reimplemented with new error handling.
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
 #include "utils.hpp"
 #include "pfs/bits/compiler.h"
 #include "pfs/fmt.hpp"
+#include "pfs/debby/error.hpp"
 #include "pfs/debby/sqlite3/database.hpp"
 #include <regex>
-#include <cassert>
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-std::string const database::ERROR_DOMAIN {"SQLITE3"};
-
 namespace {
-
 int constexpr MAX_BUSY_TIMEOUT = 1000; // 1 second
-
+char const * NULL_HANDLER = "uninitialized database handler";
 } // namespace
 
-bool database::open_impl (filesystem::path const & path, bool create_if_missing)
+bool database::open (pfs::filesystem::path const & path
+    , bool create_if_missing
+    , error * perr) noexcept
 {
-    if (_dbh) {
-        PFS_DEBBY_THROW((runtime_error{
-              ERROR_DOMAIN
-            , fmt::format("database is already open: {}", path.c_str())
-        }));
-
-        return false;
-    }
+    DEBBY__ASSERT(!_dbh, NULL_HANDLER);
 
     int flags = 0; //SQLITE_OPEN_URI;
 
@@ -60,28 +52,35 @@ bool database::open_impl (filesystem::path const & path, bool create_if_missing)
     int rc = sqlite3_open_v2(path.c_str(), & _dbh, flags, default_vfs);
 #endif
 
-    bool success = true;
+    std::error_code ec;
 
     if (rc != SQLITE_OK) {
         if (!_dbh) {
             // Unable to allocate memory for database handler.
             // Internal error code.
-            PFS_DEBBY_THROW((bad_alloc{
-                  ERROR_DOMAIN
-                , fmt::format("unable to allocate memory for database handler: {}", path.c_str())
-            }));
+            auto err = error{make_error_code(errc::bad_alloc)};
+            if (perr) *perr = err; else DEBBY__THROW(err);
+            return false;
         } else {
-            PFS_DEBBY_THROW((runtime_error{
-                  ERROR_DOMAIN
-                , fmt::format("database open failure: {}", path.c_str())
-                , build_errstr(rc, _dbh)
-            }));
-
             sqlite3_close_v2(_dbh);
             _dbh = nullptr;
-        }
 
-        success = false;
+            bool is_special_file = path.empty()
+                || *path.c_str() == PFS_PLATFORM_LITERAL(':');
+
+            if (rc == SQLITE_CANTOPEN && !is_special_file) {
+                ec = make_error_code(errc::database_not_found);
+            } else {
+                ec = make_error_code(errc::backend_error);
+            }
+
+            auto err = error{ec
+                , PFS_UTF8_ENCODE_PATH(path.c_str())
+                , build_errstr(rc, _dbh)};
+
+            if (perr) *perr = err; else DEBBY__THROW(err);
+            return false;
+        }
     } else {
         // TODO what for this call ?
         sqlite3_busy_timeout(_dbh, MAX_BUSY_TIMEOUT);
@@ -89,18 +88,19 @@ bool database::open_impl (filesystem::path const & path, bool create_if_missing)
         // Enable extended result codes
         sqlite3_extended_result_codes(_dbh, 1);
 
-        success = query("PRAGMA foreign_keys = ON");
+        auto success = query_impl("PRAGMA foreign_keys = ON", perr);
 
         if (!success) {
             sqlite3_close_v2(_dbh);
             _dbh = nullptr;
+            return false;
         }
     }
 
-    return success;
+    return true;
 }
 
-void database::close_impl ()
+void database::close () noexcept
 {
     // Finalize cached statements
     for (auto & item: _cache)
@@ -114,9 +114,11 @@ void database::close_impl ()
     _dbh = nullptr;
 };
 
-database::statement_type database::prepare_impl (std::string const & sql, bool cache)
+database::statement_type database::prepare_impl (std::string const & sql
+    , bool cache
+    , error * perr)
 {
-    assert(_dbh);
+    DEBBY__ASSERT(_dbh, NULL_HANDLER);
 
     auto pos = _cache.find(sql);
 
@@ -124,7 +126,7 @@ database::statement_type database::prepare_impl (std::string const & sql, bool c
     if (pos != _cache.end()) {
         sqlite3_reset(pos->second);
         sqlite3_clear_bindings(pos->second);
-        return statement{pos->second, true};
+        return statement_type{pos->second, true};
     }
 
     statement_type::native_type sth {nullptr};
@@ -132,13 +134,11 @@ database::statement_type database::prepare_impl (std::string const & sql, bool c
     auto rc = sqlite3_prepare_v2(_dbh, sql.c_str(), sql.size(), & sth, nullptr);
 
     if (SQLITE_OK != rc) {
-        PFS_DEBBY_THROW((sql_error{
-              ERROR_DOMAIN
-            , fmt::format("prepare statement failure: {}", build_errstr(rc, _dbh))
-            , sql
-        }));
-
-        return statement{sth, false};
+        assert(!sth);
+        auto ec = make_error_code(errc::sql_error);
+        auto err = error{ec, build_errstr(rc, _dbh), sql};
+        if (perr) *perr = err; else DEBBY__THROW(err);
+        return statement{nullptr, false};
     }
 
     if (cache) {
@@ -149,88 +149,88 @@ database::statement_type database::prepare_impl (std::string const & sql, bool c
     return statement{sth, cache};
 }
 
-bool database::query_impl (std::string const & sql)
+bool database::query_impl (std::string const & sql, error * perr)
 {
-    assert(_dbh);
+    DEBBY__ASSERT(_dbh, NULL_HANDLER);
 
     int rc = sqlite3_exec(_dbh, sql.c_str(), nullptr, nullptr, nullptr);
-    bool success = SQLITE_OK == rc;
 
-    if (! success) {
-        PFS_DEBBY_THROW((sql_error{
-              ERROR_DOMAIN
-            , fmt::format("query failure: {}", build_errstr(rc, _dbh))
-            , sql
-        }));
+    if (SQLITE_OK != rc) {
+        auto ec = make_error_code(errc::sql_error);
+        auto err = error{ec, build_errstr(rc, _dbh), sql};
+        if (perr) *perr = err; else DEBBY__THROW(err);
+        return false;
     }
 
-    return success;
+    return true;
 }
 
-std::vector<std::string> database::tables_impl (std::string const & pattern)
+std::vector<std::string> database::tables_impl (std::string const & pattern
+    , error * perr)
 {
+    DEBBY__ASSERT(_dbh, NULL_HANDLER);
+
     std::string sql = std::string{"SELECT name FROM sqlite_master "
         "WHERE type='table' ORDER BY name"};
 
-    statement_type stmt = prepare(sql);
+    statement_type stmt = prepare_impl(sql, true, perr);
 
     std::vector<std::string> list;
-    std::regex rx {pattern.empty() ? ".*" : pattern};
 
     if (stmt) {
-        // may be `sql_error` exception
-        auto res = stmt.exec();
+        auto res = stmt.exec(perr);
 
-        while (res.has_more()) {
-            decltype(res.fetch(0)) value;
+        if (res) {
+            std::regex rx {pattern.empty() ? ".*" : pattern};
 
-            try {
-                // may be `invalid_argument` but it is unexpected.
-                value = res.fetch(0);
-            } catch (invalid_argument ex) {
-                assert(false);
+            while (res.has_more()) {
+                auto value = res.fetch(0, perr);
+
+                // Unexpected result
+                DEBBY__ASSERT(pfs::holds_alternative<std::string>(value), "");
+
+                if (pattern.empty()) {
+                    list.push_back(pfs::get<std::string>(value));
+                } else {
+                    if (std::regex_search(pfs::get<std::string>(value), rx))
+                        list.push_back(pfs::get<std::string>(value));
+                }
+
+                // may be `sql_error` exception
+                res.next();
             }
-
-            auto success = holds_alternative<std::string>(value);
-
-            // Unexpected
-            assert(success);
-
-            if (pattern.empty()) {
-                list.push_back(get<std::string>(value));
-            } else {
-                if (std::regex_search(get<std::string>(value), rx))
-                    list.push_back(get<std::string>(value));
-            }
-
-            // may be `sql_error` exception
-            res.next();
         }
 
         // Expecting done
-        assert(res.is_done());
+        DEBBY__ASSERT(res.is_done(), "");
     }
 
     return list;
 }
 
-bool database::clear_impl ()
+bool database::remove_impl (std::string const & table, error * perr)
 {
-    assert(_dbh);
+    DEBBY__ASSERT(_dbh, NULL_HANDLER);
 
-    auto list = tables_impl(std::string{});
+    auto list = table.empty()
+        ? tables_impl(std::string{}, perr)
+        : std::vector<std::string>{table};
+
+    if (list.empty())
+        return !perr;
+
     bool success = begin_impl();
 
     if (success) {
         do {
-            success = query_impl("PRAGMA foreign_keys = OFF");
+            success = !!query_impl("PRAGMA foreign_keys = OFF", perr);
 
             if (!success)
                 break;
 
             for (auto const & t: list) {
                 auto sql = fmt::format("DROP TABLE IF EXISTS `{}`", t);
-                success = query_impl(sql);
+                success = !!query_impl(sql, perr);
 
                 if (!success)
                     break;
@@ -239,7 +239,7 @@ bool database::clear_impl ()
             if (!success)
                 break;
 
-            success = query_impl("PRAGMA foreign_keys = ON");
+            success = !!query_impl("PRAGMA foreign_keys = ON", perr);
 
             if (!success)
                 break;
@@ -254,7 +254,7 @@ bool database::clear_impl ()
     return success;
 }
 
-bool database::exists_impl (std::string const & name)
+bool database::exists_impl (std::string const & name, error * perr)
 {
     auto stmt = prepare(
         fmt::format("SELECT name FROM sqlite_master"
@@ -262,7 +262,7 @@ bool database::exists_impl (std::string const & name)
             , name));
 
     if (stmt) {
-        auto res = stmt.exec();
+        auto res = stmt.exec(perr);
 
         if (res.has_more())
             return true;
@@ -273,17 +273,17 @@ bool database::exists_impl (std::string const & name)
 
 bool database::begin_impl ()
 {
-    return query_impl("BEGIN TRANSACTION");
+    return !!query_impl("BEGIN TRANSACTION", nullptr);
 }
 
 bool database::commit_impl ()
 {
-    return query_impl("COMMIT TRANSACTION");
+    return !!query_impl("COMMIT TRANSACTION", nullptr);
 }
 
 bool database::rollback_impl ()
 {
-    return query_impl("ROLLBACK TRANSACTION");
+    return !!query_impl("ROLLBACK TRANSACTION", nullptr);
 }
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3

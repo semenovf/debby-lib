@@ -10,12 +10,12 @@
 #include "result.hpp"
 #include "affinity_traits.hpp"
 #include "cast_traits.hpp"
+#include "pfs/debby/error.hpp"
 #include "pfs/fmt.hpp"
 #include "pfs/string_view.hpp"
 #include <functional>
 #include <string>
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
@@ -30,17 +30,16 @@ public:
 
     private:
         result * _res {nullptr};
-        string_view _column_name;
+        pfs::string_view _column_name;
 
     public:
-        // throws `invalid_argument` if column name is invalid
-        // throws `bad_cast` if unable to cast to requested type
         template <typename NativeType>
-        bool to (NativeType * target)
+        bool to (NativeType * target) noexcept
         {
             using storage_type = typename debby::sqlite3::affinity_traits<NativeType>::storage_type;
 
-            auto opt_value = _res->template get<storage_type>(_column_name);
+            error err;
+            auto opt_value = _res->template get<storage_type>(_column_name, & err);
 
             if (opt_value.has_value()) {
                 auto opt = to_native<NativeType>(*opt_value);
@@ -55,11 +54,12 @@ public:
         }
 
         template <typename NativeType>
-        bool to (optional<NativeType> * target)
+        bool to (pfs::optional<NativeType> * target) noexcept
         {
-            using storage_type = typename debby::sqlite3::affinity_traits<optional<NativeType>>::storage_type;
+            using storage_type = typename debby::sqlite3::affinity_traits<pfs::optional<NativeType>>::storage_type;
 
-            auto opt_value = _res->template get<storage_type>(_column_name);
+            error err;
+            auto opt_value = _res->template get<storage_type>(_column_name, & err);
 
             if (opt_value.has_value()) {
                 auto opt = to_native<NativeType>(*opt_value);
@@ -69,7 +69,7 @@ public:
                     return true;
                 }
             } else {
-                *target = nullopt;
+                *target = pfs::nullopt;
                 return true;
             }
 
@@ -77,37 +77,37 @@ public:
         }
 
         template <typename NativeType>
-        inline bool to (NativeType & target)
+        inline bool to (NativeType & target) noexcept
         {
             return to<NativeType>(& target);
         }
 
         template <typename NativeType>
-        inline bool to (optional<NativeType> & target)
+        inline bool to (pfs::optional<NativeType> & target) noexcept
         {
             return to<NativeType>(& target);
         }
 
         template <typename NativeType>
-        inline bool operator >> (NativeType * target)
+        inline bool operator >> (NativeType * target) noexcept
         {
             return to<NativeType>(target);
         }
 
         template <typename NativeType>
-        inline bool operator >> (optional<NativeType> * target)
+        inline bool operator >> (pfs::optional<NativeType> * target) noexcept
         {
             return to<NativeType>(target);
         }
 
         template <typename NativeType>
-        inline bool operator >> (NativeType & target)
+        inline bool operator >> (NativeType & target) noexcept
         {
             return to<NativeType>(target);
         }
 
         template <typename NativeType>
-        inline bool operator >> (optional<NativeType> & target)
+        inline bool operator >> (pfs::optional<NativeType> & target) noexcept
         {
             return to<NativeType>(target);
         }
@@ -121,7 +121,7 @@ public:
         : _res(& res)
     {}
 
-    inline assign_wrapper assign (string_view column_name)
+    inline assign_wrapper assign (pfs::string_view column_name) noexcept
     {
         assign_wrapper aw;
         aw._res = _res;
@@ -129,7 +129,7 @@ public:
         return aw;
     }
 
-    inline assign_wrapper operator [] (string_view column_name)
+    inline assign_wrapper operator [] (pfs::string_view column_name) noexcept
     {
         assign_wrapper aw;
         aw._res = _res;
@@ -138,4 +138,4 @@ public:
     }
 };
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3

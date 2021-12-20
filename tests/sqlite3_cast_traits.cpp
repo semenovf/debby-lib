@@ -14,7 +14,7 @@
 #include "pfs/debby/sqlite3/uuid_traits.hpp"
 #include <cstdlib>
 
-using namespace pfs::debby::sqlite3;
+using namespace debby::sqlite3;
 
 template <typename IntegralT>
 void test_signed_integral_type ()

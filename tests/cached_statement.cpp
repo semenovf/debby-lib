@@ -16,7 +16,7 @@
 #include "pfs/debby/sqlite3/statement.hpp"
 #include <vector>
 
-using database_t = pfs::debby::sqlite3::database;
+using database_t = debby::sqlite3::database;
 
 namespace {
 
@@ -154,33 +154,31 @@ void do_benchmarks (database_t * db
 // Ubuntu 20.04.3 LTS
 // Intel(R) Core(TM) i5-2500K CPU @ 3.30GHz
 // RAM 16 Gb
-//==============================================================================
 // |               ns/op |                op/s |    err% |     total | insert
 // |--------------------:|--------------------:|--------:|----------:|:-------
-// |       96,207,000.50 |               10.39 |    4.5% |      2.05 | `noncached`
-// |      100,279,038.00 |                9.97 |    0.6% |      2.03 | `cached`
+// |      133,650,148.50 |                7.48 |    0.1% |      2.88 | `noncached`
+// |      133,670,566.50 |                7.48 |    0.4% |      4.14 | `cached`
 //
 // |               ns/op |                op/s |    err% |     total | select_all
 // |--------------------:|--------------------:|--------:|----------:|:-----------
-// |          354,876.00 |            2,817.89 |    0.4% |      0.01 | `noncached`
-// |          102,552.50 |            9,751.10 |    0.4% |      0.00 | `cached`
+// |          348,676.50 |            2,867.99 |    0.8% |      0.01 | `noncached`
+// |          130,788.50 |            7,645.93 |    0.3% |      0.00 | `cached`
 //
 // |               ns/op |                op/s |    err% |     total | select
 // |--------------------:|--------------------:|--------:|----------:|:-------
-// |          209,227.00 |            4,779.50 |    0.9% |      0.01 | `noncached`
-// |           65,668.00 |           15,228.12 |    0.9% |      0.00 | `cached`
-
+// |          218,973.00 |            4,566.77 |    0.2% |      0.01 | `noncached`
+// |           78,246.50 |           12,780.12 |    0.6% |      0.00 | `cached`
+//==============================================================================
 TEST_CASE("benchmark") {
     namespace fs = pfs::filesystem;
 
     auto db_path = fs::temp_directory_path() / "benchmark.db";
 
-    database_t db;
+    database_t db {db_path};
 
-    REQUIRE(db.open(db_path));
+    REQUIRE(db);
     REQUIRE(db.clear());
 
     do_benchmarks(& db, "noncached", "cached");
-    db.close();
 }
 

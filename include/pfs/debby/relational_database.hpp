@@ -5,13 +5,15 @@
 //
 // Changelog:
 //      2021.12.07 Initial version.
+//      2021.12.18 Reimplemented with new error handling.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "basic_database.hpp"
+#include "pfs/debby/error.hpp"
+#include "pfs/optional.hpp"
 #include <string>
 #include <vector>
 
-namespace pfs {
 namespace debby {
 
 template <typename Impl, typename Traits>
@@ -22,46 +24,54 @@ class relational_database : public basic_database<Impl>
 public:
     /**
      * Prepares statement.
-     *
-     * @throw debby::sql_error on backend failure.
      */
-    statement_type prepare (std::string const & sql, bool cache = true)
+    statement_type prepare (std::string const & sql, bool cache, error * perr = nullptr)
     {
-        return static_cast<Impl*>(this)->prepare_impl(sql, cache);
+        return static_cast<Impl*>(this)->prepare_impl(sql, cache, perr);
+    }
+
+    statement_type prepare (std::string const & sql)
+    {
+        return static_cast<Impl*>(this)->prepare_impl(sql, true, nullptr);
     }
 
     /**
      * Executes SQL query.
-     *
-     * @throw debby::sql_error on backend failure.
      */
-    bool query (std::string const & sql)
+    bool query (std::string const & sql, error * perr = nullptr)
     {
-        return static_cast<Impl *>(this)->query_impl(sql);
+        return static_cast<Impl *>(this)->query_impl(sql, perr);
     }
 
     /**
      * Lists available tables at database by pattern.
      *
-     * @throw debby::sql_error on backend failure.
+     * @return Tables available according to @a pattern.
      */
-    std::vector<std::string> tables (std::string const & pattern = std::string{})
+    std::vector<std::string> tables (std::string const & pattern = std::string{}
+        , error * perr = nullptr)
     {
-        return static_cast<Impl *>(this)->tables_impl(pattern);
+        return static_cast<Impl *>(this)->tables_impl(pattern, perr);
+    }
+
+    /**
+     * Removes named @a table or drop all tables if @a table is empty.
+     */
+    bool remove (std::string const & table, error * perr = nullptr)
+    {
+        return static_cast<Impl *>(this)->remove_impl(table, perr);
     }
 
     /**
      * Drops database (delete all tables).
-     *
-     * @throw debby::sql_error on backend failure.
      */
-    bool clear ()
+    bool clear (error * perr = nullptr)
     {
-        return static_cast<Impl *>(this)->clear_impl();
+        return static_cast<Impl *>(this)->remove_impl(std::string{}, perr);
     }
 
     /**
-     * @throw debby::sql_error on backend failure.
+     * Begin transaction.
      */
     bool begin ()
     {
@@ -69,7 +79,7 @@ public:
     }
 
     /**
-     * @throw debby::sql_error on backend failure.
+     * Commit transaction.
      */
     bool commit ()
     {
@@ -77,7 +87,7 @@ public:
     }
 
     /**
-     * @throw debby::sql_error on backend failure.
+     * Rollback transaction.
      */
     bool rollback ()
     {
@@ -86,14 +96,11 @@ public:
 
     /**
      * Checks if named table exists at database.
-     *
-     * @throw debby::sql_error on backend failure.
      */
-    bool exists (std::string const & name)
+    bool exists (std::string const & name, error * perr = nullptr)
     {
-        return static_cast<Impl *>(this)->exists_impl(name);
+        return static_cast<Impl *>(this)->exists_impl(name, perr);
     }
 };
 
-}} // namespace pfs::debby
-
+} // namespace debby

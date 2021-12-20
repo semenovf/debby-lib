@@ -21,13 +21,13 @@ set(WITH_CORE_TOOLS OFF CACHE BOOL "Disable build core tools for RocksDB")
 set(WITH_TOOLS OFF CACHE BOOL "Disable build tools for RocksDB")
 #set(FAIL_ON_WARNINGS OFF CACHE BOOL "Disable process warnings as errors for RocksDB")
 
-if (NOT PFS_DEBBY__ROCKSDB_ROOT)
-    set(PFS_DEBBY__ROCKSDB_ROOT ${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb)
+if (NOT DEBBY__ROCKSDB_ROOT)
+    set(DEBBY__ROCKSDB_ROOT ${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb)
 endif()
 
-add_subdirectory(${PFS_DEBBY__ROCKSDB_ROOT} rocksdb)
+add_subdirectory(${DEBBY__ROCKSDB_ROOT} rocksdb)
 target_include_directories(rocksdb PUBLIC
-    $<BUILD_INTERFACE:${PFS_DEBBY__ROCKSDB_ROOT}/include>)
+    $<BUILD_INTERFACE:${DEBBY__ROCKSDB_ROOT}/include>)
     # $<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
 
 if (CMAKE_COMPILER_IS_GNUCXX)

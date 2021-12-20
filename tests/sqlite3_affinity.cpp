@@ -13,7 +13,7 @@
 #include "pfs/debby/sqlite3/time_point_traits.hpp"
 #include "pfs/debby/sqlite3/uuid_traits.hpp"
 
-using namespace pfs::debby::sqlite3;
+using namespace debby::sqlite3;
 
 template <typename IntegralT>
 void test_integral_type ()

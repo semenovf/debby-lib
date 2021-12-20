@@ -9,13 +9,13 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "basic_database.hpp"
-#include "expected_result.hpp"
+#include "error.hpp"
+#include "pfs/optional.hpp"
 #include <string>
 #include <system_error>
 #include <vector>
 #include <cstring>
 
-namespace pfs {
 namespace debby {
 
 template <typename Impl, typename Traits>
@@ -31,53 +31,87 @@ public:
      * Stores arithmetic type @a value associated with @a key into database.
      */
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value, std::error_code>::type
-    set (key_type const & key, T value)
+    typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
+    set (key_type const & key, T value, error * perr = nullptr)
     {
-        return static_cast<Impl*>(this)->set_impl(key, value);
+        return static_cast<Impl*>(this)->set_impl(key, value, perr);
     }
 
     /**
      * Stores string @a value associated with @a key into database.
      */
-    std::error_code set (key_type const & key, std::string const & value)
+    bool set (key_type const & key, std::string const & value, error * perr = nullptr)
     {
-        return static_cast<Impl*>(this)->set_impl(key, value);
+        return static_cast<Impl*>(this)->set_impl(key, value, perr);
     }
 
     /**
      * Stores character sequence @a value with length @a len associated
      * with @a key into database.
      */
-    std::error_code set (key_type const & key, char const * value, std::size_t len)
+    bool set (key_type const & key, char const * value
+        , std::size_t len, error * perr = nullptr)
     {
-        return static_cast<Impl*>(this)->set_impl(key, value, len);
+        return static_cast<Impl*>(this)->set_impl(key, value, len, perr);
     }
 
     /**
      * Stores C-string @a value associated with @a key into database.
      */
-    std::error_code set (key_type const & key, char const * value)
+    bool set (key_type const & key, char const * value, error * perr = nullptr)
     {
-        return static_cast<Impl*>(this)->set_impl(key, value, std::strlen(value));
+        return static_cast<Impl*>(this)->set_impl(key, value
+            , std::strlen(value), perr);
     }
 
     /**
-     * Fetches value associated with @a key from database.
+     * Pulls arithmetic or string type value associated with @a key from database.
      */
     template <typename T>
-    expected_result<optional<T>> get (key_type const & key)
+    typename std::enable_if<std::is_arithmetic<T>::value
+        || std::is_same<std::string, T>::value, bool>::type
+    pull (key_type const & key, pfs::optional<T> & target, error * perr = nullptr)
     {
-        return static_cast<Impl*>(this)->template get_impl<T>(key);
+        return static_cast<Impl*>(this)->pull_impl(key, target, perr);
+    }
+
+    template <typename T>
+    typename std::enable_if<std::is_arithmetic<T>::value
+        || std::is_same<std::string, T>::value, bool>::type
+    pull (key_type const & key, T & target, error * perr = nullptr)
+    {
+        pfs::optional<T> opt;
+
+        if (!pull(key, opt, perr))
+            return false;
+
+        // Column can't contains `null` value, use method above.
+        if (!opt)
+            return false;
+
+        target = *opt;
+
+        return true;
+    }
+
+    template <typename T>
+    pfs::optional<T> get (key_type const & key, error * perr = nullptr)
+    {
+        pfs::optional<T> result;
+
+        if (!pull(key, result, perr))
+            return pfs::nullopt;
+
+        return std::move(result);
     }
 
     /**
      * Removes entry associated with @a key from database.
      */
-    bool remove (key_type const & key)
+    bool remove (key_type const & key, error * perr = nullptr)
     {
-        return static_cast<Impl*>(this)->remove_impl(key);
+        return static_cast<Impl*>(this)->remove_impl(key, perr);
     }
 };
 
-}} // namespace pfs::debby
+} // namespace debby

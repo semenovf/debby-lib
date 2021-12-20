@@ -11,30 +11,29 @@
 #include "affinity_traits.hpp"
 #include "cast_traits.hpp"
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-template <> struct affinity_traits<uuid_t> : text_affinity_traits {};
-template <> struct affinity_traits<uuid_t &> : text_affinity_traits {};
-template <> struct affinity_traits<uuid_t const> : text_affinity_traits {};
-template <> struct affinity_traits<uuid_t const &> : text_affinity_traits {};
+template <> struct affinity_traits<pfs::uuid_t> : text_affinity_traits {};
+template <> struct affinity_traits<pfs::uuid_t &> : text_affinity_traits {};
+template <> struct affinity_traits<pfs::uuid_t const> : text_affinity_traits {};
+template <> struct affinity_traits<pfs::uuid_t const &> : text_affinity_traits {};
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, uuid_t>::value, void>::type>
+       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::uuid_t>::value, void>::type>
 {
-    using storage_type = typename affinity_traits<uuid_t>::storage_type;
+    using storage_type = typename affinity_traits<pfs::uuid_t>::storage_type;
 
-    static storage_type to_storage (uuid_t const & value)
+    static storage_type to_storage (pfs::uuid_t const & value)
     {
         return std::to_string(value);
     }
 
-    static optional<uuid_t> to_native (storage_type const & value)
+    static pfs::optional<pfs::uuid_t> to_native (storage_type const & value)
     {
-        return from_string<uuid_t>(value);
+        return pfs::from_string<pfs::uuid_t>(value);
     }
 };
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3

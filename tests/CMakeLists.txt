@@ -10,20 +10,17 @@
 project(debby-lib-TESTS CXX C)
 
 list(APPEND TESTS
-#     cached_statement
-#     sqlite3_database
-#     sqlite3_affinity
-#     sqlite3_cast_traits
-#     statement
-    )
-
-if (PFS_DEBBY__ENABLE_ROCKSDB)
-    list(APPEND TESTS rocksdb_database)
-endif()
+    database
+    keyvalue_database
+    relational_database
+    sqlite3_affinity
+    sqlite3_cast_traits
+    statement
+    cached_statement)
 
 foreach (t ${TESTS})
     portable_target(ADD_TEST ${t}
-        ENABLE_COVERAGE ${PFS_DEBBY__ENABLE_COVERAGE}
+        ENABLE_COVERAGE ${DEBBY__ENABLE_COVERAGE}
         SOURCES ${t}.cpp ${${t}_SOURCES}
-        LINK pfs::debby)
+        LINK debby)
 endforeach()

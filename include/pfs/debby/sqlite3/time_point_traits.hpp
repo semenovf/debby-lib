@@ -11,52 +11,51 @@
 #include "affinity_traits.hpp"
 #include "cast_traits.hpp"
 
-namespace pfs {
 namespace debby {
 namespace sqlite3 {
 
-template <> struct affinity_traits<time_point> : integral64_affinity_traits {};
-template <> struct affinity_traits<time_point &> : integral64_affinity_traits {};
-template <> struct affinity_traits<time_point const> : integral64_affinity_traits {};
-template <> struct affinity_traits<time_point const &> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::time_point> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::time_point &> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::time_point const> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::time_point const &> : integral64_affinity_traits {};
 
-template <> struct affinity_traits<utc_time_point> : integral64_affinity_traits {};
-template <> struct affinity_traits<utc_time_point &> : integral64_affinity_traits {};
-template <> struct affinity_traits<utc_time_point const> : integral64_affinity_traits {};
-template <> struct affinity_traits<utc_time_point const &> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::utc_time_point> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::utc_time_point &> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::utc_time_point const> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::utc_time_point const &> : integral64_affinity_traits {};
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, time_point>::value, void>::type>
+       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::time_point>::value, void>::type>
 {
-    using storage_type = typename affinity_traits<time_point>::storage_type;
+    using storage_type = typename affinity_traits<pfs::time_point>::storage_type;
 
-    static storage_type to_storage (time_point const & value)
+    static storage_type to_storage (pfs::time_point const & value)
     {
-        return to_millis(value).count();
+        return pfs::to_millis(value).count();
     }
 
-    static optional<time_point> to_native (storage_type const & value)
+    static pfs::optional<pfs::time_point> to_native (storage_type const & value)
     {
-        return from_millis(std::chrono::milliseconds{value});
+        return pfs::from_millis(std::chrono::milliseconds{value});
     }
 };
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, utc_time_point>::value, void>::type>
+       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::utc_time_point>::value, void>::type>
 {
-    using storage_type = typename affinity_traits<utc_time_point>::storage_type;
+    using storage_type = typename affinity_traits<pfs::utc_time_point>::storage_type;
 
-    static storage_type to_storage (utc_time_point const & value)
+    static storage_type to_storage (pfs::utc_time_point const & value)
     {
-        return to_millis(value.value).count();
+        return pfs::to_millis(value.value).count();
     }
 
-    static optional<utc_time_point> to_native (storage_type const & value)
+    static pfs::optional<pfs::utc_time_point> to_native (storage_type const & value)
     {
-        return utc_time_point{from_millis(std::chrono::milliseconds{value})};
+        return pfs::utc_time_point{pfs::from_millis(std::chrono::milliseconds{value})};
     }
 };
 
-}}} // namespace pfs::debby::sqlite3
+}} // namespace debby::sqlite3
