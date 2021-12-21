@@ -22,5 +22,5 @@ foreach (t ${TESTS})
     portable_target(ADD_TEST ${t}
         ENABLE_COVERAGE ${DEBBY__ENABLE_COVERAGE}
         SOURCES ${t}.cpp ${${t}_SOURCES}
-        LINK debby)
+        LINK pfs::debby)
 endforeach()

@@ -2,6 +2,9 @@
 # Copyright (c) 2019-2021 Vladislav Trifochkin
 #
 # This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+#
+# Changelog:
+#      2021.11.24 Initial version.
 ################################################################################
 cmake_minimum_required (VERSION 3.11)
 project(debby-lib CXX C)
@@ -24,7 +27,7 @@ if (DEBBY__ENABLE_ROCKSDB)
         ${CMAKE_CURRENT_LIST_DIR}/cmake/RocksDB.cmake)
 endif()
 
-portable_target(LIBRARY ${PROJECT_NAME} ALIAS debby)
+portable_target(LIBRARY ${PROJECT_NAME} ALIAS pfs::debby)
 portable_target(INCLUDE_DIRS ${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 portable_target(LINK ${PROJECT_NAME} PUBLIC pfs::common)
 portable_target(EXPORTS ${PROJECT_NAME} DEBBY__EXPORTS DEBBY__STATIC)
