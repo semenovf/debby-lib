@@ -8,6 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "error.hpp"
+#include "unified_value.hpp"
 #include "pfs/fmt.hpp"
 #include "pfs/optional.hpp"
 #include "pfs/string_view.hpp"
@@ -24,12 +25,7 @@ class basic_result
 {
 public:
     using impl_type = Impl;
-    using blob_type = std::vector<std::uint8_t>;
-    using value_type = pfs::variant<std::nullptr_t
-        , std::intmax_t
-        , double
-        , std::string
-        , blob_type>;
+    using value_type = unified_value;
 
 protected:
     basic_result () = default;
@@ -38,42 +34,6 @@ protected:
     basic_result & operator = (basic_result const &) = delete;
     basic_result (basic_result && other) = default;
     basic_result & operator = (basic_result && other) = default;
-
-protected:
-    template <typename T>
-    inline typename std::enable_if<std::is_same<T, std::nullptr_t>::value, T>::type *
-    get_if_value_pointer (value_type *)
-    {
-        return nullptr;
-    }
-
-    template <typename T>
-    inline typename std::enable_if<std::is_integral<T>::value, std::intmax_t>::type *
-    get_if_value_pointer (value_type * v)
-    {
-        return pfs::get_if<std::intmax_t>(v);
-    }
-
-    template <typename T>
-    inline typename std::enable_if<std::is_floating_point<T>::value, double>::type *
-    get_if_value_pointer (value_type * v)
-    {
-        return pfs::get_if<double>(v);
-    }
-
-    template <typename T>
-    inline typename std::enable_if<std::is_same<T, std::string>::value, T>::type *
-    get_if_value_pointer (value_type * v)
-    {
-        return pfs::get_if<std::string>(v);
-    }
-
-    template <typename T>
-    inline typename std::enable_if<std::is_same<T, blob_type>::value, T>::type *
-    get_if_value_pointer (value_type * v)
-    {
-        return pfs::get_if<blob_type>(v);
-    }
 
 public:
     operator bool () const noexcept
@@ -168,7 +128,7 @@ public:
             return true;
         }
 
-        auto p = get_if_value_pointer<T>(& value);
+        auto p = get_if<T>(& value);
 
         // Bad casting
         if (!p) {

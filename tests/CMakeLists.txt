@@ -16,7 +16,8 @@ list(APPEND TESTS
     sqlite3_affinity
     sqlite3_cast_traits
     statement
-    cached_statement)
+    cached_statement
+    unified_value)
 
 foreach (t ${TESTS})
     portable_target(ADD_TEST ${t}

@@ -38,7 +38,7 @@ class result: public basic_result<result>
     };
 
 public:
-    using blob_type  = base_class::blob_type;
+    using blob_type  = blob_t;
     using value_type = base_class::value_type;
 
 private:
