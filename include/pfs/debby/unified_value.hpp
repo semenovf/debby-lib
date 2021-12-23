@@ -32,6 +32,10 @@ struct unified_value: public basic_value_t
 
     unified_value () : basic_value_t(nullptr) {}
 
+    unified_value (std::nullptr_t)
+        : basic_value_t(nullptr)
+    {}
+
     /**
      * Construct @c unified_value from any integral type (bool, char, int, etc).
      */
@@ -59,14 +63,14 @@ struct unified_value: public basic_value_t
      * Construct unified_value from string.
      */
     unified_value (char const * x)
-        : basic_value_t(std::string{x})
+        : basic_value_t(x ? std::string{x} : std::string{})
     {}
 
     /**
      * Construct unified_value from character sequence with length @a len.
      */
     unified_value (char const * x, std::size_t len)
-        : basic_value_t(std::string{x, len})
+        : basic_value_t(x && len > 0 ? std::string{x, len} : std::string{})
     {}
 
     /**

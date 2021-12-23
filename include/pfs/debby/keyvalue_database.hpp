@@ -10,6 +10,7 @@
 #pragma once
 #include "basic_database.hpp"
 #include "error.hpp"
+#include "unified_value.hpp"
 #include "pfs/optional.hpp"
 #include <string>
 #include <system_error>
@@ -23,10 +24,21 @@ class keyvalue_database : public basic_database<Impl>
 {
     using key_type = typename Traits::key_type;
 
+public:
+    using value_type = unified_value;
+
 protected:
     using basic_database<Impl>::basic_database;
 
 public:
+    /**
+     * Drops database (delete all tables).
+     */
+    bool clear (error * perr = nullptr)
+    {
+        return static_cast<Impl *>(this)->clear_impl(perr);
+    }
+
     /**
      * Stores arithmetic type @a value associated with @a key into database.
      */
@@ -64,21 +76,49 @@ public:
             , std::strlen(value), perr);
     }
 
-    /**
-     * Pulls arithmetic or string type value associated with @a key from database.
-     */
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value
-        || std::is_same<std::string, T>::value, bool>::type
-    pull (key_type const & key, pfs::optional<T> & target, error * perr = nullptr)
+    bool pull (key_type const & key, pfs::optional<T> & target, error * perr = nullptr)
     {
-        return static_cast<Impl*>(this)->pull_impl(key, target, perr);
+        error err;
+        auto value = static_cast<Impl*>(this)->template fetch_impl<T>(key, & err);
+
+        if (err) {
+            if (perr) *perr = err; else DEBBY__THROW(err);
+            return false;
+        }
+
+        if (pfs::holds_alternative<std::nullptr_t>(value)) {
+            target = pfs::nullopt;
+            return true;
+        }
+
+        auto p = get_if<T>(& value);
+
+        // Bad casting
+        if (!p) {
+            auto ec = make_error_code(errc::bad_value);
+            auto err = error{ec, fmt::format("unsuitable value stored by key: {}"
+                , key)};
+            if (perr) *perr = err; else DEBBY__THROW(err);
+            return false;
+        }
+
+        target = std::move(static_cast<T>(*p));
+        return true;
     }
 
+    /**
+     * Pulls value for specified column @a name and assigns it to @a target.
+     * Column can't be nullable.
+     *
+     * @param name Column name.
+     * @param target Reference to store result.
+     * @param perr Pointer to store error or @c nullptr to allow throwing exceptions.
+     *
+     * @return @c true on success pull, or @c false if otherwise.
+     */
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value
-        || std::is_same<std::string, T>::value, bool>::type
-    pull (key_type const & key, T & target, error * perr = nullptr)
+    bool pull (key_type const & key, T & target, error * perr = nullptr)
     {
         pfs::optional<T> opt;
 
