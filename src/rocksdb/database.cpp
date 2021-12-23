@@ -181,16 +181,38 @@ bool database::write (key_type const & key
     return true;
 }
 
-bool database::read (key_type const & key, int column_family_index
+bool database::read (key_type const & key, int & column_family_index
     , pfs::optional<std::string> & target
     , error * perr)
 {
     DEBBY__ASSERT(_dbh, NULL_HANDLER);
 
     std::string s;
-    auto status = _dbh->Get(::rocksdb::ReadOptions()
-        , _type_column_families[column_family_index]
-        , key, & s);
+
+    ::rocksdb::Status status;
+
+    if (column_family_index < 0) {
+        column_family_index = -1;
+
+        for (auto handle: _type_column_families) {
+            column_family_index++;
+            status = _dbh->Get(::rocksdb::ReadOptions(), handle, key, & s);
+
+            // Found
+            if (status.ok())
+                break;
+
+            // Error
+            if (!status.ok() && !status.IsNotFound()) {
+                column_family_index = -1;
+                break;
+            }
+        }
+    } else {
+        status = _dbh->Get(::rocksdb::ReadOptions()
+            , _type_column_families[column_family_index]
+            , key, & s);
+    }
 
     if (!status.ok()) {
         if (status.IsNotFound()) {

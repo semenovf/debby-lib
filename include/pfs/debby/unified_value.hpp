@@ -14,8 +14,6 @@
 #include <vector>
 #include <cstdint>
 
-#include "pfs/fmt.hpp"
-
 namespace debby {
 
 using blob_t  = std::vector<std::uint8_t>;

@@ -125,7 +125,7 @@ private:
      *
      * @return Value associated with @a key, or @c nullopt if specified key not found.
      */
-    bool read (key_type const & key, int column_family_index
+    bool read (key_type const & key, int & column_family_index
         , pfs::optional<std::string> & target
         , error * perr);
 
@@ -134,11 +134,16 @@ private:
         , error * perr);
 
     template <typename T>
-    value_type fetch_impl (key_type const & key, error * perr)
+    value_type fetch_typed_impl (key_type const & key, error * perr)
     {
         return fetch_impl(key
             , column_family_traits<T>::index
             , perr);
+    }
+
+    value_type fetch_impl (key_type const & key, error * perr)
+    {
+        return fetch_impl(key, -1, perr);
     }
 
     /**

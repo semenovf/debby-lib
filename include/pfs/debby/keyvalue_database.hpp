@@ -76,11 +76,24 @@ public:
             , std::strlen(value), perr);
     }
 
+    /**
+     * Stores blob @a value associated with @a key into database.
+     */
+    bool set (key_type const & key, blob_t const & value, error * perr = nullptr)
+    {
+        return static_cast<Impl*>(this)->set_impl(key, value, perr);
+    }
+
+    value_type fetch (key_type const & key, error * perr)
+    {
+        return static_cast<Impl*>(this)->fetch_impl(key, perr);
+    }
+
     template <typename T>
     bool pull (key_type const & key, pfs::optional<T> & target, error * perr = nullptr)
     {
         error err;
-        auto value = static_cast<Impl*>(this)->template fetch_impl<T>(key, & err);
+        auto value = static_cast<Impl*>(this)->template fetch_typed_impl<T>(key, & err);
 
         if (err) {
             if (perr) *perr = err; else DEBBY__THROW(err);
