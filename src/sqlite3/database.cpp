@@ -114,6 +114,40 @@ void database::close () noexcept
     _dbh = nullptr;
 };
 
+std::size_t database::rows_count_impl (std::string const & table_name)
+{
+    DEBBY__ASSERT(_dbh, NULL_HANDLER);
+
+    std::size_t count = 0;
+    std::string sql = fmt::format("SELECT COUNT(1) as count FROM {}"
+        , table_name);
+
+    error err;
+    statement_type stmt = prepare_impl(sql, true, & err);
+
+    if (stmt) {
+        auto res = stmt.exec(& err);
+
+        if (res) {
+            if (res.has_more()) {
+                auto value = res.fetch(0, & err);
+
+                // Unexpected result
+                DEBBY__ASSERT(pfs::holds_alternative<std::intmax_t>(value), "");
+                count = static_cast<std::size_t>(pfs::get<std::intmax_t>(value));
+
+                // may be `sql_error` exception
+                res.next();
+            }
+        }
+
+        // Expecting done
+        DEBBY__ASSERT(res.is_done(), "");
+    }
+
+    return count;
+}
+
 database::statement_type database::prepare_impl (std::string const & sql
     , bool cache
     , error * perr)

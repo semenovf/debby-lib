@@ -43,6 +43,11 @@ public:
         return static_cast<Impl*>(this)->exec_impl(perr);
     }
 
+    int rows_affected () const
+    {
+        return static_cast<Impl const *>(this)->rows_affected_impl();
+    }
+
     /**
      * Set the @a placeholder to be bound to arithmetic type (conformant the
      * std::is_arithmetic) @a value in the prepared statement.

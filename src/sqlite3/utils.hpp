@@ -20,11 +20,13 @@ inline std::string build_errstr (int rc, struct sqlite3 * dbh)
         int extended_rc = dbh ? sqlite3_extended_errcode(dbh) : rc;
 
         if (extended_rc != rc) {
-            return fmt::format("{}: {}"
+            return fmt::format("{} [code={}]: {} [extended code={}]"
                 , sqlite3_errstr(rc)
-                , sqlite3_errstr(extended_rc));
+                , rc
+                , sqlite3_errstr(extended_rc)
+                , extended_rc);
         } else {
-            return sqlite3_errstr(rc);
+            return fmt::format("{} [code={}]", sqlite3_errstr(rc), rc);
         }
     }
 

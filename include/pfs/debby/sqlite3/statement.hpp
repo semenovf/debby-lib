@@ -39,8 +39,8 @@ private:
     using base_class = basic_statement<statement, statement_traits>;
 
 private:
-    native_type _sth {nullptr};
-    bool        _cached {false};
+    mutable native_type _sth {nullptr};
+    bool                _cached {false};
 
 private:
     statement (native_type sth, bool cached)
@@ -57,6 +57,7 @@ private:
 
     void clear () noexcept;
     result_type exec_impl (error * perr);
+    int rows_affected_impl () const;
 
     bool bind_helper (std::string const & placeholder
         , std::function<int (int /*index*/)> && sqlite3_binder_func

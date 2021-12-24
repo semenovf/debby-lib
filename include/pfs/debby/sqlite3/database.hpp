@@ -53,6 +53,8 @@ private:
         return _dbh != nullptr;
     }
 
+    std::size_t rows_count_impl (std::string const & table_name);
+
     statement_type prepare_impl (std::string const & sql
         , bool cache
         , error * err);

@@ -44,12 +44,14 @@ public:
 private:
     mutable handle_type _sth {nullptr};
     status _state {INITIAL};
+    int _error_code {0};
     std::unordered_map<pfs::string_view, int> _column_mapping;
 
 private:
-    result (handle_type sth, status state)
+    result (handle_type sth, status state, int error_code)
         : _sth(sth)
         , _state(state)
+        , _error_code(error_code)
     {}
 
     std::string current_sql () const noexcept;

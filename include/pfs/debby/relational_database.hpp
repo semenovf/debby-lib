@@ -23,6 +23,14 @@ class relational_database : public basic_database<Impl>
 
 public:
     /**
+     * Return rows count in named table.
+     */
+    std::size_t rows_count (std::string const & table_name)
+    {
+        return static_cast<Impl *>(this)->rows_count_impl(table_name);
+    }
+
+    /**
      * Prepares statement.
      */
     statement_type prepare (std::string const & sql, bool cache, error * perr = nullptr)

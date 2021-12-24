@@ -24,6 +24,16 @@ inline std::string statement::current_sql () const noexcept
     return sqlite3::current_sql(_sth);
 }
 
+int statement::rows_affected_impl () const
+{
+    assert(_sth);
+    auto dbh = sqlite3_db_handle(_sth);
+    assert(dbh);
+
+    //return sqlite3_changes64(_sth);
+    return sqlite3_changes(dbh);
+}
+
 void statement::clear () noexcept
 {
     if (_sth) {
@@ -77,7 +87,7 @@ statement::result_type statement::exec_impl (error * perr)
     if (rc != SQLITE_ROW)
         sqlite3_reset(_sth);
 
-    return ec ? result_type{nullptr, status} : result_type{_sth, status};
+    return ec ? result_type{nullptr, status, rc} : result_type{_sth, status, 0};
 }
 
 bool statement::bind_helper (std::string const & placeholder
