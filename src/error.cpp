@@ -44,23 +44,4 @@ std::string error_category::message (int ev) const
     }
 };
 
-std::string error::what () const noexcept
-{
-    if (!_ec)
-        return _ec.message();
-
-    std::string result;
-
-    if (_ec.value() != static_cast<int>(errc::backend_error))
-        result += _ec.message();
-
-    if (!_description.empty())
-        result += std::string{(result.empty() ? "" : ": ")} + _description;
-
-    if (!_cause.empty())
-        result += std::string{(result.empty() ? "" : " ")} + '(' + _cause + ')';
-
-    return result;
-}
-
 } // namespace debby
