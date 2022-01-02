@@ -63,19 +63,36 @@ public:
     }
 
     /**
+     * Clear all records from @a table.
+     */
+    auto clear (std::string const & table, error * perr = nullptr) -> bool
+    {
+        return static_cast<Impl *>(this)->clear_impl(table, perr);
+    }
+
+    /**
      * Removes named @a table or drop all tables if @a table is empty.
      */
     bool remove (std::string const & table, error * perr = nullptr)
     {
-        return static_cast<Impl *>(this)->remove_impl(table, perr);
+        std::vector<std::string> tables{table};
+        return static_cast<Impl *>(this)->remove_impl(tables.cbegin(), tables.cend(), perr);
+    }
+
+    /**
+     * Removes named @a tables or drop all tables if @a tables is empty.
+     */
+    bool remove (std::vector<std::string> const & tables, error * perr = nullptr)
+    {
+        return static_cast<Impl *>(this)->remove_impl(tables.cbegin(), tables.cend(), perr);
     }
 
     /**
      * Drops database (delete all tables).
      */
-    bool clear (error * perr = nullptr)
+    bool remove_all (error * perr = nullptr)
     {
-        return static_cast<Impl *>(this)->remove_impl(std::string{}, perr);
+        return static_cast<Impl *>(this)->remove_impl(perr);
     }
 
     /**
@@ -108,22 +125,6 @@ public:
     bool exists (std::string const & name, error * perr = nullptr)
     {
         return static_cast<Impl *>(this)->exists_impl(name, perr);
-    }
-
-    /**
-     * Clear all records from table @a table_name.
-     */
-    auto clear (std::string const & table_name, error * perr = nullptr) -> bool
-    {
-        return static_cast<Impl *>(this)->clear_impl(table_name, perr);
-    }
-
-    /**
-     * Removes table @a table_name from database.
-     */
-    auto drop (std::string const & table_name, error * perr = nullptr) -> bool
-    {
-        return static_cast<Impl *>(this)->drop_impl(table_name, perr);
     }
 };
 

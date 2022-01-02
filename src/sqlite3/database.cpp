@@ -242,16 +242,33 @@ std::vector<std::string> database::tables_impl (std::string const & pattern
     return list;
 }
 
-bool database::remove_impl (std::string const & table, error * perr)
+auto database::clear_impl (std::string const & table, error * perr) -> bool
+{
+    return query_impl(fmt::format("DELETE FROM `{}`", table), perr);
+}
+
+auto database::remove_impl (error * perr) -> bool
+{
+    error err;
+    auto tables = tables_impl(std::string{}, & err);
+
+    if (tables.empty()) {
+        if (err && perr)
+            *perr = err;
+
+        return !err;
+    }
+
+    return remove_impl(tables.cbegin(), tables.cend(), perr);
+}
+
+bool database::remove_impl (std::vector<std::string>::const_iterator first
+        , std::vector<std::string>::const_iterator last, error * perr)
 {
     DEBBY__ASSERT(_dbh, NULL_HANDLER);
 
-    auto list = table.empty()
-        ? tables_impl(std::string{}, perr)
-        : std::vector<std::string>{table};
-
-    if (list.empty())
-        return !perr;
+    if (first == last)
+        return true;
 
     bool success = begin_impl();
 
@@ -262,8 +279,8 @@ bool database::remove_impl (std::string const & table, error * perr)
             if (!success)
                 break;
 
-            for (auto const & t: list) {
-                auto sql = fmt::format("DROP TABLE IF EXISTS `{}`", t);
+            for (; first != last; ++first) {
+                auto sql = fmt::format("DROP TABLE IF EXISTS `{}`", *first);
                 success = !!query_impl(sql, perr);
 
                 if (!success)
@@ -318,16 +335,6 @@ bool database::commit_impl ()
 bool database::rollback_impl ()
 {
     return query_impl("ROLLBACK TRANSACTION", nullptr);
-}
-
-auto database::clear_impl (std::string const & table_name, error * perr) -> bool
-{
-    return query_impl(fmt::format("DELETE FROM {}", table_name), perr);
-}
-
-auto database::drop_impl (std::string const & table_name, error * perr) -> bool
-{
-    return query_impl(fmt::format("DROP TABLE IF EXISTS {}", table_name), perr);
 }
 
 }} // namespace debby::sqlite3

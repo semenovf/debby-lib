@@ -64,16 +64,15 @@ private:
     std::vector<std::string> tables_impl (std::string const & pattern
         , error * perr);
 
-    /**
-     * Removes named @a table or drop all tables if @a table is empty.
-     */
-    bool remove_impl (std::string const & table, error * perr);
-    bool exists_impl (std::string const & name, error * perr);
-    bool begin_impl ();
-    bool commit_impl ();
-    bool rollback_impl ();
-    auto clear_impl (std::string const & table_name, error * perr) -> bool;
-    auto drop_impl (std::string const & table_name, error * perr) -> bool;
+    auto clear_impl (std::string const & table, error * perr) -> bool;
+    auto remove_impl (std::vector<std::string>::const_iterator first
+        , std::vector<std::string>::const_iterator last, error * perr) -> bool;
+    auto remove_impl (error * perr) -> bool;
+
+    auto exists_impl (std::string const & name, error * perr) -> bool;
+    auto begin_impl () -> bool;
+    auto commit_impl () -> bool;
+    auto rollback_impl () -> bool;
 
 public:
     database () = default;
