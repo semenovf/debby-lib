@@ -42,22 +42,22 @@ private:
     cache_type  _cache; // Prepared statements cache
 
 private:
-    bool open (pfs::filesystem::path const & path
+    auto open (pfs::filesystem::path const & path
         , bool create_if_missing
-        , error * err) noexcept;
+        , error * err) noexcept -> bool;
 
     void close () noexcept;
 
-    bool is_opened () const noexcept
+    auto is_opened () const noexcept -> bool
     {
         return _dbh != nullptr;
     }
 
-    std::size_t rows_count_impl (std::string const & table_name);
+    auto rows_count_impl (std::string const & table_name) -> std::size_t;
 
-    statement_type prepare_impl (std::string const & sql
+    auto prepare_impl (std::string const & sql
         , bool cache
-        , error * err);
+        , error * err) -> statement_type;
 
     bool query_impl (std::string const & sql, error * perr);
 
@@ -72,6 +72,8 @@ private:
     bool begin_impl ();
     bool commit_impl ();
     bool rollback_impl ();
+    auto clear_impl (std::string const & table_name, error * perr) -> bool;
+    auto drop_impl (std::string const & table_name, error * perr) -> bool;
 
 public:
     database () = default;

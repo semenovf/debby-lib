@@ -109,6 +109,22 @@ public:
     {
         return static_cast<Impl *>(this)->exists_impl(name, perr);
     }
+
+    /**
+     * Clear all records from table @a table_name.
+     */
+    auto clear (std::string const & table_name, error * perr = nullptr) -> bool
+    {
+        return static_cast<Impl *>(this)->clear_impl(table_name, perr);
+    }
+
+    /**
+     * Removes table @a table_name from database.
+     */
+    auto drop (std::string const & table_name, error * perr = nullptr) -> bool
+    {
+        return static_cast<Impl *>(this)->drop_impl(table_name, perr);
+    }
 };
 
 } // namespace debby

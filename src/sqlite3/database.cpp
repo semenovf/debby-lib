@@ -307,17 +307,27 @@ bool database::exists_impl (std::string const & name, error * perr)
 
 bool database::begin_impl ()
 {
-    return !!query_impl("BEGIN TRANSACTION", nullptr);
+    return query_impl("BEGIN TRANSACTION", nullptr);
 }
 
 bool database::commit_impl ()
 {
-    return !!query_impl("COMMIT TRANSACTION", nullptr);
+    return query_impl("COMMIT TRANSACTION", nullptr);
 }
 
 bool database::rollback_impl ()
 {
-    return !!query_impl("ROLLBACK TRANSACTION", nullptr);
+    return query_impl("ROLLBACK TRANSACTION", nullptr);
+}
+
+auto database::clear_impl (std::string const & table_name, error * perr) -> bool
+{
+    return query_impl(fmt::format("DELETE FROM {}", table_name), perr);
+}
+
+auto database::drop_impl (std::string const & table_name, error * perr) -> bool
+{
+    return query_impl(fmt::format("DROP TABLE IF EXISTS {}", table_name), perr);
 }
 
 }} // namespace debby::sqlite3
