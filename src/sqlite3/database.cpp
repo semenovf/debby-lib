@@ -18,6 +18,8 @@
 namespace debby {
 namespace sqlite3 {
 
+namespace fs = pfs::filesystem;
+
 namespace {
 int constexpr MAX_BUSY_TIMEOUT = 1000; // 1 second
 char const * NULL_HANDLER = "uninitialized database handler";
@@ -66,7 +68,7 @@ bool database::open (pfs::filesystem::path const & path
             _dbh = nullptr;
 
             bool is_special_file = path.empty()
-                || *path.c_str() == PFS_PLATFORM_LITERAL(':');
+                || *path.c_str() == PFS__LITERAL_PATH(':');
 
             if (rc == SQLITE_CANTOPEN && !is_special_file) {
                 ec = make_error_code(errc::database_not_found);
@@ -75,7 +77,7 @@ bool database::open (pfs::filesystem::path const & path
             }
 
             auto err = error{ec
-                , PFS_UTF8_ENCODE_PATH(path.c_str())
+                , fs::utf8_encode(path)
                 , build_errstr(rc, _dbh)};
 
             if (perr) *perr = err; else DEBBY__THROW(err);

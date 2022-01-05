@@ -68,7 +68,7 @@ void check_set_get (pfs::filesystem::path const & db_path)
 
 #if DEBBY__ROCKSDB_ENABLED
 TEST_CASE("rocksdb set/get") {
-    auto db_path = fs::temp_directory_path() / PFS_PLATFORM_LITERAL("debby-rocksdb.db");
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-rocksdb.db");
     check_set_get<debby::rocksdb::database>(db_path);
 }
 #endif

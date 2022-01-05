@@ -67,7 +67,7 @@ bool database::open (pfs::filesystem::path const & path
     // Need to use workaround:
     if (!pfs::filesystem::exists(path) && !options.create_if_missing) {
         auto ec = make_error_code(errc::database_not_found);
-        auto err = error{ec, PFS_UTF8_ENCODE_PATH(path.c_str())};
+        auto err = error{ec, pfs::utf8_encode(path)};
         if (perr) *perr = err; else DEBBY__THROW(err);
 
         return false;
@@ -108,7 +108,7 @@ bool database::open (pfs::filesystem::path const & path
     if (!status.ok()) {
         auto ec = make_error_code(errc::backend_error);
         auto err = error{ec
-            , PFS_UTF8_ENCODE_PATH(path.c_str())
+            , pfs::utf8_encode(path)
             , status.ToString()};
         if (perr) *perr = err; else DEBBY__THROW(err);
 
@@ -143,7 +143,7 @@ bool database::clear_impl (error * perr)
             auto ec = make_error_code(errc::backend_error);
             auto err = error{ec
                 , fmt::format("drop/clear database failure: {}"
-                    , PFS_UTF8_ENCODE_PATH(_path.c_str()))
+                    , pfs::utf8_encode(_path)
                     , status.ToString()};
             if (perr) *perr = err; else DEBBY__THROW(err);
             return false;

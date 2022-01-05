@@ -89,14 +89,14 @@ void check_constructor (pfs::filesystem::path const & db_path)
 
 #if DEBBY__SQLITE3_ENABLED
 TEST_CASE("sqlite3 database constructor") {
-    auto db_path = fs::temp_directory_path() / PFS_PLATFORM_LITERAL("debby-sqlite3.db");
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
     check_constructor<debby::sqlite3::database>(db_path);
 }
 #endif
 
 #if DEBBY__ROCKSDB_ENABLED
 TEST_CASE("rocksdb database constructor") {
-    auto db_path = fs::temp_directory_path() / PFS_PLATFORM_LITERAL("debby-rocksdb.db");
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-rocksdb.db");
     check_constructor<debby::rocksdb::database>(db_path);
 }
 #endif
