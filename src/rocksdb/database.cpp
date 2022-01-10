@@ -17,6 +17,8 @@
 namespace debby {
 namespace rocksdb {
 
+namespace fs = pfs::filesystem;
+
 namespace {
 char const * NULL_HANDLER = "uninitialized database handler";
 
@@ -48,7 +50,7 @@ bool database::open (pfs::filesystem::path const & path
 
     ::rocksdb::Options options = rocksdb_open_options();
 
-    if (pfs::filesystem::exists(path)) {
+    if (fs::exists(path)) {
         options.create_if_missing = false;
     } else {
         // Create the DB if it's not already present.
@@ -65,9 +67,9 @@ bool database::open (pfs::filesystem::path const & path
     // See appropriate code at `db/db_impl/db_impl_open.cc`, method
     // `Status DBImpl::Open(const DBOptions& db_options...`.
     // Need to use workaround:
-    if (!pfs::filesystem::exists(path) && !options.create_if_missing) {
+    if (!fs::exists(path) && !options.create_if_missing) {
         auto ec = make_error_code(errc::database_not_found);
-        auto err = error{ec, pfs::utf8_encode(path)};
+        auto err = error{ec, fs::utf8_encode(path)};
         if (perr) *perr = err; else DEBBY__THROW(err);
 
         return false;
@@ -108,7 +110,7 @@ bool database::open (pfs::filesystem::path const & path
     if (!status.ok()) {
         auto ec = make_error_code(errc::backend_error);
         auto err = error{ec
-            , pfs::utf8_encode(path)
+            , fs::utf8_encode(path)
             , status.ToString()};
         if (perr) *perr = err; else DEBBY__THROW(err);
 
@@ -143,8 +145,8 @@ bool database::clear_impl (error * perr)
             auto ec = make_error_code(errc::backend_error);
             auto err = error{ec
                 , fmt::format("drop/clear database failure: {}"
-                    , pfs::utf8_encode(_path)
-                    , status.ToString()};
+                    , fs::utf8_encode(_path)
+                    , status.ToString())};
             if (perr) *perr = err; else DEBBY__THROW(err);
             return false;
         }
