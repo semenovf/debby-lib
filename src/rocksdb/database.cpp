@@ -185,7 +185,7 @@ bool database::write (key_type const & key
 
 bool database::read (key_type const & key, int & column_family_index
     , pfs::optional<std::string> & target
-    , error * perr)
+    , error * perr) const
 {
     DEBBY__ASSERT(_dbh, NULL_HANDLER);
 
@@ -236,7 +236,7 @@ bool database::read (key_type const & key, int & column_family_index
 
 database::value_type database::fetch_impl (key_type const & key
     , int column_family_index
-    , error * perr)
+    , error * perr) const
 {
     DEBBY__ASSERT(_dbh, NULL_HANDLER);
 

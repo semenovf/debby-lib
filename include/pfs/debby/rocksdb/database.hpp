@@ -127,21 +127,21 @@ private:
      */
     bool read (key_type const & key, int & column_family_index
         , pfs::optional<std::string> & target
-        , error * perr);
+        , error * perr) const;
 
     value_type fetch_impl (key_type const & key
         , int column_family_index
-        , error * perr);
+        , error * perr) const;
 
     template <typename T>
-    value_type fetch_typed_impl (key_type const & key, error * perr)
+    value_type fetch_typed_impl (key_type const & key, error * perr) const
     {
         return fetch_impl(key
             , column_family_traits<T>::index
             , perr);
     }
 
-    value_type fetch_impl (key_type const & key, error * perr)
+    value_type fetch_impl (key_type const & key, error * perr) const
     {
         return fetch_impl(key, -1, perr);
     }

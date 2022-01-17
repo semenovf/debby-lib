@@ -84,9 +84,9 @@ public:
         return static_cast<Impl*>(this)->set_impl(key, value, perr);
     }
 
-    value_type fetch (key_type const & key, error * perr)
+    value_type fetch (key_type const & key, error * perr) const
     {
-        return static_cast<Impl*>(this)->fetch_impl(key, perr);
+        return static_cast<Impl const *>(this)->fetch_impl(key, perr);
     }
 
     template <typename T>
