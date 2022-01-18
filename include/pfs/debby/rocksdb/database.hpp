@@ -21,6 +21,7 @@
 namespace rocksdb {
 class DB;
 class ColumnFamilyHandle;
+struct Options;
 } // namespace rocksdb
 
 namespace debby {
@@ -38,6 +39,7 @@ class database: public keyvalue_database<database, database_traits>
 
 public:
     using key_type = database_traits::key_type;
+    using options_pointer_type = ::rocksdb::Options *;
 
 private:
     using base_class  = keyvalue_database<database, database_traits>;
@@ -95,7 +97,7 @@ private:
 
 private:
     bool open (pfs::filesystem::path const & path
-        , bool create_if_missing
+        , options_pointer_type opts
         , error * err) noexcept;
 
     void close () noexcept;
@@ -244,22 +246,19 @@ public:
      * missing when @a create_if_missing set to @c true.
      *
      * @param path Path to the database.
-     * @param create_if_missing If @c true create database if it missing.
+     * @param opts RocksDB specific options or @c nullptr for default options.
      * @param ec Store error code one of the following:
      *         - errc::database_not_found
      *         - errc::backend_error
      *
      * @throws debby::exception.
      */
-    database (pfs::filesystem::path const & path, bool create_if_missing
+
+    database (pfs::filesystem::path const & path
+        , options_pointer_type opts = nullptr
         , error * perr = nullptr)
     {
-        open(path, create_if_missing, perr);
-    }
-
-    database (pfs::filesystem::path const & path)
-    {
-        open(path, true, nullptr);
+        open(path, opts, perr);
     }
 
     /**

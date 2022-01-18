@@ -20,6 +20,7 @@ namespace rocksdb {
 namespace fs = pfs::filesystem;
 
 namespace {
+
 char const * NULL_HANDLER = "uninitialized database handler";
 
 } // namespace
@@ -34,8 +35,16 @@ namespace {
     options.IncreaseParallelism();
     options.OptimizeLevelStyleCompaction();
 
+    // If true, the database will be created if it is missing.
+    // Default: false
+    options.create_if_missing = true;
+
     // Aggressively check consistency of the data.
     options.paranoid_checks = true;
+
+    // Maximal info log files to be kept.
+    // Default: 1000
+    options.keep_log_file_num = 100;
 
     return options;
 }
@@ -43,18 +52,19 @@ namespace {
 } // namespace
 
 bool database::open (pfs::filesystem::path const & path
-    , bool create_if_missing
+    , ::rocksdb::Options * opts
     , error * perr) noexcept
 {
     DEBBY__ASSERT(!_dbh, NULL_HANDLER);
 
-    ::rocksdb::Options options = rocksdb_open_options();
+    ::rocksdb::Options default_opts = rocksdb_open_options();
 
-    if (fs::exists(path)) {
-        options.create_if_missing = false;
-    } else {
-        // Create the DB if it's not already present.
-        options.create_if_missing = create_if_missing;
+    if (!opts) {
+        opts = & default_opts;
+
+        if (fs::exists(path)) {
+            opts->create_if_missing = false;
+        }
     }
 
     // NOTE
@@ -67,7 +77,7 @@ bool database::open (pfs::filesystem::path const & path
     // See appropriate code at `db/db_impl/db_impl_open.cc`, method
     // `Status DBImpl::Open(const DBOptions& db_options...`.
     // Need to use workaround:
-    if (!fs::exists(path) && !options.create_if_missing) {
+    if (!fs::exists(path) && !opts->create_if_missing) {
         auto ec = make_error_code(errc::database_not_found);
         auto err = error{ec, fs::utf8_encode(path)};
         if (perr) *perr = err; else DEBBY__THROW(err);
@@ -86,13 +96,13 @@ bool database::open (pfs::filesystem::path const & path
 
     // Open DB.
     // `path` is the path to a directory containing multiple database files
-    if (options.create_if_missing) {
-        status = ::rocksdb::DB::Open(options, path, & _dbh);
+    if (opts->create_if_missing) {
+        status = ::rocksdb::DB::Open(*opts, path, & _dbh);
     } else {
         column_family_names.emplace_back(::rocksdb::kDefaultColumnFamilyName
             , ::rocksdb::ColumnFamilyOptions{});
 
-        status = ::rocksdb::DB::Open(options, path
+        status = ::rocksdb::DB::Open(*opts, path
             , column_family_names, & _type_column_families, & _dbh);
     }
 
