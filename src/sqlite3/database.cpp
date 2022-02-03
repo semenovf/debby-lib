@@ -121,7 +121,7 @@ std::size_t database::rows_count_impl (std::string const & table_name)
     DEBBY__ASSERT(_dbh, NULL_HANDLER);
 
     std::size_t count = 0;
-    std::string sql = fmt::format("SELECT COUNT(1) as count FROM {}"
+    std::string sql = fmt::format("SELECT COUNT(1) as count FROM `{}`"
         , table_name);
 
     error err;
