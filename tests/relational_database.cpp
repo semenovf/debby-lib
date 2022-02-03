@@ -44,7 +44,7 @@ void check (pfs::filesystem::path const & db_path)
 
     REQUIRE(db);
 
-    REQUIRE(db.clear());
+    REQUIRE(db.remove_all());
     REQUIRE_FALSE(db.exists("one"));
     REQUIRE_FALSE(db.exists("two"));
     REQUIRE_FALSE(db.exists("three"));
@@ -78,7 +78,7 @@ void check (pfs::filesystem::path const & db_path)
     REQUIRE(db.remove("two"));
     REQUIRE_FALSE(db.exists("two"));
 
-    REQUIRE(db.clear());
+    REQUIRE(db.remove_all());
     REQUIRE_FALSE(db.exists("one"));
     REQUIRE_FALSE(db.exists("two"));
     REQUIRE_FALSE(db.exists("three"));

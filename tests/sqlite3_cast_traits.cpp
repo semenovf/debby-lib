@@ -106,8 +106,8 @@ TEST_CASE("cast traits") {
 TEST_CASE("UUID cast traits") {
     CHECK(cast_traits<pfs::uuid_t>::to_storage("01D78XYFJ1PRM1WPBCBT3VHMNV"_uuid) == std::string{"01D78XYFJ1PRM1WPBCBT3VHMNV"});
     CHECK(*cast_traits<pfs::uuid_t>::to_native("01D78XYFJ1PRM1WPBCBT3VHMNV") == "01D78XYFJ1PRM1WPBCBT3VHMNV"_uuid);
-    CHECK_FALSE(cast_traits<pfs::uuid_t>::to_native("").has_value());
-    CHECK_FALSE(cast_traits<pfs::uuid_t>::to_native("01D78XYF").has_value());
+    CHECK(cast_traits<pfs::uuid_t>::to_native("") == pfs::uuid_t{});
+    CHECK(cast_traits<pfs::uuid_t>::to_native("01D78XYF") == pfs::uuid_t{});
 }
 
 TEST_CASE("time_point cast traits") {

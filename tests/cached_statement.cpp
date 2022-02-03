@@ -177,7 +177,7 @@ TEST_CASE("benchmark") {
     database_t db {db_path};
 
     REQUIRE(db);
-    REQUIRE(db.clear());
+    REQUIRE(db.remove_all());
 
     do_benchmarks(& db, "noncached", "cached");
 }

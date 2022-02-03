@@ -75,7 +75,7 @@ void check (pfs::filesystem::path const & db_path)
 
     REQUIRE(db);
 
-    REQUIRE(db.clear());
+    REQUIRE(db.remove_all());
 
     {
         auto stmt = db.prepare(fmt::format(CREATE_TABLE, TABLE_NAME));

@@ -39,7 +39,7 @@ class database: public keyvalue_database<database, database_traits>
 
 public:
     using key_type = database_traits::key_type;
-    using options_pointer_type = ::rocksdb::Options *;
+    using options_type = ::rocksdb::Options;
 
 private:
     using base_class  = keyvalue_database<database, database_traits>;
@@ -97,7 +97,7 @@ private:
 
 private:
     bool open (pfs::filesystem::path const & path
-        , options_pointer_type opts
+        , options_type * popts
         , error * err) noexcept;
 
     void close () noexcept;
@@ -255,11 +255,15 @@ public:
      */
 
     database (pfs::filesystem::path const & path
-        , options_pointer_type opts = nullptr
+        , options_type * popts = nullptr
         , error * perr = nullptr)
     {
-        open(path, opts, perr);
+        open(path, popts, perr);
     }
+
+    database (pfs::filesystem::path const & path
+        , bool create_if_missing
+        , error * perr = nullptr);
 
     /**
      * Release database data
@@ -278,9 +282,14 @@ public:
     {
         close();
         _dbh = other._dbh;
+        _path = std::move(other._path);
+        _type_column_families = std::move(other._type_column_families);
         other._dbh = nullptr;
         return *this;
     }
+
+public: // static
+    static options_type default_options ();
 };
 
 }} // namespace debby::rocksdb

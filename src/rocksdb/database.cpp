@@ -25,11 +25,18 @@ char const * NULL_HANDLER = "uninitialized database handler";
 
 } // namespace
 
-namespace {
-
-::rocksdb::Options rocksdb_open_options ()
+database::database (pfs::filesystem::path const & path
+    , bool create_if_missing
+    , error * perr)
 {
-     ::rocksdb::Options options;
+    auto opts = default_options();
+    opts.create_if_missing = create_if_missing;
+    open(path, & opts, perr);
+}
+
+::rocksdb::Options database::default_options ()
+{
+    ::rocksdb::Options options;
 
     // Optimize RocksDB. This is the easiest way to get RocksDB to perform well.
     options.IncreaseParallelism();
@@ -46,10 +53,12 @@ namespace {
     // Default: 1000
     options.keep_log_file_num = 100;
 
+    // If true, missing column families will be automatically created.
+    // Default: false
+    options.create_missing_column_families = true;
+
     return options;
 }
-
-} // namespace
 
 bool database::open (pfs::filesystem::path const & path
     , ::rocksdb::Options * opts
@@ -57,7 +66,7 @@ bool database::open (pfs::filesystem::path const & path
 {
     DEBBY__ASSERT(!_dbh, NULL_HANDLER);
 
-    ::rocksdb::Options default_opts = rocksdb_open_options();
+    ::rocksdb::Options default_opts = default_options();
 
     if (!opts) {
         opts = & default_opts;
@@ -96,22 +105,13 @@ bool database::open (pfs::filesystem::path const & path
 
     // Open DB.
     // `path` is the path to a directory containing multiple database files
-    if (opts->create_if_missing) {
-        status = ::rocksdb::DB::Open(*opts, path, & _dbh);
-    } else {
-        column_family_names.emplace_back(::rocksdb::kDefaultColumnFamilyName
-            , ::rocksdb::ColumnFamilyOptions{});
+    column_family_names.emplace_back(::rocksdb::kDefaultColumnFamilyName
+        , ::rocksdb::ColumnFamilyOptions{});
 
-        status = ::rocksdb::DB::Open(*opts, path
-            , column_family_names, & _type_column_families, & _dbh);
-    }
+    status = ::rocksdb::DB::Open(*opts, path
+        , column_family_names, & _type_column_families, & _dbh);
 
     if (status.ok()) {
-        // Database just created
-        // if (options.create_if_missing) {
-        //      // ...
-        // }
-
         if (_type_column_families.empty())
             status = _dbh->CreateColumnFamilies(column_family_names
                 , & _type_column_families);
@@ -122,7 +122,11 @@ bool database::open (pfs::filesystem::path const & path
         auto err = error{ec
             , fs::utf8_encode(path)
             , status.ToString()};
-        if (perr) *perr = err; else DEBBY__THROW(err);
+
+        if (perr)
+            *perr = err;
+        else
+            DEBBY__THROW(err);
 
         return false;
     }
@@ -149,7 +153,7 @@ void database::close () noexcept
 bool database::clear_impl (error * perr)
 {
     if (!_path.empty() && pfs::filesystem::exists(_path)) {
-        auto status = ::rocksdb::DestroyDB(_path, rocksdb_open_options());
+        auto status = ::rocksdb::DestroyDB(_path, default_options());
 
         if (!status.ok()) {
             auto ec = make_error_code(errc::backend_error);
