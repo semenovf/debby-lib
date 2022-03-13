@@ -10,6 +10,7 @@
 #pragma once
 #include "error.hpp"
 #include "unified_value.hpp"
+#include "pfs/fmt.hpp"
 #include "pfs/optional.hpp"
 #include "pfs/type_traits.hpp"
 #include <string>
@@ -153,7 +154,7 @@ public:
 
     /**
      */
-    bool is_error () const noexcept;
+    //bool is_error () const noexcept;
 
     /**
      * Returns column count for this result.
@@ -214,6 +215,11 @@ public:
             DEBBY__THROW(res);
 
         return column_wrapper(std::move(v));
+    }
+
+    column_wrapper operator [] (char const * column_name)
+    {
+        return operator [] (std::string{column_name});
     }
 
 public:

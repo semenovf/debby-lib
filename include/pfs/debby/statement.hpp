@@ -50,13 +50,21 @@ public:
     int rows_affected () const;
 
     /**
-     * Set the @a placeholder to be bound to @c nullptr @a value with in the
-     * prepared statement.
-     *
-     * @details Placeholder mark (e.g :) must be included when specifying the
-     *          placeholder name.
      */
-    void bind (std::string const & placeholder, std::nullptr_t);
+    template <typename T>
+    void bind (std::string const & placeholder, T const & value)
+    {
+        Backend::template bind<T>(& _rep, placeholder, value);
+    }
+
+//     /**
+//      * Set the @a placeholder to be bound to @c nullptr @a value with in the
+//      * prepared statement.
+//      *
+//      * @details Placeholder mark (e.g :) must be included when specifying the
+//      *          placeholder name.
+//      */
+//     void bind (std::string const & placeholder, std::nullptr_t);
 
     /**
      * Set the @a placeholder to be bound to arithmetic type (conformant the
@@ -65,9 +73,9 @@ public:
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
-    template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value, void>::type
-    bind (std::string const & placeholder, T value);
+//     template <typename T>
+//     typename std::enable_if<std::is_arithmetic<T>::value, void>::type
+//     bind (std::string const & placeholder, T value);
 
     /**
      * Set the @a placeholder to be bound to character sequence @a value with

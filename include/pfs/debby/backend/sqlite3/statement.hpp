@@ -10,7 +10,9 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "result.hpp"
+#include "cast_traits.hpp"
 #include "pfs/debby/result.hpp"
+#include "pfs/type_traits.hpp"
 
 struct sqlite3_stmt;
 
@@ -30,6 +32,16 @@ struct statement
     };
 
     static rep_type make (native_type sth, bool cached);
+
+    template <typename T>
+    typename std::enable_if<std::is_arithmetic<T>::value, void>::type
+    bind_helper (rep_type * rep, std::string const & placeholder, T && value);
+
+    template <typename T>
+    void bind (rep_type * rep, std::string const & placeholder, T const & value)
+    {
+        bind_helper<T>(rep, placeholder, to_storage(value));
+    }
 };
 
 }}} // namespace debby::backend::sqlite3
