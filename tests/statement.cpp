@@ -1,22 +1,24 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2021 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.11.24 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
+#include "pfs/debby/relational_database.hpp"
+#include "pfs/debby/statement.hpp"
 #include "pfs/filesystem.hpp"
 #include "pfs/fmt.hpp"
 #include <cmath>
 #include <limits>
 
 #if DEBBY__SQLITE3_ENABLED
-#   include "pfs/debby/sqlite3/database.hpp"
-#   include "pfs/debby/sqlite3/input_record.hpp"
-#   include "pfs/debby/sqlite3/statement.hpp"
+#   include "pfs/debby/backend/sqlite3/database.hpp"
+// #   include "pfs/debby/sqlite3/input_record.hpp"
+#   include "pfs/debby/backend/sqlite3/statement.hpp"
 #endif
 
 namespace fs = pfs::filesystem;
@@ -63,19 +65,19 @@ std::string const SELECT {
 
 } // namespace
 
-template <typename T>
+template <typename Backend>
 void check (pfs::filesystem::path const & db_path)
 {
-    using database_t = T;
+    using database_t = debby::relational_database<Backend>;
 
     if (fs::exists(db_path) && fs::is_regular_file(db_path))
         fs::remove(db_path);
 
-    database_t db {db_path};
+    auto db = database_t::make(db_path);
 
     REQUIRE(db);
 
-    REQUIRE(db.remove_all());
+    db.remove_all();
 
     {
         auto stmt = db.prepare(fmt::format(CREATE_TABLE, TABLE_NAME));
@@ -90,23 +92,21 @@ void check (pfs::filesystem::path const & db_path)
 
         REQUIRE(stmt);
 
-        bool success = stmt.bind(":null", nullptr)
-            && stmt.bind(":bool", true)
-            && stmt.bind(":int8", std::numeric_limits<std::int8_t>::min())
-            && stmt.bind(":uint8", std::numeric_limits<std::uint8_t>::max())
-            && stmt.bind(":int16", std::numeric_limits<std::int16_t>::min())
-            && stmt.bind(":uint16", std::numeric_limits<std::uint16_t>::max())
-            && stmt.bind(":int32", std::numeric_limits<std::int32_t>::min())
-            && stmt.bind(":uint32", std::numeric_limits<std::uint32_t>::max())
-            && stmt.bind(":int64", std::numeric_limits<std::int64_t>::min())
-            && stmt.bind(":uint64", std::numeric_limits<std::uint64_t>::max())
-            && stmt.bind(":float", static_cast<float>(3.14159))
-            && stmt.bind(":double", static_cast<double>(3.14159))
-            && stmt.bind(":text", std::string{"Hello"})
-            && stmt.bind(":cstr", "World");
+        stmt.bind(":null", nullptr);
+        stmt.bind(":bool", true);
+        stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
+        stmt.bind(":uint8", std::numeric_limits<std::uint8_t>::max());
+        stmt.bind(":int16", std::numeric_limits<std::int16_t>::min());
+        stmt.bind(":uint16", std::numeric_limits<std::uint16_t>::max());
+        stmt.bind(":int32", std::numeric_limits<std::int32_t>::min());
+        stmt.bind(":uint32", std::numeric_limits<std::uint32_t>::max());
+        stmt.bind(":int64", std::numeric_limits<std::int64_t>::min());
+        stmt.bind(":uint64", std::numeric_limits<std::uint64_t>::max());
+        stmt.bind(":float", static_cast<float>(3.14159));
+        stmt.bind(":double", static_cast<double>(3.14159));
+        stmt.bind(":text", std::string{"Hello"});
+        stmt.bind(":cstr", "World");
 
-        REQUIRE(success);
-        REQUIRE(stmt);
         auto result = stmt.exec();
         REQUIRE(result.is_done());
     }
@@ -143,120 +143,31 @@ void check (pfs::filesystem::path const & db_path)
 
         while (result.has_more()) {
             {
-                // Error for nonexistent column
-                debby::error err;
-                REQUIRE_FALSE(result.template get<int>("unknown", & err).has_value());
-                CHECK_EQ(err.code(), make_error_code(debby::errc::invalid_argument));
+                REQUIRE_EQ(result.template get_or<int>("unknown", -42), -42);
             }
 
             {
-                // Column contains `null`
-                debby::error err;
-                REQUIRE_FALSE(result.template get<int>("null", & err).has_value());
-                CHECK_EQ(err.code(), std::error_code{});
+                // Column `null` is INTEGER but contains null value
+                REQUIRE_EQ(result.template get<int *>("null"), nullptr);
+                REQUIRE_EQ(result.template get<std::string *>("null"), nullptr);
+
+#if PFS__EXCEPTIONS_ENABLED
+                REQUIRE_THROWS(result.template get<int>("null"));
+#endif
             }
 
-            // Column `null` is INTEGER but contains null value, so error() returns true
-            CHECK_FALSE(result.template get<int>("null").has_value());
-
-            // It is no matter the column type if it contains `null`
-            CHECK_FALSE(result.template get<float>("null").has_value());
-
-            CHECK_EQ(*result.template get<bool>("bool"), true);
-            CHECK_EQ(*result.template get<std::int8_t>("int8"), std::numeric_limits<std::int8_t>::min());
-            CHECK_EQ(*result.template get<std::uint8_t>("uint8"), std::numeric_limits<std::uint8_t>::max());
-            CHECK_EQ(*result.template get<std::int16_t>("int16"), std::numeric_limits<std::int16_t>::min());
-            CHECK_EQ(*result.template get<std::uint16_t>("uint16"), std::numeric_limits<std::uint16_t>::max());
-            CHECK_EQ(*result.template get<std::int32_t>("int32"), std::numeric_limits<std::int32_t>::min());
-            CHECK_EQ(*result.template get<std::uint32_t>("uint32"), std::numeric_limits<std::uint32_t>::max());
-            CHECK_EQ(*result.template get<std::int64_t>("int64"), std::numeric_limits<std::int64_t>::min());
-            CHECK_EQ(*result.template get<std::uint64_t>("uint64"), std::numeric_limits<std::uint64_t>::max());
-            CHECK(std::abs(*result.template get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
-            CHECK(std::abs(*result.template get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
-            CHECK_EQ(*result.template get<std::string>("text"), std::string{"Hello"});
-
-            // And using `input_record`
-            debby::sqlite3::input_record in {result};
-
-            {
-                bool b;
-                CHECK(in.assign("bool").to(b));
-                CHECK(b == true);
-            }
-
-            {
-                bool b;
-                in["bool"] >> b;
-                CHECK(b == true);
-            }
-
-            {
-                std::int8_t i8;
-                CHECK(in.assign("int8").to(i8));
-                CHECK(i8 == std::numeric_limits<std::int8_t>::min());
-            }
-
-            {
-                std::int8_t i8;
-                in["int8"] >> i8;
-                CHECK(i8 == std::numeric_limits<std::int8_t>::min());
-            }
-
-            {
-                std::uint64_t u64;
-                CHECK(in.assign("uint64").to(u64));
-                CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
-            }
-
-            {
-                std::uint64_t u64;
-                in["uint64"] >> u64;
-                CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
-            }
-
-            {
-                float f;
-                CHECK(in.assign("float").to(f));
-                CHECK(std::abs(f - static_cast<float>(3.14159)) < float{0.001});
-            }
-
-            {
-                double f;
-                in["double"] >> f;
-                CHECK(std::abs(f - static_cast<double>(3.14159)) < double{0.001});
-            }
-
-            {
-                std::string s;
-                in["text"] >> s;
-                CHECK(s == "Hello");
-            }
-
-            {
-                // `null` value results false for `direct` variable
-                int n;
-                REQUIRE_FALSE(in.assign("null").to(n));
-
-                pfs::optional<int> opt;
-
-                // `null` value results true for optional variable
-                REQUIRE(in.assign("null").to(opt));
-
-                REQUIRE_FALSE(opt.has_value());
-            }
-
-            {
-                // unknown column results false for `direct` variable
-                int n;
-                REQUIRE_FALSE(in.assign("unknown").to(n));
-
-                pfs::optional<int> opt;
-
-                // unknown column results true for optional variable and it
-                // has no value
-                REQUIRE(in.assign("unknown").to(opt));
-                REQUIRE_FALSE(opt.has_value());
-            }
+            CHECK_EQ(result.template get<bool>("bool"), true);
+            CHECK_EQ(result.template get<std::int8_t>("int8"), std::numeric_limits<std::int8_t>::min());
+            CHECK_EQ(result.template get<std::uint8_t>("uint8"), std::numeric_limits<std::uint8_t>::max());
+            CHECK_EQ(result.template get<std::int16_t>("int16"), std::numeric_limits<std::int16_t>::min());
+            CHECK_EQ(result.template get<std::uint16_t>("uint16"), std::numeric_limits<std::uint16_t>::max());
+            CHECK_EQ(result.template get<std::int32_t>("int32"), std::numeric_limits<std::int32_t>::min());
+            CHECK_EQ(result.template get<std::uint32_t>("uint32"), std::numeric_limits<std::uint32_t>::max());
+            CHECK_EQ(result.template get<std::int64_t>("int64"), std::numeric_limits<std::int64_t>::min());
+            CHECK_EQ(result.template get<std::uint64_t>("uint64"), std::numeric_limits<std::uint64_t>::max());
+            CHECK(std::abs(result.template get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
+            CHECK(std::abs(result.template get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
+            CHECK_EQ(result.template get<std::string>("text"), std::string{"Hello"});
 
             result.next();
         }
@@ -270,10 +181,8 @@ void check (pfs::filesystem::path const & db_path)
 
             REQUIRE(stmt);
 
-            bool success = stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
+            stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
 
-            REQUIRE(success);
-            REQUIRE(stmt);
             auto result = stmt.exec();
 
             while (result.has_more())
@@ -287,6 +196,6 @@ void check (pfs::filesystem::path const & db_path)
 #if DEBBY__SQLITE3_ENABLED
 TEST_CASE("sqlite3 statement") {
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
-    check<debby::sqlite3::database>(db_path);
+    check<debby::backend::sqlite3::database>(db_path);
 }
 #endif

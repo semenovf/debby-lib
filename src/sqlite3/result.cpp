@@ -1,69 +1,161 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.11.24 Initial version.
 //      2021.12.18 Reimplemented with new error handling.
+//      2022.03.12 Refactored.
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
 #include "utils.hpp"
-#include "pfs/fmt.hpp"
-#include "pfs/debby/sqlite3/result.hpp"
-#include <cstring>
-#include <cassert>
+#include "pfs/debby/result.hpp"
+#include "pfs/debby/backend/sqlite3/result.hpp"
 
 namespace debby {
+
+static char const * NULL_HANDLER = "uninitialized statement handler";
+
+namespace backend {
 namespace sqlite3 {
 
-namespace {
-char const * NULL_HANDLER = "uninitialized statement handler";
-} // namespace
-
-std::string result::current_sql () const noexcept
+result::rep_type result::make (handle_type sth
+    , status state, int error_code)
 {
-    DEBBY__ASSERT(_sth, NULL_HANDLER);
-    return sqlite3::current_sql(_sth);
+    rep_type rep;
+    rep.sth = sth;
+    rep.state = state;
+    rep.error_code = error_code;
+
+    return rep;
 }
 
-int result::column_count_impl () const noexcept
+}} // namespace backend::sqlite3
+
+#define BACKEND backend::sqlite3::result
+
+////////////////////////////////////////////////////////////////////////////////
+// result::result
+////////////////////////////////////////////////////////////////////////////////
+template <>
+result<BACKEND>::result (rep_type && rep)
+    : _rep(std::move(rep))
+{}
+
+////////////////////////////////////////////////////////////////////////////////
+// result::result
+////////////////////////////////////////////////////////////////////////////////
+template <>
+result<BACKEND>::result (result && other)
 {
-    DEBBY__ASSERT(_sth, NULL_HANDLER);
-    return sqlite3_column_count(_sth);
+    _rep = std::move(other._rep);
+    other._rep.sth = nullptr;
 }
 
-pfs::string_view result::column_name_impl (int column) const noexcept
+////////////////////////////////////////////////////////////////////////////////
+// ~result
+////////////////////////////////////////////////////////////////////////////////
+template <>
+result<BACKEND>::~result ()
+{}
+
+////////////////////////////////////////////////////////////////////////////////
+// operator bool
+////////////////////////////////////////////////////////////////////////////////
+template <>
+result<BACKEND>::operator bool () const noexcept
 {
-    DEBBY__ASSERT(_sth, NULL_HANDLER);
-
-    if (column >= 0 && column < sqlite3_column_count(_sth))
-        return pfs::string_view {sqlite3_column_name(_sth, column)};
-
-    return pfs::string_view{};
+    return _rep.sth != nullptr;
 }
 
-void result::next_impl (error * perr)
+////////////////////////////////////////////////////////////////////////////////
+// has_more
+////////////////////////////////////////////////////////////////////////////////
+template <>
+bool
+result<BACKEND>::has_more () const noexcept
 {
-    DEBBY__ASSERT(_sth, NULL_HANDLER);
+    return _rep.state == backend::sqlite3::result::ROW;
+}
 
-    auto rc = sqlite3_step(_sth);
+////////////////////////////////////////////////////////////////////////////////
+// is_done
+////////////////////////////////////////////////////////////////////////////////
+template <>
+bool
+result<BACKEND>::is_done () const noexcept
+{
+    return _rep.state == backend::sqlite3::result::DONE;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// is_error
+////////////////////////////////////////////////////////////////////////////////
+template <>
+bool
+result<BACKEND>::is_error () const noexcept
+{
+    return _rep.state == backend::sqlite3::result::ERROR;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// column_count
+////////////////////////////////////////////////////////////////////////////////
+template <>
+int
+result<BACKEND>::column_count () const noexcept
+{
+    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+    return sqlite3_column_count(_rep.sth);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// column_name
+////////////////////////////////////////////////////////////////////////////////
+template <>
+std::string
+result<BACKEND>::column_name (int column) const noexcept
+{
+    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+
+    if (column >= 0 && column < sqlite3_column_count(_rep.sth))
+        return std::string {sqlite3_column_name(_rep.sth, column)};
+
+    return std::string{};
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// next
+////////////////////////////////////////////////////////////////////////////////
+template <>
+void
+result<BACKEND>::next ()
+{
+    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+
+    auto rc = sqlite3_step(_rep.sth);
 
     switch (rc) {
         case SQLITE_ROW:
-            _state = ROW;
+            _rep.state = backend::sqlite3::result::ROW;
             break;
 
         case SQLITE_DONE:
-            _state = DONE;
+            _rep.state = backend::sqlite3::result::DONE;
             break;
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
-            _state = ERROR;
-            auto ec = make_error_code(errc::sql_error);
-            auto err = error{ec, build_errstr(rc, _sth), current_sql()};
-            if (perr) *perr = err; else DEBBY__THROW(err);
+            _rep.state = backend::sqlite3::result::ERROR;
+
+            auto err = error{
+                  make_error_code(errc::sql_error)
+                , backend::sqlite3::build_errstr(rc, _rep.sth)
+                , backend::sqlite3::current_sql(_rep.sth)
+            };
+
+            DEBBY__THROW(err);
             break;
         }
 
@@ -71,65 +163,79 @@ void result::next_impl (error * perr)
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
         default: {
-            _state = ERROR;
-            auto ec = make_error_code(errc::sql_error);
-            auto err = error{ec, build_errstr(rc, _sth), current_sql()};
-            if (perr) *perr = err; else DEBBY__THROW(err);
+            _rep.state = backend::sqlite3::result::ERROR;
+
+            auto err = error{
+                  make_error_code(errc::sql_error)
+                , backend::sqlite3::build_errstr(rc, _rep.sth)
+                , backend::sqlite3::current_sql(_rep.sth)
+            };
+
+            DEBBY__THROW(err);
             break;
         }
     }
 
     if (rc != SQLITE_ROW)
-        sqlite3_reset(_sth);
+        sqlite3_reset(_rep.sth);
 }
 
-result::value_type result::fetch_impl (int column, error * perr)
+////////////////////////////////////////////////////////////////////////////////
+// fetch
+////////////////////////////////////////////////////////////////////////////////
+template <>
+result_status
+result<BACKEND>::fetch (int column, value_type & value) const noexcept
 {
-    DEBBY__ASSERT(_sth, NULL_HANDLER);
+    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
 
-    auto upper_limit = sqlite3_column_count(_sth);
+    auto upper_limit = sqlite3_column_count(_rep.sth);
 
     if (column < 0 || column >= upper_limit) {
-        _state = ERROR;
-
-        auto ec = make_error_code(errc::invalid_argument);
-        auto err = error{ec
+        auto err = error{
+              make_error_code(errc::column_not_found)
             , fmt::format("bad column: {}, expected greater or equal to 0 and"
-                " less than {}", column, upper_limit)};
-        if (perr) *perr = err; else DEBBY__THROW(err);
-        return result::value_type{nullptr};
+                " less than {}", column, upper_limit)
+        };
+
+        return err;
     }
 
-    auto column_type = sqlite3_column_type(_sth, column);
+    auto column_type = sqlite3_column_type(_rep.sth, column);
 
     switch (column_type) {
         case SQLITE_INTEGER: {
-            sqlite3_int64 n = sqlite3_column_int64(_sth, column);
-            return result::value_type{static_cast<std::intmax_t>(n)};
+            sqlite3_int64 n = sqlite3_column_int64(_rep.sth, column);
+            value = result::value_type{static_cast<std::intmax_t>(n)};
+            return result_status{};
         }
 
         case SQLITE_FLOAT: {
-            double f = sqlite3_column_double(_sth, column);
-            return result::value_type{f};
+            double f = sqlite3_column_double(_rep.sth, column);
+            value = result::value_type{f};
+            return result_status{};
         }
 
         case SQLITE_TEXT: {
-            auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(_sth, column));
-            int size = sqlite3_column_bytes(_sth, column);
-            return result::value_type{std::string(cstr, size)};
+            auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(_rep.sth, column));
+            int size = sqlite3_column_bytes(_rep.sth, column);
+            value = result::value_type{std::string(cstr, size)};
+            return result_status{};
         }
 
         case SQLITE_BLOB: {
-            std::uint8_t const * data = static_cast<std::uint8_t const *>(sqlite3_column_blob(_sth, column));
-            int size = sqlite3_column_bytes(_sth, column);
-            blob_type blob;
+            std::uint8_t const * data = static_cast<std::uint8_t const *>(sqlite3_column_blob(_rep.sth, column));
+            int size = sqlite3_column_bytes(_rep.sth, column);
+            blob_t blob;
             blob.resize(size);
             std::memcpy(blob.data(), data, size);
-            return result::value_type{std::move(blob)};
+            value = result::value_type{std::move(blob)};
+            return result_status{};
         }
 
         case SQLITE_NULL:
-            return result::value_type{nullptr};
+            value = result::value_type{nullptr};
+            return result_status{};
 
         default:
             // Unexpected column type, need to handle it.
@@ -138,32 +244,45 @@ result::value_type result::fetch_impl (int column, error * perr)
     }
 
     // Unreachable in ordinary situation
-    return result::value_type{nullptr};
+    return result_status{};
 }
 
-result::value_type result::fetch_impl (pfs::string_view name, error * perr)
+////////////////////////////////////////////////////////////////////////////////
+// fetch
+////////////////////////////////////////////////////////////////////////////////
+template <>
+result_status
+result<BACKEND>::fetch (std::string const & column_name, value_type & value) const noexcept
 {
-    DEBBY__ASSERT(_sth, NULL_HANDLER);
+    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
 
-    if (_column_mapping.empty()) {
-        auto count = sqlite3_column_count(_sth);
+    if (_rep.column_mapping.empty()) {
+        auto count = sqlite3_column_count(_rep.sth);
 
         for (int i = 0; i < count; i++)
-            _column_mapping.insert({pfs::string_view{sqlite3_column_name(_sth, i)}, i});
+            _rep.column_mapping.insert({std::string{sqlite3_column_name(_rep.sth, i)}, i});
     }
 
-    auto pos = _column_mapping.find(name);
+    auto pos = _rep.column_mapping.find(column_name);
 
-    if (pos != _column_mapping.end())
-        return fetch_impl(pos->second, perr);
+    if (pos != _rep.column_mapping.end())
+        return fetch(pos->second, value);
 
-    _state = ERROR;
+    auto err = error{
+          make_error_code(errc::column_not_found)
+        , fmt::format("bad column name: {}", column_name)
+    };
 
-    auto ec = make_error_code(errc::invalid_argument);
-    auto err = error{ec, fmt::format("bad column name: {}", name.to_string())};
-    if (perr) *perr = err; else DEBBY__THROW(err);
-
-    return result::value_type{nullptr};
+    return err;
 }
 
-}} // namespace debby::sqlite3
+////////////////////////////////////////////////////////////////////////////////
+// input_record
+////////////////////////////////////////////////////////////////////////////////
+// template <>
+// result<BACKEND>::input_record_type input_record ()
+// {
+//
+// }
+
+} // namespace debby

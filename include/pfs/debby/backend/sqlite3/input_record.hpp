@@ -1,27 +1,31 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2021 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.10 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "result.hpp"
 #include "affinity_traits.hpp"
 #include "cast_traits.hpp"
+#include "result.hpp"
 #include "pfs/debby/error.hpp"
+#include "pfs/debby/result.hpp"
+#include "pfs/debby/unified_value.hpp"
 #include "pfs/fmt.hpp"
-#include "pfs/string_view.hpp"
+#include "pfs/optional.hpp"
 #include <functional>
 #include <string>
 
 namespace debby {
+namespace backend {
 namespace sqlite3 {
 
 class input_record
 {
-    using value_type = result::value_type;
+    using value_type = unified_value;
+    using result_type = debby::result<result>;
 
 public:
     class assign_wrapper
@@ -29,20 +33,19 @@ public:
         friend class input_record;
 
     private:
-        result * _res {nullptr};
-        pfs::string_view _column_name;
+        result_type * _res {nullptr};
+        std::string _column_name;
 
     public:
         template <typename NativeType>
         bool to (NativeType * target) noexcept
         {
-            using storage_type = typename debby::sqlite3::affinity_traits<NativeType>::storage_type;
+            using storage_type = typename affinity_traits<NativeType>::storage_type;
 
-            error err;
-            auto opt_value = _res->template get<storage_type>(_column_name, & err);
+            auto ptr = _res->template get<storage_type *>(_column_name);
 
-            if (opt_value.has_value()) {
-                auto opt = to_native<NativeType>(*opt_value);
+            if (ptr) {
+                auto opt = to_native<NativeType>(*ptr);
 
                 if (opt.has_value()) {
                     *target = *opt;
@@ -56,13 +59,12 @@ public:
         template <typename NativeType>
         bool to (pfs::optional<NativeType> * target) noexcept
         {
-            using storage_type = typename debby::sqlite3::affinity_traits<pfs::optional<NativeType>>::storage_type;
+            using storage_type = typename affinity_traits<pfs::optional<NativeType>>::storage_type;
 
-            error err;
-            auto opt_value = _res->template get<storage_type>(_column_name, & err);
+            auto ptr = _res->template get<storage_type *>(_column_name);
 
-            if (opt_value.has_value()) {
-                auto opt = to_native<NativeType>(*opt_value);
+            if (ptr) {
+                auto opt = to_native<NativeType>(*ptr);
 
                 if (opt.has_value()) {
                     *target = *opt;
@@ -114,14 +116,14 @@ public:
     };
 
 private:
-    result * _res {nullptr};
+    result_type * _res {nullptr};
 
 public:
-    input_record (result & res)
-        : _res(& res)
+    input_record (result_type * res)
+        : _res(res)
     {}
 
-    inline assign_wrapper assign (pfs::string_view column_name) noexcept
+    inline assign_wrapper assign (std::string const & column_name) noexcept
     {
         assign_wrapper aw;
         aw._res = _res;
@@ -129,7 +131,7 @@ public:
         return aw;
     }
 
-    inline assign_wrapper operator [] (pfs::string_view column_name) noexcept
+    inline assign_wrapper operator [] (std::string const & column_name) noexcept
     {
         assign_wrapper aw;
         aw._res = _res;
@@ -138,4 +140,4 @@ public:
     }
 };
 
-}} // namespace debby::sqlite3
+}}} // namespace debby::backend::sqlite3

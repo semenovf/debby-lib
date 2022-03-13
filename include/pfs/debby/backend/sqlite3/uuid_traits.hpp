@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
-// This file is part of [chat-lib](https://github.com/semenovf/chat-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.10 Initial version.
@@ -12,6 +12,7 @@
 #include "cast_traits.hpp"
 
 namespace debby {
+namespace backend {
 namespace sqlite3 {
 
 template <> struct affinity_traits<pfs::uuid_t> : text_affinity_traits {};
@@ -36,4 +37,4 @@ struct cast_traits<NativeType, typename std::enable_if<
     }
 };
 
-}} // namespace debby::sqlite3
+}}} // namespace debby::backend::sqlite3

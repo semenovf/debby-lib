@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.10 Initial version.
@@ -12,6 +12,7 @@
 #include "pfs/string_view.hpp"
 
 namespace debby {
+namespace backend {
 namespace sqlite3 {
 
 template <typename NativeType, typename Constraints = void>
@@ -81,4 +82,4 @@ inline pfs::optional<NativeType> to_native (typename affinity_traits<NativeType>
     return cast_traits<NativeType>::to_native(value);
 }
 
-}} // namespace debby::sqlite3
+}}} // namespace debby::backend::sqlite3

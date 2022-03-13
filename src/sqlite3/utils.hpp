@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.07 Initial version.
@@ -12,6 +12,7 @@
 #include <cassert>
 
 namespace debby {
+namespace backend {
 namespace sqlite3 {
 
 inline std::string build_errstr (int rc, struct sqlite3 * dbh)
@@ -63,4 +64,4 @@ inline std::string current_sql (struct sqlite3_stmt * sth) noexcept
     return sql ? std::string(sql) : std::string{};
 }
 
-}} // namespace debby::sqlite3
+}}} // namespace debby::backend::sqlite3
