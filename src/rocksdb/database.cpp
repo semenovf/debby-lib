@@ -1,40 +1,32 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.07 Initial version.
 //      2021.12.16 Reimplemented with new error handling.
+//      2022.03.12 Refactored.
 ////////////////////////////////////////////////////////////////////////////////
 #include "pfs/fmt.hpp"
-#include "pfs/debby/rocksdb/database.hpp"
+#include "pfs/debby/error.hpp"
+#include "pfs/debby/keyvalue_database.hpp"
+#include "pfs/debby/backend/rocksdb/database.hpp"
 #include <rocksdb/rocksdb_namespace.h>
 #include <rocksdb/db.h>
 #include <rocksdb/slice.h>
 #include <rocksdb/options.h>
 
-namespace debby {
-namespace rocksdb {
-
 namespace fs = pfs::filesystem;
 
-namespace {
+namespace debby {
 
-char const * NULL_HANDLER = "uninitialized database handler";
+namespace backend {
+namespace rocksdb {
 
-} // namespace
+static char const * NULL_HANDLER = "uninitialized database handler";
 
-database::database (pfs::filesystem::path const & path
-    , bool create_if_missing
-    , error * perr)
-{
-    auto opts = default_options();
-    opts.create_if_missing = create_if_missing;
-    open(path, & opts, perr);
-}
-
-::rocksdb::Options database::default_options ()
+static ::rocksdb::Options default_options ()
 {
     ::rocksdb::Options options;
 
@@ -60,11 +52,132 @@ database::database (pfs::filesystem::path const & path
     return options;
 }
 
-bool database::open (pfs::filesystem::path const & path
-    , ::rocksdb::Options * opts
-    , error * perr) noexcept
+static result_status read (database::rep_type const * rep
+    , database::key_type const & key
+    , int & column_family_index
+    , std::string & target)
 {
-    DEBBY__ASSERT(!_dbh, NULL_HANDLER);
+    DEBBY__ASSERT(rep->dbh, NULL_HANDLER);
+
+    std::string s;
+
+    ::rocksdb::Status status;
+
+    if (column_family_index < 0) {
+        column_family_index = -1;
+
+        for (auto handle: rep->type_column_families) {
+            column_family_index++;
+            status = rep->dbh->Get(::rocksdb::ReadOptions(), handle, key, & s);
+
+            // Found
+            if (status.ok())
+                break;
+
+            // Error
+            if (!status.ok() && !status.IsNotFound()) {
+                column_family_index = -1;
+                break;
+            }
+        }
+    } else {
+        status = rep->dbh->Get(::rocksdb::ReadOptions()
+            , rep->type_column_families[column_family_index]
+            , key, & s);
+    }
+
+    if (!status.ok()) {
+        if (status.IsNotFound()) {
+            auto err = error{
+                  make_error_code(errc::key_not_found)
+                , fmt::format("key not found: '{}'", key)
+            };
+            return err;
+        } else {
+            auto err = error{
+                  make_error_code(errc::backend_error)
+                , fmt::format("read failure for key: '{}'", key)
+                , status.ToString()
+            };
+            return err;
+        }
+    }
+
+    target = std::move(s);
+    return result_status{};
+}
+
+/**
+ * Removes value for @a key.
+ */
+static result_status remove (database::rep_type * rep, database::key_type const & key)
+{
+    DEBBY__ASSERT(rep->dbh, NULL_HANDLER);
+
+    ::rocksdb::Status status; // = _dbh->SingleDelete(::rocksdb::WriteOptions(), key);
+
+    for (auto handle: rep->type_column_families) {
+        status = rep->dbh->SingleDelete(::rocksdb::WriteOptions(), handle, key);
+
+        if (!status.ok() && !status.IsNotFound())
+            break;
+    }
+
+    if (!status.ok()) {
+        if (!status.IsNotFound()) {
+            auto err = error{
+                  make_error_code(errc::backend_error)
+                , fmt::format("remove failure for key: '{}'", key)
+                , status.ToString()};
+            return err;
+        }
+    }
+
+    return result_status{};
+}
+
+/**
+ * Writes @c data into database by @a key.
+ *
+ * Attempt to write @c nullptr data interpreted as delete operation for key.
+ *
+ * @return @c result_status
+ */
+result_status database::rep_type::write (
+      database::rep_type * rep
+    , database::key_type const & key
+    , int column_family_index
+    , char const * data, std::size_t len)
+{
+    DEBBY__ASSERT(rep->dbh, NULL_HANDLER);
+
+    // Attempt to write `null` data interpreted as delete operation for key
+    if (data) {
+        auto status = rep->dbh->Put(::rocksdb::WriteOptions()
+            , rep->type_column_families[column_family_index]
+            , key, ::rocksdb::Slice(data, len));
+
+        if (!status.ok()) {
+            auto err = error{
+                  make_error_code(errc::backend_error)
+                , fmt::format("write failure for key: '{}'", key)
+                , status.ToString()
+            };
+
+            return err;
+        }
+    } else {
+        return remove(rep, key);
+    }
+
+    return result_status{};
+}
+
+database::rep_type
+database::make (pfs::filesystem::path const & path, options_type * opts)
+{
+    rep_type rep;
+    rep.dbh = nullptr;
 
     ::rocksdb::Options default_opts = default_options();
 
@@ -87,11 +200,11 @@ bool database::open (pfs::filesystem::path const & path
     // `Status DBImpl::Open(const DBOptions& db_options...`.
     // Need to use workaround:
     if (!fs::exists(path) && !opts->create_if_missing) {
-        auto ec = make_error_code(errc::database_not_found);
-        auto err = error{ec, fs::utf8_encode(path)};
-        if (perr) *perr = err; else DEBBY__THROW(err);
-
-        return false;
+        auto err = error{
+              make_error_code(errc::database_not_found)
+            , fs::utf8_encode(path)
+        };
+        DEBBY__THROW(err);
     }
 
     ::rocksdb::Status status;
@@ -109,236 +222,248 @@ bool database::open (pfs::filesystem::path const & path
         , ::rocksdb::ColumnFamilyOptions{});
 
     status = ::rocksdb::DB::Open(*opts, path
-        , column_family_names, & _type_column_families, & _dbh);
+        , column_family_names, & rep.type_column_families, & rep.dbh);
 
     if (status.ok()) {
-        if (_type_column_families.empty())
-            status = _dbh->CreateColumnFamilies(column_family_names
-                , & _type_column_families);
+        if (rep.type_column_families.empty())
+            status = rep.dbh->CreateColumnFamilies(column_family_names
+                , & rep.type_column_families);
     }
 
     if (!status.ok()) {
         auto ec = make_error_code(errc::backend_error);
-        auto err = error{ec
-            , fs::utf8_encode(path)
-            , status.ToString()};
-
-        if (perr)
-            *perr = err;
-        else
-            DEBBY__THROW(err);
-
-        return false;
+        auto err = error{ec, fs::utf8_encode(path), status.ToString()};
+        DEBBY__THROW(err);
     }
 
-    _path = path;
+    rep.path = path;
 
-    return true;
+    return rep;
 }
 
-void database::close () noexcept
+database::rep_type
+database::make (pfs::filesystem::path const & path, bool create_if_missing)
 {
-    if (_dbh) {
-        for (auto handle: _type_column_families) {
-            _dbh->DestroyColumnFamilyHandle(handle);
-        }
+    auto opts = default_options();
+    opts.create_if_missing = create_if_missing;
+    return make(path, & opts);
+}
 
-        delete _dbh;
+}} // namespace backend::rocksdb
+
+#define BACKEND backend::rocksdb::database
+
+template <>
+keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
+    : _rep(std::move(rep))
+{}
+
+template <>
+keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
+{
+    _rep = std::move(other._rep);
+    other._rep.dbh = nullptr;
+}
+
+template <>
+keyvalue_database<BACKEND>::~keyvalue_database ()
+{
+    if (_rep.dbh) {
+        for (auto handle: _rep.type_column_families)
+            _rep.dbh->DestroyColumnFamilyHandle(handle);
+
+        delete _rep.dbh;
     }
 
-    _path.clear();
-    _dbh = nullptr;
-};
+    _rep.path.clear();
+    _rep.dbh = nullptr;
+}
 
-bool database::clear_impl (error * perr)
+template <>
+keyvalue_database<BACKEND>::operator bool () const noexcept
 {
-    if (!_path.empty() && pfs::filesystem::exists(_path)) {
-        auto status = ::rocksdb::DestroyDB(_path, default_options());
+    return _rep.dbh != nullptr;
+}
+
+template <>
+void
+keyvalue_database<BACKEND>::clear ()
+{
+    if (!_rep.path.empty() && pfs::filesystem::exists(_rep.path)) {
+        auto status = ::rocksdb::DestroyDB(_rep.path, backend::rocksdb::default_options());
 
         if (!status.ok()) {
             auto ec = make_error_code(errc::backend_error);
             auto err = error{ec
                 , fmt::format("drop/clear database failure: {}"
-                    , fs::utf8_encode(_path)
+                    , fs::utf8_encode(_rep.path)
                     , status.ToString())};
-            if (perr) *perr = err; else DEBBY__THROW(err);
-            return false;
+            DEBBY__THROW(err);
         }
     }
-
-    return true;
 }
 
-bool database::write (key_type const & key
-    , int column_family_index
-    , char const * data, std::size_t len
-    , error * perr)
+template <>
+void
+keyvalue_database<BACKEND>::set (key_type const & key, std::string const & value)
 {
-    DEBBY__ASSERT(_dbh, NULL_HANDLER);
+    auto err = rep_type::write(& _rep, key
+        , backend::rocksdb::database::STR_COLUMN_FAMILY_INDEX
+        , value.data(), value.size());
 
-    // Attempt to write `null` data interpreted as delete operation for key
-    if (data) {
-        auto status = _dbh->Put(::rocksdb::WriteOptions()
-            , _type_column_families[column_family_index]
-            , key, ::rocksdb::Slice(data, len));
-
-        if (!status.ok()) {
-            auto ec = make_error_code(errc::backend_error);
-            auto err = error{ec
-                , fmt::format("write failure for key: '{}'", key)
-                , status.ToString()};
-            if (perr) *perr = err; else DEBBY__THROW(err);
-            return false;
-        }
-    } else {
-        return remove_impl(key, perr);
-    }
-
-    return true;
+    if (err)
+        DEBBY__THROW(err);
 }
 
-bool database::read (key_type const & key, int & column_family_index
-    , pfs::optional<std::string> & target
-    , error * perr) const
+template <>
+void
+keyvalue_database<BACKEND>::set (key_type const & key
+    , char const * value, std::size_t len)
 {
-    DEBBY__ASSERT(_dbh, NULL_HANDLER);
+    auto err = rep_type::write(& _rep, key
+        , backend::rocksdb::database::STR_COLUMN_FAMILY_INDEX
+        , value, len);
 
-    std::string s;
-
-    ::rocksdb::Status status;
-
-    if (column_family_index < 0) {
-        column_family_index = -1;
-
-        for (auto handle: _type_column_families) {
-            column_family_index++;
-            status = _dbh->Get(::rocksdb::ReadOptions(), handle, key, & s);
-
-            // Found
-            if (status.ok())
-                break;
-
-            // Error
-            if (!status.ok() && !status.IsNotFound()) {
-                column_family_index = -1;
-                break;
-            }
-        }
-    } else {
-        status = _dbh->Get(::rocksdb::ReadOptions()
-            , _type_column_families[column_family_index]
-            , key, & s);
-    }
-
-    if (!status.ok()) {
-        if (status.IsNotFound()) {
-            target = pfs::nullopt;
-            return true;
-        } else {
-            auto ec = make_error_code(errc::backend_error);
-            auto err = error{ec
-                , fmt::format("read failure for key: '{}'", key)
-                , status.ToString()};
-            if (perr) *perr = err; else DEBBY__THROW(err);
-            return false;
-        }
-    }
-
-    target = std::move(s);
-    return true;
+    if (err)
+        DEBBY__THROW(err);
 }
 
-database::value_type database::fetch_impl (key_type const & key
-    , int column_family_index
-    , error * perr) const
+template <>
+void
+keyvalue_database<BACKEND>::set (key_type const & key, blob_t const & value)
 {
-    DEBBY__ASSERT(_dbh, NULL_HANDLER);
+    auto err = rep_type::write(& _rep, key
+        , backend::rocksdb::database::BLOB_COLUMN_FAMILY_INDEX
+        , reinterpret_cast<char const *>(value.data()), value.size());
 
-    pfs::optional<std::string> opt;
+    if (err)
+        DEBBY__THROW(err);
+}
 
-    if (!read(key, column_family_index, opt, perr))
-        return value_type{nullptr};
+////////////////////////////////////////////////////////////////////////////////
+// keyvalue_database::remove
+////////////////////////////////////////////////////////////////////////////////
+template <>
+void
+keyvalue_database<BACKEND>::remove (key_type const & key)
+{
+    backend::rocksdb::remove(& _rep, key);
+}
 
-    if (!opt)
-        return value_type{nullptr};
+////////////////////////////////////////////////////////////////////////////////
+// keyvalue_database::remove
+////////////////////////////////////////////////////////////////////////////////
+template <>
+result_status
+keyvalue_database<BACKEND>::fetch (key_type const & key
+    , keyvalue_database<BACKEND>::value_type & value) const noexcept
+{
+    int column_family_index = -1;
+    std::string target;
+
+    auto res = backend::rocksdb::read(& _rep, key, column_family_index, target);
+
+    if (!res.ok()) {
+        value = value_type{nullptr};
+        return res;
+    }
 
     bool corrupted = false;
 
-    if (opt->size() == 0) {
+    if (target.size() == 0) {
         switch (column_family_index) {
-            case BLOB_COLUMN_FAMILY_INDEX:
-                return value_type{blob_t{}};
-            case STR_COLUMN_FAMILY_INDEX:
-                return value_type{std::string{}};
+            case backend::rocksdb::database::BLOB_COLUMN_FAMILY_INDEX:
+                value = value_type{blob_t{}};
+                return result_status{};
+            case backend::rocksdb::database::STR_COLUMN_FAMILY_INDEX:
+                value = value_type{std::string{}};
+                return result_status{};
 
-            case INT_COLUMN_FAMILY_INDEX:
-            case FP_COLUMN_FAMILY_INDEX:
+            case backend::rocksdb::database::INT_COLUMN_FAMILY_INDEX:
+            case backend::rocksdb::database::FP_COLUMN_FAMILY_INDEX:
             default:
                 corrupted = true;
                 break;
         }
     }
 
-    int len = opt->size();
+    int len = target.size();
 
     if (!corrupted) {
         switch (column_family_index) {
-            case INT_COLUMN_FAMILY_INDEX: {
+            case backend::rocksdb::database::INT_COLUMN_FAMILY_INDEX: {
                 switch(len) {
                     case sizeof(std::int8_t): {
-                        fixed_packer<std::int8_t> p;
-                        std::memcpy(p.bytes, opt->data(), len);
-                        return value_type{static_cast<std::intmax_t>(p.value)};
+                        backend::rocksdb::database::fixed_packer<std::int8_t> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        value = value_type{static_cast<std::intmax_t>(p.value)};
+                        return result_status{};
                     }
+
                     case sizeof(std::int16_t): {
-                        fixed_packer<std::int16_t> p;
-                        std::memcpy(p.bytes, opt->data(), len);
-                        return value_type{static_cast<std::intmax_t>(p.value)};
+                        backend::rocksdb::database::fixed_packer<std::int16_t> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        value = value_type{static_cast<std::intmax_t>(p.value)};
+                        return result_status{};
                     }
+
                     case sizeof(std::int32_t): {
-                        fixed_packer<std::int32_t> p;
-                        std::memcpy(p.bytes, opt->data(), len);
-                        return value_type{static_cast<std::intmax_t>(p.value)};
+                        backend::rocksdb::database::fixed_packer<std::int32_t> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        value = value_type{static_cast<std::intmax_t>(p.value)};
+                        return result_status{};
                     }
+
                     case sizeof(std::int64_t): {
-                        fixed_packer<std::int64_t> p;
-                        std::memcpy(p.bytes, opt->data(), len);
-                        return value_type{static_cast<std::intmax_t>(p.value)};
+                        backend::rocksdb::database::fixed_packer<std::int64_t> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        value = value_type{static_cast<std::intmax_t>(p.value)};
+                        return result_status{};
                     }
+
                     default:
                         corrupted = true;
                         break;
                 }
+
                 break;
             }
-            case FP_COLUMN_FAMILY_INDEX: {
+
+            case backend::rocksdb::database::FP_COLUMN_FAMILY_INDEX: {
                 switch(len) {
                     case sizeof(float): {
-                        fixed_packer<float> p;
-                        std::memcpy(p.bytes, opt->data(), len);
-                        return value_type{static_cast<double>(p.value)};
+                        backend::rocksdb::database::fixed_packer<float> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        value = value_type{static_cast<double>(p.value)};
+                        return result_status{};
                     }
+
                     case sizeof(double): {
-                        fixed_packer<double> p;
-                        std::memcpy(p.bytes, opt->data(), len);
-                        return value_type{static_cast<double>(p.value)};
+                        backend::rocksdb::database::fixed_packer<double> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        value = value_type{static_cast<double>(p.value)};
+                        return result_status{};
                     }
+
                     default:
                         corrupted = true;
                         break;
                 }
+
                 break;
             }
 
-            case BLOB_COLUMN_FAMILY_INDEX: {
+            case backend::rocksdb::database::BLOB_COLUMN_FAMILY_INDEX: {
                 blob_t blob;
                 blob.resize(len);
-                std::memcpy(blob.data(), opt->data(), len);
-                return value_type{std::move(blob)};
+                std::memcpy(blob.data(), target.data(), len);
+                value = value_type{std::move(blob)};
+                return result_status{};
             }
 
-            case STR_COLUMN_FAMILY_INDEX:
-                return value_type{std::move(*opt)};
+            case backend::rocksdb::database::STR_COLUMN_FAMILY_INDEX:
+                value = value_type{std::move(target)};
+                return result_status{};
 
             default:
                 corrupted = true;
@@ -347,40 +472,15 @@ database::value_type database::fetch_impl (key_type const & key
     }
 
     if (corrupted) {
-        auto ec = make_error_code(errc::bad_value);
-        auto err = error{ec, fmt::format("unsuitable or corrupted data stored"
-            " by key: {}", key)};
-        if (perr) *perr = err; else DEBBY__THROW(err);
+        error err {make_error_code(errc::bad_value)
+            , fmt::format("unsuitable or corrupted data stored"
+                " by key: {}", key)
+        };
+
+        return err;
     }
 
-    return value_type{nullptr};
+    return result_status{};
 }
 
-bool database::remove_impl (key_type const & key, error * perr)
-{
-    DEBBY__ASSERT(_dbh, NULL_HANDLER);
-
-    ::rocksdb::Status status; // = _dbh->SingleDelete(::rocksdb::WriteOptions(), key);
-
-    for (auto handle: _type_column_families) {
-        status = _dbh->SingleDelete(::rocksdb::WriteOptions(), handle, key);
-
-        if (!status.ok() && !status.IsNotFound())
-            break;
-    }
-
-    if (!status.ok()) {
-        if (!status.IsNotFound()) {
-            auto ec = make_error_code(errc::backend_error);
-            auto err = error{ec
-                , fmt::format("remove failure for key: '{}'", key)
-                , status.ToString()};
-            if (perr) *perr = err; else DEBBY__THROW(err);
-            return false;
-        }
-    }
-
-    return true;
-}
-
-}} // namespace debby::rocksdb
+} // namespace debby

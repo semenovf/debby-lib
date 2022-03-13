@@ -1,169 +1,162 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.07 Initial version.
 //      2021.12.16 Reimplemented with new error handling.
+//      2022.03.12 Refactored.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "basic_database.hpp"
 #include "error.hpp"
 #include "unified_value.hpp"
-#include "pfs/optional.hpp"
+#include "pfs/fmt.hpp"
 #include <string>
-#include <system_error>
-#include <vector>
 #include <cstring>
+#include <memory>
 
 namespace debby {
 
-template <typename Impl, typename Traits>
-class keyvalue_database : public basic_database<Impl>
+template <typename Backend>
+class keyvalue_database final
 {
-    using key_type = typename Traits::key_type;
+    using rep_type = typename Backend::rep_type;
 
 public:
+    using key_type   = typename Backend::key_type;
     using value_type = unified_value;
 
-protected:
-    using basic_database<Impl>::basic_database;
+private:
+    rep_type _rep;
+
+private:
+    keyvalue_database () = delete;
+    keyvalue_database (rep_type && rep);
+    keyvalue_database (keyvalue_database const & other) = delete;
+    keyvalue_database & operator = (keyvalue_database const & other) = delete;
+    keyvalue_database & operator = (keyvalue_database && other) = delete;
+
+public:
+    keyvalue_database (keyvalue_database && other);
+    ~keyvalue_database ();
+
+private:
+    result_status fetch (key_type const & key, value_type & value) const noexcept;
 
 public:
     /**
-     * Drops database (delete all tables).
+     * Checks if database is open.
      */
-    bool clear (error * perr = nullptr)
-    {
-        return static_cast<Impl *>(this)->clear_impl(perr);
-    }
+    operator bool () const noexcept;
+
+    /**
+     * Drops database (delete all tables).
+     *
+     * @throw debby::error(errc::backend_error) on backend failure.
+     */
+    void clear ();
 
     /**
      * Stores arithmetic type @a value associated with @a key into database.
      */
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
-    set (key_type const & key, T value, error * perr = nullptr)
+    typename std::enable_if<std::is_arithmetic<T>::value, void>::type
+    set (key_type const & key, T value)
     {
-        return static_cast<Impl*>(this)->set_impl(key, value, perr);
+        rep_type::template set<T>(& _rep, key, value);
     }
 
     /**
      * Stores string @a value associated with @a key into database.
+     *
+     * @throw debby::error()
      */
-    bool set (key_type const & key, std::string const & value, error * perr = nullptr)
-    {
-        return static_cast<Impl*>(this)->set_impl(key, value, perr);
-    }
+    void set (key_type const & key, std::string const & value);
 
     /**
      * Stores character sequence @a value with length @a len associated
      * with @a key into database.
      */
-    bool set (key_type const & key, char const * value
-        , std::size_t len, error * perr = nullptr)
-    {
-        return static_cast<Impl*>(this)->set_impl(key, value, len, perr);
-    }
+    void set (key_type const & key, char const * value, std::size_t len);
 
     /**
      * Stores C-string @a value associated with @a key into database.
      */
-    bool set (key_type const & key, char const * value, error * perr = nullptr)
+    void set (key_type const & key, char const * value)
     {
-        return static_cast<Impl*>(this)->set_impl(key, value
-            , std::strlen(value), perr);
+        return set(key, value, std::strlen(value));
     }
 
     /**
      * Stores blob @a value associated with @a key into database.
      */
-    bool set (key_type const & key, blob_t const & value, error * perr = nullptr)
-    {
-        return static_cast<Impl*>(this)->set_impl(key, value, perr);
-    }
-
-    value_type fetch (key_type const & key, error * perr) const
-    {
-        return static_cast<Impl const *>(this)->fetch_impl(key, perr);
-    }
-
-    template <typename T>
-    bool pull (key_type const & key, pfs::optional<T> & target, error * perr = nullptr)
-    {
-        error err;
-        auto value = static_cast<Impl*>(this)->template fetch_typed_impl<T>(key, & err);
-
-        if (err) {
-            if (perr) *perr = err; else DEBBY__THROW(err);
-            return false;
-        }
-
-        if (pfs::holds_alternative<std::nullptr_t>(value)) {
-            target = pfs::nullopt;
-            return true;
-        }
-
-        auto p = get_if<T>(& value);
-
-        // Bad casting
-        if (!p) {
-            auto ec = make_error_code(errc::bad_value);
-            auto err = error{ec, fmt::format("unsuitable value stored by key: {}"
-                , key)};
-            if (perr) *perr = err; else DEBBY__THROW(err);
-            return false;
-        }
-
-        target = std::move(static_cast<T>(*p));
-        return true;
-    }
+    void set (key_type const & key, blob_t const & value);
 
     /**
-     * Pulls value for specified column @a name and assigns it to @a target.
-     * Column can't be nullable.
-     *
-     * @param name Column name.
-     * @param target Reference to store result.
-     * @param perr Pointer to store error or @c nullptr to allow throwing exceptions.
-     *
-     * @return @c true on success pull, or @c false if otherwise.
      */
     template <typename T>
-    bool pull (key_type const & key, T & target, error * perr = nullptr)
+    T get (key_type const & key)
     {
-        pfs::optional<T> opt;
+        value_type value;
+        auto res = fetch(key, value);
 
-        if (!pull(key, opt, perr))
-            return false;
+        if (!res.ok())
+            DEBBY__THROW(res);
 
-        // Column can't contains `null` value, use method above.
-        if (!opt)
-            return false;
+        auto ptr = get_if<T>(& value);
 
-        target = *opt;
+        if (!ptr) {
+            error err {make_error_code(errc::bad_value)
+                , fmt::format("unsuitable data stored by key: {}", key)
+            };
 
-        return true;
+            DEBBY__THROW(err);
+        }
+
+        return std::move(*ptr);
     }
 
     template <typename T>
-    pfs::optional<T> get (key_type const & key, error * perr = nullptr)
+    T get_or (key_type const & key, T const & default_value)
     {
-        pfs::optional<T> result;
+        value_type value;
+        auto res = fetch(key, value);
 
-        if (!pull(key, result, perr))
-            return pfs::nullopt;
+        if (!res.ok()) {
+            if (res.code().value() == static_cast<int>(errc::key_not_found))
+                return default_value;
 
-        return std::move(result);
+            DEBBY__THROW(res);
+        }
+
+        auto ptr = get_if<T>(& value);
+
+        if (!ptr)
+            return default_value;
+
+        return std::move(*ptr);
     }
 
     /**
      * Removes entry associated with @a key from database.
+     *
+     * @throw debby::error()
      */
-    bool remove (key_type const & key, error * perr = nullptr)
+    void remove (key_type const & key);
+
+public:
+    template <typename ...Args>
+    static keyvalue_database make (Args &&... args)
     {
-        return static_cast<Impl*>(this)->remove_impl(key, perr);
+        return keyvalue_database{Backend::make(std::forward<Args>(args)...)};
+    }
+
+    template <typename ...Args>
+    static std::unique_ptr<keyvalue_database> make_unique (Args &&... args)
+    {
+        auto ptr = new keyvalue_database {Backend::make(std::forward<Args>(args)...)};
+        return std::unique_ptr<keyvalue_database>(ptr);
     }
 };
 

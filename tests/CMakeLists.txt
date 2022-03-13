@@ -1,7 +1,7 @@
 ################################################################################
 # Copyright (c) 2021 Vladislav Trifochkin
 #
-# This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+# This file is part of `debby-lib`.
 #
 # Changelog:
 #      2021.11.24 Initial version.
@@ -10,7 +10,6 @@
 project(debby-lib-TESTS CXX C)
 
 list(APPEND TESTS
-    database
     keyvalue_database
     relational_database
     sqlite3_affinity

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2021 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.11.24 Initial version.
@@ -12,8 +12,10 @@
 #include "pfs/fmt.hpp"
 #include <algorithm>
 
+#include "pfs/debby/relational_database.hpp"
+
 #if DEBBY__SQLITE3_ENABLED
-#   include "pfs/debby/sqlite3/database.hpp"
+#   include "pfs/debby/backend/sqlite3/database.hpp"
 #endif
 
 namespace fs = pfs::filesystem;
@@ -32,27 +34,27 @@ std::string const CREATE_TABLE_THREE {
 };
 } // namespace
 
-template <typename T>
+template <typename Backend>
 void check (pfs::filesystem::path const & db_path)
 {
-    using database_t = T;
+    using database_t = debby::relational_database<Backend>;
 
     if (fs::exists(db_path) && fs::is_regular_file(db_path))
         fs::remove(db_path);
 
-    database_t db {db_path};
+    auto db = database_t::make(db_path);
 
     REQUIRE(db);
 
-    REQUIRE(db.remove_all());
+    db.remove_all();
     REQUIRE_FALSE(db.exists("one"));
     REQUIRE_FALSE(db.exists("two"));
     REQUIRE_FALSE(db.exists("three"));
     REQUIRE_FALSE(db.exists("four"));
 
-    REQUIRE(db.query(CREATE_TABLE_ONE));
-    REQUIRE(db.query(CREATE_TABLE_TWO));
-    REQUIRE(db.query(CREATE_TABLE_THREE));
+    db.query(CREATE_TABLE_ONE);
+    db.query(CREATE_TABLE_TWO);
+    db.query(CREATE_TABLE_THREE);
 
     REQUIRE(db.exists("one"));
     REQUIRE(db.exists("two"));
@@ -75,10 +77,10 @@ void check (pfs::filesystem::path const & db_path)
         CHECK_EQ(std::find(tables.begin(), tables.end(), "ten"), std::end(tables));
     }
 
-    REQUIRE(db.remove("two"));
+    db.remove("two");
     REQUIRE_FALSE(db.exists("two"));
 
-    REQUIRE(db.remove_all());
+    db.remove_all();
     REQUIRE_FALSE(db.exists("one"));
     REQUIRE_FALSE(db.exists("two"));
     REQUIRE_FALSE(db.exists("three"));
@@ -87,6 +89,6 @@ void check (pfs::filesystem::path const & db_path)
 #if DEBBY__SQLITE3_ENABLED
 TEST_CASE("sqlite3 database constructor") {
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
-    check<debby::sqlite3::database>(db_path);
+    check<debby::backend::sqlite3::database>(db_path);
 }
 #endif

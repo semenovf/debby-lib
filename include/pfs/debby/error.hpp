@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.14 Initial version.
@@ -26,6 +26,8 @@ enum class errc
     , backend_error  // Error from underlying subsystem
                      // (i.e. sqlite3, RrocksDb,... specific errors)
     , database_not_found
+    , key_not_found
+    , column_not_found = key_not_found
     , bad_value      // Bad/unsuitable value stored
     , sql_error
     , invalid_argument
@@ -53,6 +55,13 @@ class error: public pfs::error
 {
 public:
     using pfs::error::error;
+
+    bool ok () const
+    {
+        return !*this;
+    }
 };
+
+using result_status = error;
 
 } // namespace debby

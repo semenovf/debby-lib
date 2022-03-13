@@ -1,7 +1,7 @@
 ################################################################################
 # Copyright (c) 2019-2021 Vladislav Trifochkin
 #
-# This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+# This file is part of `debby-lib`.
 ################################################################################
 cmake_minimum_required (VERSION 3.11)
 project(debby-lib-ALL CXX C)

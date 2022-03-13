@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Copyright (c) 2021 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.01 Initial version.
@@ -12,11 +12,13 @@
 #include "doctest.h"
 #include "pfs/filesystem.hpp"
 #include "pfs/fmt.hpp"
-#include "pfs/debby/sqlite3/database.hpp"
-#include "pfs/debby/sqlite3/statement.hpp"
+#include "pfs/debby/relational_database.hpp"
+#include "pfs/debby/statement.hpp"
+#include "pfs/debby/backend/sqlite3/database.hpp"
+#include "pfs/debby/backend/sqlite3/statement.hpp"
 #include <vector>
 
-using database_t = debby::sqlite3::database;
+using database_t = debby::relational_database<debby::backend::sqlite3::database>;
 
 namespace {
 
@@ -45,27 +47,26 @@ constexpr int MIN_EPOCH_ITERATIONS = 2;
 
 void benchmark_insert_op (database_t * db, std::string const & table_name, bool cache)
 {
-    REQUIRE(db->begin());
+    db->begin();
 
     for (int i = 0; i < MAX_ITERATIONS; i++) {
         auto stmt = db->prepare(fmt::format(INSERT, table_name), cache);
         REQUIRE(stmt);
 
-        bool success = stmt.bind(":id", i)
-            && stmt.bind(":string", std::string{"Hello"})
-            && stmt.bind(":blob", std::vector<std::uint8_t>{1,2,3,4,5,6,7,9});
+        stmt.bind(":id", i);
+        stmt.bind(":string", std::string{"Hello"});
+        stmt.bind(":blob", std::vector<std::uint8_t>{1,2,3,4,5,6,7,9});
 
-        REQUIRE(success);
         auto result = stmt.exec();
         REQUIRE(result.is_done());
     }
 
-    REQUIRE(db->commit());
+    db->commit();
 }
 
 void benchmark_select_all_op (database_t * db, std::string const & table_name, bool cache)
 {
-    REQUIRE(db->begin());
+    db->begin();
 
     for (int i = 0; i < MAX_ITERATIONS; i++) {
         auto stmt = db->prepare(fmt::format(SELECT_ALL, table_name), cache);
@@ -73,12 +74,12 @@ void benchmark_select_all_op (database_t * db, std::string const & table_name, b
         auto result = stmt.exec();
     }
 
-    REQUIRE(db->commit());
+    db->commit();
 }
 
 void benchmark_select_op (database_t * db, std::string const & table_name, bool cache)
 {
-    REQUIRE(db->begin());
+    db->begin();
 
     for (int i = 0; i < MAX_ITERATIONS; i++) {
         auto stmt = db->prepare(fmt::format(SELECT, table_name), cache);
@@ -87,7 +88,7 @@ void benchmark_select_op (database_t * db, std::string const & table_name, bool 
         auto result = stmt.exec();
     }
 
-    REQUIRE(db->commit());
+    db->commit();
 }
 
 void benchmark_initialize (database_t * db, std::string const & table_name)
@@ -156,28 +157,28 @@ void do_benchmarks (database_t * db
 // RAM 16 Gb
 // |               ns/op |                op/s |    err% |     total | insert
 // |--------------------:|--------------------:|--------:|----------:|:-------
-// |      133,650,148.50 |                7.48 |    0.1% |      2.88 | `noncached`
-// |      133,670,566.50 |                7.48 |    0.4% |      4.14 | `cached`
+// |      133,665,840.00 |                7.48 |    0.0% |      3.02 | `noncached`
+// |      146,186,212.50 |                6.84 |    2.9% |      3.23 | `cached`
 //
 // |               ns/op |                op/s |    err% |     total | select_all
 // |--------------------:|--------------------:|--------:|----------:|:-----------
-// |          348,676.50 |            2,867.99 |    0.8% |      0.01 | `noncached`
-// |          130,788.50 |            7,645.93 |    0.3% |      0.00 | `cached`
+// |          375,181.00 |            2,665.38 |    0.6% |      0.01 | `noncached`
+// |           85,279.00 |           11,726.22 |    0.6% |      0.00 | `cached`
 //
 // |               ns/op |                op/s |    err% |     total | select
 // |--------------------:|--------------------:|--------:|----------:|:-------
-// |          218,973.00 |            4,566.77 |    0.2% |      0.01 | `noncached`
-// |           78,246.50 |           12,780.12 |    0.6% |      0.00 | `cached`
-//==============================================================================
+// |          285,765.50 |            3,499.37 |    0.4% |      0.01 | `noncached`
+// |          111,042.00 |            9,005.60 |    0.5% |      0.00 | `cached`
+// ===============================================================================
 TEST_CASE("benchmark") {
     namespace fs = pfs::filesystem;
 
     auto db_path = fs::temp_directory_path() / "benchmark.db";
 
-    database_t db {db_path};
+    auto db  = database_t::make(db_path);
 
     REQUIRE(db);
-    REQUIRE(db.remove_all());
+    db.remove_all();
 
     do_benchmarks(& db, "noncached", "cached");
 }

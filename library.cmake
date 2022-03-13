@@ -1,7 +1,7 @@
 ################################################################################
-# Copyright (c) 2019-2021 Vladislav Trifochkin
+# Copyright (c) 2019-2022 Vladislav Trifochkin
 #
-# This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+# This file is part of `debby-lib`.
 #
 # Changelog:
 #      2021.11.24 Initial version.
@@ -9,7 +9,7 @@
 cmake_minimum_required (VERSION 3.11)
 project(debby-lib CXX C)
 
-option(DEBBY__ENABLE_EXCEPTIONS "Enable exceptions for library" OFF)
+option(DEBBY__ENABLE_EXCEPTIONS "Enable exceptions for library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` library" ON)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` library" OFF)
 

@@ -1,7 +1,7 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
-// This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+// This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.14 Initial version.
@@ -30,6 +30,9 @@ std::string error_category::message (int ev) const
 
         case static_cast<int>(errc::database_not_found):
             return std::string{"database not found"};
+
+        case static_cast<int>(errc::key_not_found):
+            return std::string{"key not found"};
 
         case static_cast<int>(errc::bad_value):
             return std::string{"bad/unsuitable value"};
