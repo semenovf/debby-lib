@@ -52,54 +52,22 @@ public:
     /**
      */
     template <typename T>
-    void bind (std::string const & placeholder, T const & value)
+    void bind (std::string const & placeholder, T && value)
     {
-        Backend::template bind<T>(& _rep, placeholder, value);
+        Backend::template bind<T>(& _rep, placeholder, std::forward<T>(value));
     }
 
-//     /**
-//      * Set the @a placeholder to be bound to @c nullptr @a value with in the
-//      * prepared statement.
-//      *
-//      * @details Placeholder mark (e.g :) must be included when specifying the
-//      *          placeholder name.
-//      */
-//     void bind (std::string const & placeholder, std::nullptr_t);
-
     /**
-     * Set the @a placeholder to be bound to arithmetic type (conformant the
-     * std::is_arithmetic) @a value in the prepared statement.
-     *
-     * @details Placeholder mark (e.g :) must be included when specifying the
-     *          placeholder name.
-     */
-//     template <typename T>
-//     typename std::enable_if<std::is_arithmetic<T>::value, void>::type
-//     bind (std::string const & placeholder, T value);
-
-    /**
-     * Set the @a placeholder to be bound to character sequence @a value with
-     * length @a len in the prepared statement.
+     * Set the @a placeholder to be bound to blob @a value with length @a len
+     * in the prepared statement.
      *
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
     void bind (std::string const & placeholder
-        , char const * value
+        , char const * blob
         , std::size_t len
-        , bool transient = true);
-
-    /**
-     * Set the @a placeholder to be bound to C-string @a value with in the
-     * prepared statement.
-     *
-     * @details Placeholder mark (e.g :) must be included when specifying the
-     *          placeholder name.
-     */
-    void bind (std::string const & placeholder, char const * value, bool transient = true)
-    {
-        bind(placeholder, value, std::strlen(value), transient);
-    }
+        , bool transient);
 
     /**
      * Set the @a placeholder to be bound to string @a value in the prepared
@@ -110,21 +78,18 @@ public:
      */
     void bind (std::string const & placeholder
         , std::string const & value
-        , bool transient = true)
-    {
-        bind(placeholder, value.c_str(), value.size(), transient);
-    }
+        , bool transient);
 
     /**
-     * Set the @a placeholder to be bound to binary data @a value with in the
+     * Set the @a placeholder to be bound to C-string @a value with in the
      * prepared statement.
      *
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
     void bind (std::string const & placeholder
-        , std::vector<std::uint8_t> const & value
-        , bool transient = true);
+        , char const * value
+        , bool transient);
 
 public:
     template <typename ...Args>

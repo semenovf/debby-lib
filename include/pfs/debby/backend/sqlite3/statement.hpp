@@ -34,13 +34,14 @@ struct statement
     static rep_type make (native_type sth, bool cached);
 
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value, void>::type
-    bind_helper (rep_type * rep, std::string const & placeholder, T && value);
+    static void bind_helper (rep_type * rep, std::string const & placeholder, T && value);
 
     template <typename T>
-    void bind (rep_type * rep, std::string const & placeholder, T const & value)
+    static void bind (rep_type * rep, std::string const & placeholder, T && value)
     {
-        bind_helper<T>(rep, placeholder, to_storage(value));
+        auto v = to_storage(std::forward<T>(value));
+        //bind_helper<T>(rep, placeholder, std::move(v));
+        bind_helper(rep, placeholder, std::move(v));
     }
 };
 

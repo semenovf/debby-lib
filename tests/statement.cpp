@@ -118,7 +118,6 @@ void check (pfs::filesystem::path const & db_path)
         auto result = stmt.exec();
         REQUIRE(result.has_more());
         REQUIRE_FALSE(result.is_done());
-        REQUIRE_FALSE(result.is_error());
 
         CHECK_EQ(result.column_count(), 14);
 
@@ -170,43 +169,43 @@ void check (pfs::filesystem::path const & db_path)
 
             {
                 bool b;
-                result.template operator []("bool") >> b;
+                result["bool"] >> b;
                 CHECK_EQ(b, true);
             }
 
             {
                 std::int8_t i8;
-                result.template operator []("int8") >> i8;
+                result["int8"] >> i8;
                 CHECK(i8 == std::numeric_limits<std::int8_t>::min());
             }
 
             {
                 std::int64_t i64;
-                result.template operator []("int64") >> i64;
+                result["int64"] >> i64;
                 CHECK(i64 == std::numeric_limits<std::int64_t>::min());
             }
 
             {
                 std::uint64_t u64;
-                result.template operator []("uint64") >> u64;
+                result["uint64"] >> u64;
                 CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
             }
 
             {
                 float f;
-                result.template operator []("float") >> f;
+                result["float"] >> f;
                 CHECK(std::abs(f - static_cast<float>(3.14159)) < float{0.001});
             }
 
             {
                 double f;
-                result.template operator []("double") >> f;
+                result["double"] >> f;
                 CHECK(std::abs(f - static_cast<double>(3.14159)) < double{0.001});
             }
 
             {
                 std::string s;
-                result.template operator []("text") >> s;
+                result["text"] >> s;
                 CHECK(s == "Hello");
             }
 
@@ -214,20 +213,20 @@ void check (pfs::filesystem::path const & db_path)
 #if PFS__EXCEPTIONS_ENABLED
                 // `null` value results throwing exception for `direct` variable
                 int n;
-                REQUIRE_THROWS((result.template operator []("null") >> n));
+                REQUIRE_THROWS((result["null"] >> n));
 #endif
 
                 pfs::optional<int> opt;
 
                 // `null` value results nullopt
-                result.template operator []("null") >> opt;
+                result["null"] >> opt;
                 REQUIRE_FALSE(opt.has_value());
             }
 
             {
 #if PFS__EXCEPTIONS_ENABLED
                 // Unknown column results throwing exception
-                REQUIRE_THROWS((result.template operator []("unknown")));
+                REQUIRE_THROWS((result["unknown"]));
 #endif
             }
 

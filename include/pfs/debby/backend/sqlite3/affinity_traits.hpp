@@ -79,6 +79,12 @@ struct affinity_traits<NativeType, typename std::enable_if<
 {};
 
 template <typename NativeType>
+struct affinity_traits<NativeType, typename std::enable_if<
+    std::is_same<NativeType, char const *>::value, void>::type>
+    : text_affinity_traits
+{};
+
+template <typename NativeType>
 struct affinity_traits<pfs::optional<NativeType>, void>: affinity_traits<NativeType> {};
 
 }}} // namespace debby::backend::sqlite3

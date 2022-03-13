@@ -60,18 +60,18 @@ void test_floating_type ()
     CHECK(affinity_traits<IntegralT const &>::name() == "REAL");
 }
 
-template <typename IntegralT>
+template <typename StringT>
 void test_string_type ()
 {
-    CHECK(std::is_same<std::string, typename affinity_traits<IntegralT>::storage_type>::value);
-    CHECK(std::is_same<std::string, typename affinity_traits<IntegralT &>::storage_type>::value);
-    CHECK(std::is_same<std::string, typename affinity_traits<IntegralT const>::storage_type>::value);
-    CHECK(std::is_same<std::string, typename affinity_traits<IntegralT const &>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<StringT>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<StringT &>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<StringT const>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<StringT const &>::storage_type>::value);
 
-    CHECK(affinity_traits<IntegralT>::name() == "TEXT");
-    CHECK(affinity_traits<IntegralT &>::name() == "TEXT");
-    CHECK(affinity_traits<IntegralT const>::name() == "TEXT");
-    CHECK(affinity_traits<IntegralT const &>::name() == "TEXT");
+    CHECK(affinity_traits<StringT>::name() == "TEXT");
+    CHECK(affinity_traits<StringT &>::name() == "TEXT");
+    CHECK(affinity_traits<StringT const>::name() == "TEXT");
+    CHECK(affinity_traits<StringT const &>::name() == "TEXT");
 }
 
 TEST_CASE("sqlite3 affinity") {
@@ -91,6 +91,9 @@ TEST_CASE("sqlite3 affinity") {
 
     test_string_type<std::string>();
     test_string_type<pfs::string_view>();
+
+    CHECK(std::is_same<std::string, typename affinity_traits<char const *>::storage_type>::value);
+    CHECK(affinity_traits<char const *>::name() == "TEXT");
 }
 
 TEST_CASE("UUID affinity") {

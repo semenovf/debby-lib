@@ -55,7 +55,7 @@ void benchmark_insert_op (database_t * db, std::string const & table_name, bool 
 
         stmt.bind(":id", i);
         stmt.bind(":string", std::string{"Hello"});
-        stmt.bind(":blob", std::vector<std::uint8_t>{1,2,3,4,5,6,7,9});
+        stmt.bind(":blob", "123456789", std::size_t{9});
 
         auto result = stmt.exec();
         REQUIRE(result.is_done());

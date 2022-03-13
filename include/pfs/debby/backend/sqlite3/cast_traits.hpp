@@ -81,4 +81,14 @@ inline NativeType to_native (typename affinity_traits<NativeType>::storage_type 
     return cast_traits<NativeType>::to_native(value);
 }
 
+inline std::nullptr_t to_storage (std::nullptr_t)
+{
+    return nullptr;
+}
+
+inline char const * to_storage (char const * value)
+{
+    return value;
+}
+
 }}} // namespace debby::backend::sqlite3
