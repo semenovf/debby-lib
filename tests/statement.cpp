@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021,2022 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -17,7 +17,6 @@
 
 #if DEBBY__SQLITE3_ENABLED
 #   include "pfs/debby/backend/sqlite3/database.hpp"
-// #   include "pfs/debby/sqlite3/input_record.hpp"
 #   include "pfs/debby/backend/sqlite3/statement.hpp"
 #endif
 
@@ -168,6 +167,69 @@ void check (pfs::filesystem::path const & db_path)
             CHECK(std::abs(result.template get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
             CHECK(std::abs(result.template get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
             CHECK_EQ(result.template get<std::string>("text"), std::string{"Hello"});
+
+            {
+                bool b;
+                result.template operator []("bool") >> b;
+                CHECK_EQ(b, true);
+            }
+
+            {
+                std::int8_t i8;
+                result.template operator []("int8") >> i8;
+                CHECK(i8 == std::numeric_limits<std::int8_t>::min());
+            }
+
+            {
+                std::int64_t i64;
+                result.template operator []("int64") >> i64;
+                CHECK(i64 == std::numeric_limits<std::int64_t>::min());
+            }
+
+            {
+                std::uint64_t u64;
+                result.template operator []("uint64") >> u64;
+                CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
+            }
+
+            {
+                float f;
+                result.template operator []("float") >> f;
+                CHECK(std::abs(f - static_cast<float>(3.14159)) < float{0.001});
+            }
+
+            {
+                double f;
+                result.template operator []("double") >> f;
+                CHECK(std::abs(f - static_cast<double>(3.14159)) < double{0.001});
+            }
+
+            {
+                std::string s;
+                result.template operator []("text") >> s;
+                CHECK(s == "Hello");
+            }
+
+            {
+#if PFS__EXCEPTIONS_ENABLED
+                // `null` value results throwing exception for `direct` variable
+                int n;
+                REQUIRE_THROWS((result.template operator []("null") >> n));
+#endif
+
+                pfs::optional<int> opt;
+
+                // `null` value results nullopt
+                result.template operator []("null") >> opt;
+                REQUIRE_FALSE(opt.has_value());
+            }
+
+            {
+#if PFS__EXCEPTIONS_ENABLED
+                // Unknown column results throwing exception
+                REQUIRE_THROWS((result.template operator []("unknown")));
+#endif
+            }
 
             result.next();
         }

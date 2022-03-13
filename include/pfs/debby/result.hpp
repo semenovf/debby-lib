@@ -10,6 +10,7 @@
 #pragma once
 #include "error.hpp"
 #include "unified_value.hpp"
+#include "pfs/optional.hpp"
 #include "pfs/type_traits.hpp"
 #include <string>
 
@@ -22,7 +23,26 @@ class result final
 
 public:
     using value_type = unified_value;
-    //using input_record_type = typename Backend::input_record_type;
+
+    class column_wrapper
+    {
+        value_type _v;
+
+    public:
+        column_wrapper (value_type && v) : _v(std::move(v)) {}
+
+        template <typename NativeType>
+        void operator >> (NativeType & target)
+        {
+            Backend::template assign(target, _v);
+        }
+
+        template <typename NativeType>
+        void operator >> (pfs::optional<NativeType> & target)
+        {
+            Backend::template assign(target, _v);
+        }
+    };
 
 private:
     rep_type _rep;
@@ -55,7 +75,8 @@ private:
         auto ptr = get_if<T>(& value);
 
         if (!ptr) {
-            error err {make_error_code(errc::bad_value)
+            error err {
+                  make_error_code(errc::bad_value)
                 , fmt::format("unsuitable data stored in column: {}", column)
             };
 
@@ -182,9 +203,18 @@ public:
     }
 
     /**
-     * Input record
+     *
      */
-//     input_record_type input_record ();
+    column_wrapper operator [] (std::string const & column_name)
+    {
+        value_type v;
+        auto res = fetch(column_name, v);
+
+        if (!res.ok())
+            DEBBY__THROW(res);
+
+        return column_wrapper(std::move(v));
+    }
 
 public:
     template <typename ...Args>

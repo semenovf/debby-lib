@@ -8,7 +8,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "affinity_traits.hpp"
-#include "pfs/optional.hpp"
 #include "pfs/string_view.hpp"
 
 namespace debby {
@@ -29,7 +28,7 @@ struct cast_traits<NativeType, typename std::enable_if<
         return static_cast<storage_type>(value);
     }
 
-    static pfs::optional<NativeType> to_native (storage_type const & value)
+    static NativeType to_native (storage_type const & value)
     {
         return static_cast<NativeType>(value);
     }
@@ -46,7 +45,7 @@ struct cast_traits<NativeType, typename std::enable_if<
         return value;
     }
 
-    static pfs::optional<NativeType> to_native (storage_type const & value)
+    static NativeType to_native (storage_type const & value)
     {
         return value;
     }
@@ -77,7 +76,7 @@ inline typename affinity_traits<NativeType>::storage_type to_storage (NativeType
 }
 
 template <typename NativeType>
-inline pfs::optional<NativeType> to_native (typename affinity_traits<NativeType>::storage_type const & value)
+inline NativeType to_native (typename affinity_traits<NativeType>::storage_type const & value)
 {
     return cast_traits<NativeType>::to_native(value);
 }

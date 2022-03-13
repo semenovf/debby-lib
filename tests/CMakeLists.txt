@@ -1,5 +1,5 @@
 ################################################################################
-# Copyright (c) 2021 Vladislav Trifochkin
+# Copyright (c) 2021,2022 Vladislav Trifochkin
 #
 # This file is part of `debby-lib`.
 #

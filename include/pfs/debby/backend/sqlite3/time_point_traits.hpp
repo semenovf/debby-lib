@@ -36,7 +36,7 @@ struct cast_traits<NativeType, typename std::enable_if<
         return pfs::to_millis(value).count();
     }
 
-    static pfs::optional<pfs::time_point> to_native (storage_type const & value)
+    static pfs::time_point to_native (storage_type const & value)
     {
         return pfs::from_millis(std::chrono::milliseconds{value});
     }
@@ -53,7 +53,7 @@ struct cast_traits<NativeType, typename std::enable_if<
         return pfs::to_millis(value.value).count();
     }
 
-    static pfs::optional<pfs::utc_time_point> to_native (storage_type const & value)
+    static pfs::utc_time_point to_native (storage_type const & value)
     {
         return pfs::utc_time_point{pfs::from_millis(std::chrono::milliseconds{value})};
     }
