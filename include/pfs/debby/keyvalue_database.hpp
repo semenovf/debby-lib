@@ -95,6 +95,19 @@ public:
 
     /**
      */
+    value_type fetch (key_type const & key) const
+    {
+        value_type value;
+        auto res = fetch(key, value);
+
+        if (!res.ok())
+            DEBBY__THROW(res);
+
+        return value;
+    }
+
+    /**
+     */
     template <typename T>
     T get (key_type const & key)
     {

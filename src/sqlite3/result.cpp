@@ -224,7 +224,7 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
         }
 
         case SQLITE_BLOB: {
-            std::uint8_t const * data = static_cast<std::uint8_t const *>(sqlite3_column_blob(_rep.sth, column));
+            char const * data = static_cast<char const *>(sqlite3_column_blob(_rep.sth, column));
             int size = sqlite3_column_bytes(_rep.sth, column);
             blob_t blob;
             blob.resize(size);

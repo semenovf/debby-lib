@@ -19,6 +19,7 @@ namespace debby {
 using blob_t  = std::vector<std::uint8_t>;
 using basic_value_t = pfs::variant<
       std::nullptr_t
+    , bool
     , std::intmax_t
     , double
     , blob_t        // bytes sequence
@@ -34,11 +35,17 @@ struct unified_value: public basic_value_t
         : basic_value_t(nullptr)
     {}
 
+    template <typename T>
+    unified_value (T x, typename std::enable_if<std::is_same<T, bool>::value>::type * = 0)
+        : basic_value_t(static_cast<bool>(x))
+    {}
+
     /**
      * Construct @c unified_value from any integral type (bool, char, int, etc).
      */
     template <typename T>
-    unified_value (T x, typename std::enable_if<std::is_integral<T>::value>::type * = 0)
+    unified_value (T x, typename std::enable_if<std::is_integral<T>::value
+        && !std::is_same<T, bool>::value>::type * = 0)
         : basic_value_t(static_cast<std::intmax_t>(x))
     {}
 
@@ -94,7 +101,15 @@ get_if (unified_value * u)
 }
 
 template <typename T>
-inline typename std::enable_if<std::is_integral<T>::value, std::intmax_t>::type *
+inline typename std::enable_if<std::is_same<T, bool>::value, T>::type *
+get_if (unified_value * u)
+{
+    return pfs::get_if<bool>(u);
+}
+
+template <typename T>
+inline typename std::enable_if<std::is_integral<T>::value
+    && !std::is_same<T, bool>::value, std::intmax_t>::type *
 get_if (unified_value * u)
 {
     return pfs::get_if<std::intmax_t>(u);
