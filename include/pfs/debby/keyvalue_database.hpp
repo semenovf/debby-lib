@@ -94,14 +94,25 @@ public:
     void set (key_type const & key, blob_t const & value);
 
     /**
+     * @param ok stores @c true if no error occurres, @c false otherwise.
+     *
+     * @throw debby::error if error occurred and @a ok is not @c nullptr.
      */
-    value_type fetch (key_type const & key) const
+    value_type fetch (key_type const & key, bool * ok = nullptr) const
     {
+        if (ok)
+            *ok = true;
+
         value_type value;
         auto res = fetch(key, value);
 
-        if (!res.ok())
-            DEBBY__THROW(res);
+        if (!res.ok()) {
+            if (ok) {
+                *ok = false;
+            } else {
+                DEBBY__THROW(res);
+            }
+        }
 
         return value;
     }
