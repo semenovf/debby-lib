@@ -11,6 +11,8 @@
 #pragma once
 #include "result.hpp"
 #include "cast_traits.hpp"
+#include "time_point_traits.hpp"
+#include "uuid_traits.hpp"
 #include "pfs/debby/result.hpp"
 #include "pfs/type_traits.hpp"
 
