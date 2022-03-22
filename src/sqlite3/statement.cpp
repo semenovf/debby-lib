@@ -115,6 +115,11 @@ BIND_INT_DEF(unsigned int)
     BIND_INT64_DEF(unsigned long)
 #endif
 
+#if defined(LONG_LONG_MAX) || defined(__LONG_LONG_MAX__)
+    BIND_INT64_DEF(long long)
+    BIND_INT64_DEF(unsigned long long)
+#endif
+
 template <>
 void
 statement::bind_helper (statement::rep_type * rep
