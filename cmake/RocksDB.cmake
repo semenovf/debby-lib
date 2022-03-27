@@ -40,7 +40,7 @@ if (CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    # error: comparison of integers of different signs: 'long long' and
-    # 'unsigned long long' [-Werror,-Wsign-compare]
     target_compile_options(rocksdb PRIVATE "-Wno-sign-compare")
+    target_compile_options(rocksdb PRIVATE "-Wno-deprecated-copy")
+    #target_compile_options(rocksdb PRIVATE "-Wno-unused-but-set-variable")
 endif()
