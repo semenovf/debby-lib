@@ -43,7 +43,7 @@ static ::rocksdb::Options default_options ()
 
     // Maximal info log files to be kept.
     // Default: 1000
-    options.keep_log_file_num = 100;
+    options.keep_log_file_num = 10;
 
     // If true, missing column families will be automatically created.
     // Default: false
