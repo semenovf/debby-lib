@@ -7,7 +7,7 @@
 #      2021.11.24 Initial version.
 #      2021.12.10 Refactored for using portable_target `ADD_TEST`.
 ################################################################################
-project(debby-lib-TESTS CXX C)
+project(debby-TESTS CXX C)
 
 list(APPEND TESTS
     keyvalue_database

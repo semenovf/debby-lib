@@ -221,7 +221,7 @@ database::make (pfs::filesystem::path const & path, options_type * opts)
     column_family_names.emplace_back(::rocksdb::kDefaultColumnFamilyName
         , ::rocksdb::ColumnFamilyOptions{});
 
-    status = ::rocksdb::DB::Open(*opts, path
+    status = ::rocksdb::DB::Open(*opts, fs::utf8_encode(path)
         , column_family_names, & rep.type_column_families, & rep.dbh);
 
     if (status.ok()) {
@@ -290,7 +290,8 @@ void
 keyvalue_database<BACKEND>::clear ()
 {
     if (!_rep.path.empty() && pfs::filesystem::exists(_rep.path)) {
-        auto status = ::rocksdb::DestroyDB(_rep.path, backend::rocksdb::default_options());
+        auto status = ::rocksdb::DestroyDB(fs::utf8_encode(_rep.path)
+            , backend::rocksdb::default_options());
 
         if (!status.ok()) {
             auto ec = make_error_code(errc::backend_error);
@@ -387,7 +388,7 @@ keyvalue_database<BACKEND>::fetch (key_type const & key
         }
     }
 
-    int len = target.size();
+    auto len = target.size();
 
     if (!corrupted) {
         switch (column_family_index) {

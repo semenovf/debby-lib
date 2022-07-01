@@ -28,7 +28,7 @@ struct result {
 
     enum status {
           INITIAL
-        , ERROR
+        , FAILURE
         , DONE
         , ROW
     };

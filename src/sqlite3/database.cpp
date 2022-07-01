@@ -8,6 +8,7 @@
 //      2021.12.18 Reimplemented with new error handling.
 //      2022.03.12 Refactored.
 ////////////////////////////////////////////////////////////////////////////////
+#include "pfs/filesystem.hpp"
 #include "pfs/fmt.hpp"
 #include "pfs/debby/error.hpp"
 #include "pfs/debby/relational_database.hpp"
@@ -67,7 +68,7 @@ database::make (fs::path const & path, bool create_if_missing)
     PFS__ASSERT(sqlite3_enable_shared_cache(0) == SQLITE_OK, "");
 
 #if PFS_COMPILER_MSVC
-    auto utf8_path = pfs::utf8_encode(path.c_str(), std::wcslen(path.c_str()));
+    auto utf8_path = pfs::filesystem::utf8_encode(path);
     int rc = sqlite3_open_v2(utf8_path.c_str(), & rep.dbh, flags, default_vfs);
 #else
     int rc = sqlite3_open_v2(path.c_str(), & rep.dbh, flags, default_vfs);
@@ -209,7 +210,8 @@ relational_database<BACKEND>::prepare (std::string const & sql, bool cache)
 
     struct sqlite3_stmt * sth {nullptr};
 
-    auto rc = sqlite3_prepare_v2(_rep.dbh, sql.c_str(), sql.size(), & sth, nullptr);
+    auto rc = sqlite3_prepare_v2(_rep.dbh, sql.c_str()
+        , static_cast<int>(sql.size()), & sth, nullptr);
 
     if (SQLITE_OK != rc) {
         error err {

@@ -4,7 +4,7 @@
 # This file is part of `debby-lib`.
 ################################################################################
 cmake_minimum_required (VERSION 3.11)
-project(debby-lib-ALL CXX C)
+project(debby-ALL CXX C)
 
 option(DEBBY__BUILD_STRICT "Build with strict policies: C++ standard required, C++ extension is OFF etc" ON)
 option(DEBBY__BUILD_TESTS "Build tests" OFF)

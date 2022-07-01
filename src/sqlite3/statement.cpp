@@ -120,6 +120,11 @@ BIND_INT_DEF(unsigned int)
     BIND_INT64_DEF(unsigned long long)
 #endif
 
+#if defined(_MSC_VER)
+    BIND_INT64_DEF(__int64)
+    BIND_INT64_DEF(unsigned __int64)
+#endif
+
 template <>
 void
 statement::bind_helper (statement::rep_type * rep
@@ -252,7 +257,7 @@ statement<BACKEND>::exec ()
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
-            status = backend::sqlite3::result::ERROR;
+            status = backend::sqlite3::result::FAILURE;
             error err {
                   make_error_code(errc::sql_error)
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
@@ -265,7 +270,7 @@ statement<BACKEND>::exec ()
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
         default: {
-            status = backend::sqlite3::result::ERROR;
+            status = backend::sqlite3::result::FAILURE;
             error err {
                   make_error_code(errc::sql_error)
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
@@ -316,7 +321,7 @@ statement<BACKEND>::bind (std::string const & placeholder
     , char const * value, std::size_t len
     , bool transient)
 {
-    if (len > std::numeric_limits<int>::max()) {
+    if (len > (std::numeric_limits<int>::max)()) {
         backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, len, transient] (int index) {
             return sqlite3_bind_blob64(_rep.sth, index, value
                 , static_cast<sqlite3_int64>(len)

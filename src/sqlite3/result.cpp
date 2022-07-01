@@ -147,7 +147,7 @@ result<BACKEND>::next ()
 
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
-            _rep.state = backend::sqlite3::result::ERROR;
+            _rep.state = backend::sqlite3::result::FAILURE;
 
             auto err = error{
                   make_error_code(errc::sql_error)
@@ -163,7 +163,7 @@ result<BACKEND>::next ()
         case SQLITE_MISUSE:
         case SQLITE_BUSY:
         default: {
-            _rep.state = backend::sqlite3::result::ERROR;
+            _rep.state = backend::sqlite3::result::FAILURE;
 
             auto err = error{
                   make_error_code(errc::sql_error)
