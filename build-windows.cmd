@@ -138,9 +138,14 @@ cd "%BUILD_DIR%" ^
     && cmake -G "%BUILD_GENERATOR%" %CMAKE_OPTIONS% "%SOURCE_DIR%" ^
     && cmake --build .
 
-::if "%BUILD_TESTS%" == "ON" ctest -C %BUILD_TYPE% --verbose
-if "%BUILD_TESTS%" == "ON" ctest -C %BUILD_TYPE%
-if "%ENABLE_COVERAGE%" == "ON" cmake --build . --target Coverage
+if %ERRORLEVEL% == 0 (
+    ::if "%BUILD_TESTS%" == "ON" ctest -C %BUILD_TYPE% --verbose
+    if "%BUILD_TESTS%" == "ON" ctest --verbose -C %BUILD_TYPE%
+)
+
+if %ERRORLEVEL% == 0 (
+    if "%ENABLE_COVERAGE%" == "ON" cmake --build . --target Coverage
+)
 
 endlocal
 

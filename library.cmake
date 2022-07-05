@@ -11,7 +11,7 @@ project(debby CXX C)
 
 option(DEBBY__ENABLE_EXCEPTIONS "Enable exceptions for library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` library" ON)
-option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` library" ON)
+option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` library" OFF)
 
 if (DEBBY__ENABLE_EXCEPTIONS)
     set(PFS__ENABLE_EXCEPTIONS ON CACHE INTERNAL "")

@@ -20,25 +20,23 @@ TEST_CASE("unified_value") {
     {
         debby::unified_value x{'\x42'};
 
-        REQUIRE(debby::get_if<bool>(& x) != nullptr);
-        CHECK(static_cast<bool>(*debby::get_if<bool>(& x)) == true);
+        REQUIRE(debby::get_if<bool>(& x) == nullptr);
 
         REQUIRE(debby::get_if<char>(& x) != nullptr);
         CHECK(*debby::get_if<char>(& x) == '\x42');
 
         REQUIRE(debby::get_if<int>(& x) != nullptr);
-        CHECK(*debby::get_if<int>(& x) == 0x42);
+        CHECK_EQ(*debby::get_if<int>(& x), 0x42);
     }
 
     {
         auto sample = std::numeric_limits<std::uint64_t>::max();
         debby::unified_value x{sample};
 
-        REQUIRE(debby::get_if<bool>(& x) != nullptr);
-        CHECK(static_cast<bool>(*debby::get_if<bool>(& x)) == true);
+        REQUIRE(debby::get_if<bool>(& x) == nullptr);
 
         REQUIRE(debby::get_if<std::uint64_t>(& x) != nullptr);
-        CHECK(static_cast<std::uint64_t>(*debby::get_if<bool>(& x)) == sample);
+        CHECK_EQ(*debby::get_if<std::uint64_t>(& x), sample);
     }
 
     {
@@ -48,7 +46,7 @@ TEST_CASE("unified_value") {
         REQUIRE(debby::get_if<bool>(& x) == nullptr);
 
         REQUIRE(debby::get_if<std::string>(& x) != nullptr);
-        CHECK(*debby::get_if<std::string>(& x) == sample);
+        CHECK_EQ(*debby::get_if<std::string>(& x), sample);
     }
 
     {
@@ -58,6 +56,6 @@ TEST_CASE("unified_value") {
         REQUIRE(debby::get_if<bool>(& x) == nullptr);
 
         REQUIRE(debby::get_if<debby::blob_t>(& x) != nullptr);
-        CHECK(*debby::get_if<debby::blob_t>(& x) == sample);
+        CHECK_EQ(*debby::get_if<debby::blob_t>(& x), sample);
     }
 }

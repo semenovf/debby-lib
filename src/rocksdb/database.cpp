@@ -393,33 +393,35 @@ keyvalue_database<BACKEND>::fetch (key_type const & key
     if (!corrupted) {
         switch (column_family_index) {
             case backend::rocksdb::database::INT_COLUMN_FAMILY_INDEX: {
+                std::intmax_t intmax_value{0};
+
                 switch(len) {
                     case sizeof(std::int8_t): {
                         backend::rocksdb::database::fixed_packer<std::int8_t> p;
                         std::memcpy(p.bytes, target.data(), len);
-                        value = value_type{static_cast<std::intmax_t>(p.value)};
-                        return result_status{};
+                        intmax_value = static_cast<std::intmax_t>(p.value);
+                        break;
                     }
 
                     case sizeof(std::int16_t): {
                         backend::rocksdb::database::fixed_packer<std::int16_t> p;
                         std::memcpy(p.bytes, target.data(), len);
-                        value = value_type{static_cast<std::intmax_t>(p.value)};
-                        return result_status{};
+                        intmax_value = static_cast<std::intmax_t>(p.value);
+                        break;
                     }
 
                     case sizeof(std::int32_t): {
                         backend::rocksdb::database::fixed_packer<std::int32_t> p;
                         std::memcpy(p.bytes, target.data(), len);
-                        value = value_type{static_cast<std::intmax_t>(p.value)};
-                        return result_status{};
+                        intmax_value = static_cast<std::intmax_t>(p.value); 
+                        break;
                     }
 
                     case sizeof(std::int64_t): {
                         backend::rocksdb::database::fixed_packer<std::int64_t> p;
                         std::memcpy(p.bytes, target.data(), len);
-                        value = value_type{static_cast<std::intmax_t>(p.value)};
-                        return result_status{};
+                        intmax_value = static_cast<std::intmax_t>(p.value);
+                        break;
                     }
 
                     default:
@@ -427,28 +429,68 @@ keyvalue_database<BACKEND>::fetch (key_type const & key
                         break;
                 }
 
+                if (!corrupted) {
+                    if (pfs::holds_alternative<bool>(value)) {
+                        value = static_cast<bool>(intmax_value);
+                    } else if (pfs::holds_alternative<double>(value)) {
+                        value = static_cast<double>(intmax_value);
+                    } else if (pfs::holds_alternative<blob_t>(value)) {
+                        blob_t blob(sizeof(intmax_value));
+                        std::memcpy(blob.data(), & intmax_value, sizeof(intmax_value));
+                        value = std::move(blob);
+                    } else if (pfs::holds_alternative<std::string>(value)) {
+                        std::string s = std::to_string(intmax_value);
+                        value = std::move(s);
+                    } else { // std::nullptr_t, std::intmax_t
+                        value = intmax_value;
+                    }
+
+                    return result_status{};
+                }
+
                 break;
             }
 
             case backend::rocksdb::database::FP_COLUMN_FAMILY_INDEX: {
+                double double_value{0};
+
                 switch(len) {
                     case sizeof(float): {
                         backend::rocksdb::database::fixed_packer<float> p;
                         std::memcpy(p.bytes, target.data(), len);
-                        value = value_type{static_cast<double>(p.value)};
-                        return result_status{};
+                        double_value = static_cast<double>(p.value);
+                        break;
                     }
 
                     case sizeof(double): {
                         backend::rocksdb::database::fixed_packer<double> p;
                         std::memcpy(p.bytes, target.data(), len);
-                        value = value_type{static_cast<double>(p.value)};
-                        return result_status{};
+                        double_value = static_cast<double>(p.value);
+                        break;
                     }
 
                     default:
                         corrupted = true;
                         break;
+                }
+
+                if (!corrupted) {
+                    if (pfs::holds_alternative<bool>(value)) {
+                        value = static_cast<bool>(double_value);
+                    } else if (pfs::holds_alternative<std::intmax_t>(value)) {
+                        value = static_cast<std::intmax_t>(double_value);
+                    } else if (pfs::holds_alternative<blob_t>(value)) {
+                        blob_t blob(sizeof(double));
+                        std::memcpy(blob.data(), & double_value, sizeof(double_value));
+                        value = std::move(blob);
+                    } else if (pfs::holds_alternative<std::string>(value)) {
+                        std::string s = std::to_string(double_value);
+                        value = std::move(s);
+                    } else { // std::nullptr_t, double
+                        value = double_value;
+                    }
+
+                    return result_status{};
                 }
 
                 break;

@@ -206,20 +206,49 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
     switch (column_type) {
         case SQLITE_INTEGER: {
             sqlite3_int64 n = sqlite3_column_int64(_rep.sth, column);
-            value = result::value_type{static_cast<std::intmax_t>(n)};
+
+            if (pfs::holds_alternative<bool>(value)) {
+                value = static_cast<bool>(n);
+            } else if (pfs::holds_alternative<double>(value)) {
+                value = static_cast<double>(n);
+            } else if (pfs::holds_alternative<blob_t>(value)) {
+                blob_t blob(sizeof(sqlite3_int64));
+                std::memcpy(blob.data(), &n, sizeof(n));
+                value = std::move(blob);
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                std::string s = std::to_string(n);
+                value = std::move(s);
+            } else { // std::nullptr_t, std::intmax_t
+                value = static_cast<std::intmax_t>(n);
+            }
             return result_status{};
         }
 
         case SQLITE_FLOAT: {
             double f = sqlite3_column_double(_rep.sth, column);
-            value = result::value_type{f};
+
+            if (pfs::holds_alternative<bool>(value)) {
+                value = static_cast<bool>(f);
+            } else if (pfs::holds_alternative<std::intmax_t>(value)) {
+                value = static_cast<std::intmax_t>(f);
+            } else if (pfs::holds_alternative<blob_t>(value)) {
+                blob_t blob(sizeof(double));
+                std::memcpy(blob.data(), & f, sizeof(f));
+                value = std::move(blob);
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                std::string s = std::to_string(f);
+                value = std::move(s);
+            } else { // std::nullptr_t, double
+                value = f;
+            }
+
             return result_status{};
         }
 
         case SQLITE_TEXT: {
             auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(_rep.sth, column));
             int size = sqlite3_column_bytes(_rep.sth, column);
-            value = result::value_type{std::string(cstr, size)};
+            value = std::string(cstr, size);
             return result_status{};
         }
 
@@ -229,12 +258,25 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
             blob_t blob;
             blob.resize(size);
             std::memcpy(blob.data(), data, size);
-            value = result::value_type{std::move(blob)};
+            value = std::move(blob);
             return result_status{};
         }
 
         case SQLITE_NULL:
-            value = result::value_type{nullptr};
+            if (pfs::holds_alternative<bool>(value)) {
+                value = value_type::make_zero<bool>();
+            } else if (pfs::holds_alternative<std::intmax_t>(value)) {
+                value = value_type::make_zero<std::intmax_t>();
+            } else if (pfs::holds_alternative<double>(value)) {
+                value = value_type::make_zero<double>();
+            } else if (pfs::holds_alternative<blob_t>(value)) {
+                value = value_type::make_zero<blob_t>();
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                value = value_type::make_zero<std::string>();
+            } else { // std::nullptr_t
+                value = nullptr;
+            }
+
             return result_status{};
 
         default:

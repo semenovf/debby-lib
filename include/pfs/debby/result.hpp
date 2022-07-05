@@ -67,7 +67,9 @@ private:
     typename std::enable_if<!std::is_pointer<T>::value, T>::type
     get_helper (ColumntType column)
     {
-        value_type value;
+        // Assign type to value
+        value_type value = value_type::make_zero<T>();
+
         auto res = fetch(column, value);
 
         if (!res.ok())
@@ -84,7 +86,7 @@ private:
             DEBBY__THROW(err);
         }
 
-        return std::move(*ptr);
+        return static_cast<T>(*ptr);
     }
 
     template <typename T, typename ColumntType>
@@ -92,6 +94,7 @@ private:
     get_helper (ColumntType column)
     {
         value_type value;
+
         auto res = fetch(column, value);
 
         if (!res.ok())
@@ -105,7 +108,9 @@ private:
     typename std::enable_if<!std::is_pointer<T>::value, T>::type
     get_or_helper (ColumntType column, T const & default_value)
     {
-        value_type value;
+        // Assign type to value
+        value_type value = value_type::make_zero<T>();
+
         auto res = fetch(column, value);
 
         if (!res.ok()) {
@@ -120,14 +125,16 @@ private:
         if (!ptr)
             return default_value;
 
-        return std::move(*ptr);
+        return static_cast<T>(*ptr);
     }
 
     template <typename T, typename ColumntType>
     typename std::enable_if<std::is_pointer<T>::value, T>::type
     get_or_helper (ColumntType column, T const & default_value)
     {
-        value_type value;
+        // Assign type to value
+        value_type value = value_type::make_zero<typename std::remove_pointer<T>::type>();
+
         auto res = fetch(column, value);
 
         if (!res.ok()) {

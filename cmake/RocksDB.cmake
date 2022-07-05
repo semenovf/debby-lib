@@ -19,6 +19,10 @@ set(WITH_TESTS OFF CACHE BOOL "Disable build tests for RocksDB")
 set(WITH_BENCHMARK_TOOLS OFF CACHE BOOL "Disable build benchmarks for RocksDB")
 set(WITH_CORE_TOOLS OFF CACHE BOOL "Disable build core tools for RocksDB")
 set(WITH_TOOLS OFF CACHE BOOL "Disable build tools for RocksDB")
+
+# This option fixes crashes on Windows similar to https://github.com/facebook/rocksdb/issues/9573
+set(PORTABLE ON CACHE BOOL "Build a portable binary")
+
 #set(FAIL_ON_WARNINGS OFF CACHE BOOL "Disable process warnings as errors for RocksDB")
 
 if (NOT DEBBY__ROCKSDB_ROOT)

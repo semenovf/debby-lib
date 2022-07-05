@@ -148,12 +148,9 @@ void check (pfs::filesystem::path const & db_path)
                 // Column `null` is INTEGER but contains null value
                 REQUIRE_EQ(result.template get<int *>("null"), nullptr);
                 REQUIRE_EQ(result.template get<std::string *>("null"), nullptr);
-
-#if PFS__EXCEPTIONS_ENABLED
-                REQUIRE_THROWS(result.template get<int>("null"));
-#endif
             }
 
+            CHECK_EQ(result.template get<int>("null"), 0);
             CHECK_EQ(result.template get<bool>("bool"), true);
             CHECK_EQ(result.template get<std::int8_t>("int8"), std::numeric_limits<std::int8_t>::min());
             CHECK_EQ(result.template get<std::uint8_t>("uint8"), std::numeric_limits<std::uint8_t>::max());

@@ -41,7 +41,7 @@ struct unified_value: public basic_value_t
     {}
 
     /**
-     * Construct @c unified_value from any integral type (bool, char, int, etc).
+     * Construct @c unified_value from any integral type (char, int, etc).
      */
     template <typename T>
     unified_value (T x, typename std::enable_if<std::is_integral<T>::value
@@ -91,6 +91,56 @@ struct unified_value: public basic_value_t
     unified_value (blob_t const & x)
         : basic_value_t(x)
     {}
+
+    template <typename T>
+    static typename std::enable_if<std::is_same<std::nullptr_t,T>::value, unified_value>::type 
+    make_zero ()
+    {
+        return unified_value{};
+    }
+
+    template <typename T>
+    static typename std::enable_if<std::is_same<bool, T>::value, unified_value>::type
+    make_zero ()
+    {
+        return unified_value{false};
+    }
+
+    template <typename T>
+    static typename std::enable_if<std::is_integral<T>::value
+        && !std::is_same<T, bool>::value, unified_value>::type
+    make_zero ()
+    {
+        return unified_value{static_cast<std::intmax_t>(0)};
+    }
+
+    template <typename T>
+    static typename std::enable_if<std::is_floating_point<T>::value, unified_value>::type
+    make_zero ()
+    {
+        return unified_value{static_cast<double>(0)};
+    }
+
+    template <typename T>
+    static typename std::enable_if<std::is_same<std::string, T>::value, unified_value>::type
+    make_zero ()
+    {
+        return unified_value{std::string{}};
+    }
+
+    template <typename T>
+    static typename std::enable_if<std::is_same<string_view, T>::value, unified_value>::type
+    make_zero ()
+    {
+        return unified_value{std::string{}};
+    }
+
+    template <typename T>
+    static typename std::enable_if<std::is_same<blob_t, T>::value, unified_value>::type
+        make_zero()
+    {
+        return unified_value{blob_t{}};
+    }
 };
 
 template <typename T>

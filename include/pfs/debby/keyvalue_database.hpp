@@ -122,7 +122,9 @@ public:
     template <typename T>
     T get (key_type const & key)
     {
-        value_type value;
+        // Assign type to value
+        value_type value = value_type::make_zero<T>();
+
         auto res = fetch(key, value);
 
         if (!res.ok())
@@ -138,13 +140,15 @@ public:
             DEBBY__THROW(err);
         }
 
-        return std::move(*ptr);
+        return static_cast<T>(*ptr);
     }
 
     template <typename T>
     T get_or (key_type const & key, T const & default_value)
     {
-        value_type value;
+        // Assign type to value
+        value_type value = value_type::make_zero<T>();
+
         auto res = fetch(key, value);
 
         if (!res.ok()) {
@@ -159,7 +163,7 @@ public:
         if (!ptr)
             return default_value;
 
-        return std::move(*ptr);
+        return static_cast<T>(*ptr);
     }
 
     /**
