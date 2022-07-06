@@ -216,10 +216,11 @@ database::make (pfs::filesystem::path const & path, options_type * opts)
         , ::rocksdb::ColumnFamilyDescriptor{"debby_cf_blobs", ::rocksdb::ColumnFamilyOptions{}}
     };
 
-    // Open DB.
-    // `path` is the path to a directory containing multiple database files
     column_family_names.emplace_back(::rocksdb::kDefaultColumnFamilyName
         , ::rocksdb::ColumnFamilyOptions{});
+
+    // Open DB.
+    // `path` is the path to a directory containing multiple database files
 
     status = ::rocksdb::DB::Open(*opts, fs::utf8_encode(path)
         , column_family_names, & rep.type_column_families, & rep.dbh);
@@ -269,14 +270,23 @@ template <>
 keyvalue_database<BACKEND>::~keyvalue_database ()
 {
     if (_rep.dbh) {
-        for (auto handle: _rep.type_column_families)
-            _rep.dbh->DestroyColumnFamilyHandle(handle);
+//         _rep.dbh->FlushWAL(true  /* sync */);
+//         ::rocksdb::FlushOptions options;
+//         options.wait = true;
 
+        for (auto handle: _rep.type_column_families) {
+            //_rep.dbh->Flush(options, handle);
+            _rep.dbh->DestroyColumnFamilyHandle(handle);
+        }
+
+        //_rep.dbh->CancelAllBackgroundWork(true  /* wait */);
+
+        _rep.dbh->Close();
         delete _rep.dbh;
+        _rep.dbh = nullptr;
     }
 
     _rep.path.clear();
-    _rep.dbh = nullptr;
 }
 
 template <>
@@ -287,17 +297,24 @@ keyvalue_database<BACKEND>::operator bool () const noexcept
 
 template <>
 void
-keyvalue_database<BACKEND>::clear ()
+keyvalue_database<BACKEND>::destroy ()
 {
+    if (!*this)
+        return;
+
     if (!_rep.path.empty() && pfs::filesystem::exists(_rep.path)) {
-        auto status = ::rocksdb::DestroyDB(fs::utf8_encode(_rep.path)
-            , backend::rocksdb::default_options());
+        auto db_name = fs::utf8_encode(_rep.path);
+
+        // Close database before destroy.
+        this->~keyvalue_database();
+
+        auto status = ::rocksdb::DestroyDB(db_name, backend::rocksdb::default_options());
 
         if (!status.ok()) {
             auto ec = make_error_code(errc::backend_error);
             auto err = error{ec
-                , fmt::format("drop/clear database failure: {}"
-                    , fs::utf8_encode(_rep.path)
+                , fmt::format("destroy database failure: {}: {}"
+                    , db_name
                     , status.ToString())};
             DEBBY__THROW(err);
         }
@@ -413,7 +430,7 @@ keyvalue_database<BACKEND>::fetch (key_type const & key
                     case sizeof(std::int32_t): {
                         backend::rocksdb::database::fixed_packer<std::int32_t> p;
                         std::memcpy(p.bytes, target.data(), len);
-                        intmax_value = static_cast<std::intmax_t>(p.value); 
+                        intmax_value = static_cast<std::intmax_t>(p.value);
                         break;
                     }
 

@@ -9,9 +9,11 @@
 #      2021.11.07 Added PROJECT_OPT_PREFIX variable.
 #      2021.11.08 SOURCE_DIR recognition modified.
 #      2021.11.19 Added support for profiling.
+#      2022.07.06 Added CTEST_OPTIONS.
 ################################################################################
 
 CMAKE_OPTIONS="${CMAKE_OPTIONS}"
+CTEST_OPTIONS="${CTEST_OPTIONS}"
 
 if [ -z "$PROJECT_OPT_PREFIX" ] ; then
     echo "ERROR: PROJECT_OPT_PREFIX is mandatory." >&2
@@ -73,6 +75,16 @@ fi
 
 if [ -n "$BUILD_TESTS" ] ; then
     CMAKE_OPTIONS="$CMAKE_OPTIONS -D${PROJECT_OPT_PREFIX}BUILD_TESTS=$BUILD_TESTS"
+fi
+
+if [ -n $CTEST_VERBOSE ] ; then
+    case $CTEST_VERBOSE in
+        [Oo][Nn])
+            CTEST_OPTIONS="--verbose ${CTEST_OPTIONS}"
+            ;;
+        *)
+            ;;
+    esac
 fi
 
 if [ -n $BUILD_DEMO ] ; then
@@ -145,5 +157,5 @@ mkdir -p ${BUILD_DIR} \
     && cd ${BUILD_DIR} \
     && cmake -G "${BUILD_GENERATOR}" $CMAKE_OPTIONS $SOURCE_DIR \
     && cmake --build . \
-    && [ -n "$BUILD_TESTS" ] && ctest \
+    && [ -n "$BUILD_TESTS" ] && ctest $CTEST_OPTIONS -C $BUILD_TYPE \
     && [ -n "$ENABLE_COVERAGE" ] && cmake --build . --target Coverage

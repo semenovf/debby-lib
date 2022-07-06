@@ -6,22 +6,24 @@
 :: Changelog:
 ::      2021.06.22 Initial version.
 ::      2021.11.25 Updated.
+::      2022.07.06 Added CTEST_OPTIONS.
 ::-------------------------------------------------------------------------------
 
 @echo off
 
+:: ENABLEDELAYEDEXPANSION need to work such things properly:
+::      set "CMAKE_OPTIONS="!CMAKE_OPTIONS! ..."
+::      set "BUILD_DIR=!BUILD_DIR! ..." 
+
 setlocal ENABLEDELAYEDEXPANSION
 
 set "CMAKE_OPTIONS=!CMAKE_OPTIONS!"
+set "CTEST_OPTIONS=!CTEST_OPTIONS!"
 
 if "%PROJECT_OPT_PREFIX%" == "" (
     @echo ERROR: PROJECT_OPT_PREFIX is mandatory >&2
     exit /b 1
 )
-
-:: ENABLEDELAYEDEXPANSION need to work such things properly:
-::      set "CMAKE_OPTIONS="!CMAKE_OPTIONS! ..."
-::      set "BUILD_DIR=!BUILD_DIR! ..." 
 
 if "%BUILD_GENERATOR%" == "" (
     @echo Detecting build generator ...
@@ -57,6 +59,10 @@ if "%BUILD_GENERATOR%" == "" (
 
 if /i not "%CMAKE_VERBOSE_MAKEFILE%" == "off" (
     set "CMAKE_OPTIONS=!CMAKE_OPTIONS! -DCMAKE_VERBOSE_MAKEFILE=ON"
+)
+
+if /i "%CTEST_VERBOSE%" == "on" (
+    set "CTEST_OPTIONS=--verbose !CTEST_OPTIONS!"
 )
 
 if /i "%BUILD_STRICT%" == "on" (
@@ -100,10 +106,6 @@ if "%BUILD_DIR%" == "" (
         set "BUILD_DIR=!BUILD_DIR!.cxx%CXX_STANDARD%" 
     )
 
-    if not "%BUILD_DIR_SUFFIX%" == "" (
-        set "BUILD_DIR=!BUILD_DIR!%BUILD_DIR_SUFFIX%"
-    )
-
     if not "%ENABLE_COVERAGE%" == "" (
         set "BUILD_DIR=!BUILD_DIR!.coverage" 
     )
@@ -139,8 +141,7 @@ cd "%BUILD_DIR%" ^
     && cmake --build .
 
 if %ERRORLEVEL% == 0 (
-    ::if "%BUILD_TESTS%" == "ON" ctest -C %BUILD_TYPE% --verbose
-    if "%BUILD_TESTS%" == "ON" ctest --verbose -C %BUILD_TYPE%
+    if "%BUILD_TESTS%" == "ON" ctest %CTEST_OPTIONS% -C %BUILD_TYPE%
 )
 
 if %ERRORLEVEL% == 0 (

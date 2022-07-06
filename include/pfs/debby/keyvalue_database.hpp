@@ -51,11 +51,14 @@ public:
     operator bool () const noexcept;
 
     /**
-     * Drops database (delete all tables).
+     * Drops database (delete all tables/files).
+     *
+     * @details Database will be closed before if need. Database becomes invalid
+     *      after destroying.
      *
      * @throw debby::error(errc::backend_error) on backend failure.
      */
-    void clear ();
+    void destroy ();
 
     /**
      * Stores arithmetic type @a value associated with @a key into database.

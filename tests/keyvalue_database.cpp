@@ -65,6 +65,11 @@ void check_set_get (pfs::filesystem::path const & db_path)
 
     db.remove("text");
     REQUIRE(db.template get_or<std::string>("text", "").empty());
+
+    // FIXME Cause abnormal finishing
+    //db.destroy();
+    //REQUIRE(!db);
+    fs::remove_all(db_path);
 }
 
 #if DEBBY__ROCKSDB_ENABLED
