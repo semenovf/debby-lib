@@ -13,22 +13,30 @@ option(DEBBY__ENABLE_EXCEPTIONS "Enable exceptions for library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` library" ON)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` library" OFF)
 
+if (NOT PORTABLE_TARGET__CURRENT_PROJECT_DIR)
+    set(PORTABLE_TARGET__CURRENT_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 if (DEBBY__ENABLE_EXCEPTIONS)
     set(PFS__ENABLE_EXCEPTIONS ON CACHE INTERNAL "")
 endif()
 
 if (NOT TARGET pfs::common)
     portable_target(INCLUDE_PROJECT
-        ${CMAKE_CURRENT_LIST_DIR}/3rdparty/pfs/common/library.cmake)
+        ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/pfs/common/library.cmake)
 endif()
 
 if (DEBBY__ENABLE_ROCKSDB)
     if (NOT DEBBY__ROCKSDB_ROOT)
-        set(DEBBY__ROCKSDB_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb" CACHE INTERNAL "")
+        set(DEBBY__ROCKSDB_ROOT
+            "${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/rocksdb"
+            CACHE INTERNAL "")
     endif()
 
+    _portable_target_status(${PROJECT_NAME} "RocksDB root: [${DEBBY__ROCKSDB_ROOT}]")
+
     portable_target(INCLUDE_PROJECT
-        ${CMAKE_CURRENT_LIST_DIR}/cmake/RocksDB.cmake)
+        ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/RocksDB.cmake)
 endif()
 
 portable_target(LIBRARY ${PROJECT_NAME} ALIAS pfs::debby)
