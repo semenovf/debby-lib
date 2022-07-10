@@ -97,15 +97,15 @@ TEST_CASE("sqlite3 affinity") {
 }
 
 TEST_CASE("UUID affinity") {
-    CHECK(std::is_same<std::string, typename affinity_traits<pfs::uuid_t>::storage_type>::value);
-    CHECK(std::is_same<std::string, typename affinity_traits<pfs::uuid_t &>::storage_type>::value);
-    CHECK(std::is_same<std::string, typename affinity_traits<pfs::uuid_t const>::storage_type>::value);
-    CHECK(std::is_same<std::string, typename affinity_traits<pfs::uuid_t const &>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<pfs::universal_id>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<pfs::universal_id &>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<pfs::universal_id const>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<pfs::universal_id const &>::storage_type>::value);
 
-    CHECK(affinity_traits<pfs::uuid_t>::name() == "TEXT");
-    CHECK(affinity_traits<pfs::uuid_t &>::name() == "TEXT");
-    CHECK(affinity_traits<pfs::uuid_t const>::name() == "TEXT");
-    CHECK(affinity_traits<pfs::uuid_t const &>::name() == "TEXT");
+    CHECK(affinity_traits<pfs::universal_id>::name() == "TEXT");
+    CHECK(affinity_traits<pfs::universal_id &>::name() == "TEXT");
+    CHECK(affinity_traits<pfs::universal_id const>::name() == "TEXT");
+    CHECK(affinity_traits<pfs::universal_id const &>::name() == "TEXT");
 }
 
 TEST_CASE("time_point affinity") {
