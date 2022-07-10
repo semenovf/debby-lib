@@ -3,7 +3,7 @@
 CWD=`pwd`
 ROCKSDB_RELEASE=v6.29.5
 
-if [ -d .git ] ; then
+if [ -e .git ] ; then
 
     git pull \
         && git submodule update --init \
