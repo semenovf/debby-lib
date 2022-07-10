@@ -7,33 +7,33 @@
 //      2021.12.10 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "pfs/uuid.hpp"
 #include "affinity_traits.hpp"
 #include "cast_traits.hpp"
+#include "pfs/universal_id.hpp"
 
 namespace debby {
 namespace backend {
 namespace sqlite3 {
 
-template <> struct affinity_traits<pfs::uuid_t> : text_affinity_traits {};
-template <> struct affinity_traits<pfs::uuid_t &> : text_affinity_traits {};
-template <> struct affinity_traits<pfs::uuid_t const> : text_affinity_traits {};
-template <> struct affinity_traits<pfs::uuid_t const &> : text_affinity_traits {};
+template <> struct affinity_traits<pfs::universal_id> : text_affinity_traits {};
+template <> struct affinity_traits<pfs::universal_id &> : text_affinity_traits {};
+template <> struct affinity_traits<pfs::universal_id const> : text_affinity_traits {};
+template <> struct affinity_traits<pfs::universal_id const &> : text_affinity_traits {};
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::uuid_t>::value, void>::type>
+       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::universal_id>::value, void>::type>
 {
-    using storage_type = typename affinity_traits<pfs::uuid_t>::storage_type;
+    using storage_type = typename affinity_traits<pfs::universal_id>::storage_type;
 
-    static storage_type to_storage (pfs::uuid_t const & value)
+    static storage_type to_storage (pfs::universal_id const & value)
     {
         return std::to_string(value);
     }
 
-    static pfs::uuid_t to_native (storage_type const & value)
+    static pfs::universal_id to_native (storage_type const & value)
     {
-        return pfs::from_string<pfs::uuid_t>(value);
+        return pfs::from_string<pfs::universal_id>(value);
     }
 };
 
