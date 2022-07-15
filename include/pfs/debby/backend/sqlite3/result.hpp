@@ -11,6 +11,7 @@
 #include "affinity_traits.hpp"
 #include "cast_traits.hpp"
 #include "pfs/debby/error.hpp"
+#include "pfs/debby/exports.hpp"
 #include "pfs/debby/unified_value.hpp"
 #include "pfs/optional.hpp"
 #include <string>
@@ -41,7 +42,7 @@ struct result {
         mutable std::unordered_map<std::string, int> column_mapping;
     };
 
-    static rep_type make (handle_type sth, status state, int error_code);
+    static DEBBY__EXPORT rep_type make (handle_type sth, status state, int error_code);
 
     template <typename NativeType>
     static void assign (NativeType & target, value_type & v)

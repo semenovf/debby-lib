@@ -197,7 +197,7 @@ statement<BACKEND>::statement (rep_type && rep)
 {}
 
 template <>
-statement<BACKEND>::statement (statement && other)
+statement<BACKEND>::statement (statement && other) noexcept
 {
     _rep = std::move(other._rep);
     other._rep.sth = nullptr;

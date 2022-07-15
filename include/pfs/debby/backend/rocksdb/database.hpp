@@ -9,6 +9,7 @@
 //      2022.03.12 Refactored.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "pfs/debby/exports.hpp"
 #include "pfs/filesystem.hpp"
 #include <vector>
 
@@ -48,7 +49,7 @@ struct database
         pfs::filesystem::path path;
         std::vector<::rocksdb::ColumnFamilyHandle *> type_column_families;
 
-        static result_status write (
+        static DEBBY__EXPORT result_status write (
               database::rep_type * rep
             , database::key_type const & key
             , int column_family_index
@@ -82,10 +83,10 @@ struct database
      *
      * @throw debby::error().
      */
-    static rep_type make (pfs::filesystem::path const & path
+    static DEBBY__EXPORT rep_type make (pfs::filesystem::path const & path
         , options_type * popts = nullptr);
 
-    static rep_type make (pfs::filesystem::path const & path
+    static DEBBY__EXPORT rep_type make (pfs::filesystem::path const & path
         , bool create_if_missing);
 };
 

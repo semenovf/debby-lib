@@ -7,6 +7,7 @@
 //      2021.12.14 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "exports.hpp"
 #include "pfs/error.hpp"
 #include "pfs/filesystem.hpp"
 #include <functional>
@@ -36,8 +37,8 @@ enum class errc
 class error_category : public std::error_category
 {
 public:
-    virtual char const * name () const noexcept override;
-    virtual std::string message (int ev) const override;
+    virtual DEBBY__EXPORT char const * name () const noexcept override;
+    virtual DEBBY__EXPORT std::string message (int ev) const override;
 };
 
 inline std::error_category const & get_error_category ()

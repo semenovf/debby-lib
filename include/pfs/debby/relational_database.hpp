@@ -9,6 +9,7 @@
 //      2022.03.12 Refactored.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "exports.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -28,49 +29,49 @@ private:
 
 private:
     relational_database () = delete;
-    relational_database (rep_type && rep);
+    DEBBY__EXPORT relational_database (rep_type && rep);
     relational_database (relational_database const & other) = delete;
     relational_database & operator = (relational_database const & other) = delete;
     relational_database & operator = (relational_database && other) = delete;
 
 public:
-    relational_database (relational_database && other);
-    ~relational_database ();
+    DEBBY__EXPORT relational_database (relational_database && other);
+    DEBBY__EXPORT ~relational_database ();
 
 public:
     /**
      * Checks if database is open.
      */
-    operator bool () const noexcept;
+    DEBBY__EXPORT operator bool () const noexcept;
 
     /**
      * Return rows count in named table.
      */
-    std::size_t rows_count (std::string const & table_name);
+    DEBBY__EXPORT std::size_t rows_count (std::string const & table_name);
 
     /**
      * Prepares statement.
      */
-    statement_type prepare (std::string const & sql, bool cache = true);
+    DEBBY__EXPORT statement_type prepare (std::string const & sql, bool cache = true);
 
     /**
      * Executes SQL query.
      *
      * @throw debby::error on error.
      */
-    void query (std::string const & sql);
+    DEBBY__EXPORT void query (std::string const & sql);
 
     /**
      * Lists available tables at database by pattern.
      *
      * @return Tables available according to @a pattern.
      */
-    std::vector<std::string> tables (std::string const & pattern = std::string{});
+    DEBBY__EXPORT std::vector<std::string> tables (std::string const & pattern = std::string{});
 
     /**
      * Clear all records from @a table.
      */
-    void clear (std::string const & table);
+    DEBBY__EXPORT void clear (std::string const & table);
 
     /**
      * Removes named @a table or drop all tables if @a table is empty.
@@ -84,32 +85,32 @@ public:
     /**
      * Removes named @a tables or drop all tables if @a tables is empty.
      */
-    void remove (std::vector<std::string> const & tables);
+    DEBBY__EXPORT void remove (std::vector<std::string> const & tables);
 
     /**
      * Drops database (delete all tables).
      */
-    void remove_all ();
+    DEBBY__EXPORT void remove_all ();
 
     /**
      * Begin transaction.
      */
-    void begin ();
+    DEBBY__EXPORT void begin ();
 
     /**
      * Commit transaction.
      */
-    void commit ();
+    DEBBY__EXPORT void commit ();
 
     /**
      * Rollback transaction.
      */
-    void rollback ();
+    DEBBY__EXPORT void rollback ();
 
     /**
      * Checks if named table exists in database.
      */
-    bool exists (std::string const & name);
+    DEBBY__EXPORT bool exists (std::string const & name);
 
 public:
     template <typename ...Args>

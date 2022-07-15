@@ -10,6 +10,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "error.hpp"
+#include "exports.hpp"
 #include <string>
 #include <vector>
 
@@ -28,26 +29,26 @@ private:
 
 private:
     statement () = delete;
-    statement (rep_type && rep);
+    DEBBY__EXPORT statement (rep_type && rep);
     statement (statement const & other) = delete;
     statement & operator = (statement const & other) = delete;
     statement & operator = (statement && other) = delete;
 
 public:
-    statement (statement && other);
-    ~statement ();
+    DEBBY__EXPORT statement (statement && other) noexcept;
+    DEBBY__EXPORT ~statement ();
 
 public:
-    operator bool () const noexcept;
+    DEBBY__EXPORT operator bool () const noexcept;
 
     /**
      * Executes prepared statement
      */
-    result_type exec ();
+    DEBBY__EXPORT result_type exec ();
 
     /**
      */
-    int rows_affected () const;
+    DEBBY__EXPORT int rows_affected () const;
 
     /**
      */
@@ -64,7 +65,7 @@ public:
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
-    void bind (std::string const & placeholder
+    DEBBY__EXPORT void bind (std::string const & placeholder
         , char const * blob
         , std::size_t len
         , bool transient);
@@ -76,7 +77,7 @@ public:
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
-    void bind (std::string const & placeholder
+    DEBBY__EXPORT void bind (std::string const & placeholder
         , std::string const & value
         , bool transient);
 
@@ -87,7 +88,7 @@ public:
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
-    void bind (std::string const & placeholder
+    DEBBY__EXPORT void bind (std::string const & placeholder
         , char const * value
         , bool transient);
 

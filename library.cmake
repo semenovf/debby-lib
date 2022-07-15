@@ -17,11 +17,12 @@ if (NOT PORTABLE_TARGET__CURRENT_PROJECT_DIR)
     set(PORTABLE_TARGET__CURRENT_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
+portable_target(ADD_SHARED ${PROJECT_NAME} ALIAS pfs::debby EXPORTS DEBBY__EXPORTS
+    BIND_STATIC ${PROJECT_NAME}-static STATIC_ALIAS pfs::debby::static STATIC_EXPORTS DEBBY__STATIC)
+
 if (DEBBY__ENABLE_EXCEPTIONS)
     set(PFS__ENABLE_EXCEPTIONS ON CACHE INTERNAL "")
 endif()
-
-portable_target(LIBRARY ${PROJECT_NAME} ALIAS pfs::debby)
 
 if (DEBBY__ENABLE_SQLITE3)
     portable_target(SOURCES ${PROJECT_NAME}
@@ -31,7 +32,8 @@ if (DEBBY__ENABLE_SQLITE3)
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp)
 
-    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "-DDEBBY__SQLITE3_ENABLED=1")
+    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "DEBBY__SQLITE3_ENABLED=1")
+    portable_target(DEFINITIONS ${PROJECT_NAME}-static PUBLIC "DEBBY__SQLITE3_ENABLED=1")
     message(STATUS "`sqlite3` enabled")
 endif()
 
@@ -54,13 +56,15 @@ if (DEBBY__ENABLE_ROCKSDB)
 
     portable_target(SOURCES ${PROJECT_NAME}
         ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
-    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "-DDEBBY__ROCKSDB_ENABLED=1")
+    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "DEBBY__ROCKSDB_ENABLED=1")
+    portable_target(DEFINITIONS ${PROJECT_NAME}-static PUBLIC "DEBBY__ROCKSDB_ENABLED=1")
     portable_target(LINK ${PROJECT_NAME} PRIVATE rocksdb)
+    portable_target(LINK ${PROJECT_NAME}-static PRIVATE rocksdb)
 
     message(STATUS "`RocksDB` enabled")
 endif()
 
 portable_target(INCLUDE_DIRS ${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
 portable_target(LINK ${PROJECT_NAME} PUBLIC pfs::common)
-portable_target(EXPORTS ${PROJECT_NAME} DEBBY__EXPORTS DEBBY__STATIC)
+portable_target(LINK ${PROJECT_NAME}-static PUBLIC pfs::common)
 

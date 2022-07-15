@@ -10,6 +10,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "error.hpp"
+#include "exports.hpp"
 #include "unified_value.hpp"
 #include "pfs/fmt.hpp"
 #include <string>
@@ -32,23 +33,23 @@ private:
 
 private:
     keyvalue_database () = delete;
-    keyvalue_database (rep_type && rep);
+    DEBBY__EXPORT keyvalue_database (rep_type && rep);
     keyvalue_database (keyvalue_database const & other) = delete;
     keyvalue_database & operator = (keyvalue_database const & other) = delete;
     keyvalue_database & operator = (keyvalue_database && other) = delete;
 
 public:
-    keyvalue_database (keyvalue_database && other);
-    ~keyvalue_database ();
+    DEBBY__EXPORT keyvalue_database (keyvalue_database && other);
+    DEBBY__EXPORT ~keyvalue_database ();
 
 private:
-    result_status fetch (key_type const & key, value_type & value) const noexcept;
+    DEBBY__EXPORT result_status fetch (key_type const & key, value_type & value) const noexcept;
 
 public:
     /**
      * Checks if database is open.
      */
-    operator bool () const noexcept;
+    DEBBY__EXPORT operator bool () const noexcept;
 
     /**
      * Drops database (delete all tables/files).
@@ -58,7 +59,7 @@ public:
      *
      * @throw debby::error(errc::backend_error) on backend failure.
      */
-    void destroy ();
+    DEBBY__EXPORT void destroy ();
 
     /**
      * Stores arithmetic type @a value associated with @a key into database.
@@ -75,13 +76,13 @@ public:
      *
      * @throw debby::error()
      */
-    void set (key_type const & key, std::string const & value);
+    DEBBY__EXPORT void set (key_type const & key, std::string const & value);
 
     /**
      * Stores character sequence @a value with length @a len associated
      * with @a key into database.
      */
-    void set (key_type const & key, char const * value, std::size_t len);
+    DEBBY__EXPORT void set (key_type const & key, char const * value, std::size_t len);
 
     /**
      * Stores C-string @a value associated with @a key into database.
@@ -94,7 +95,7 @@ public:
     /**
      * Stores blob @a value associated with @a key into database.
      */
-    void set (key_type const & key, blob_t const & value);
+    DEBBY__EXPORT void set (key_type const & key, blob_t const & value);
 
     /**
      * @param ok stores @c true if no error occurres, @c false otherwise.
@@ -174,7 +175,7 @@ public:
      *
      * @throw debby::error()
      */
-    void remove (key_type const & key);
+    DEBBY__EXPORT void remove (key_type const & key);
 
 public:
     template <typename ...Args>

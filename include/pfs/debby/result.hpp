@@ -9,6 +9,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "error.hpp"
+#include "exports.hpp"
 #include "unified_value.hpp"
 #include "pfs/fmt.hpp"
 #include "pfs/optional.hpp"
@@ -50,18 +51,18 @@ private:
 
 private:
     result () = delete;
-    result (rep_type && rep);
+    DEBBY__EXPORT result (rep_type && rep);
     result (result const & other) = delete;
     result & operator = (result const & other) = delete;
     result & operator = (result && other) = delete;
 
 public:
-    result (result && other);
-    ~result ();
+    DEBBY__EXPORT result (result && other);
+    DEBBY__EXPORT ~result ();
 
 private:
-    result_status fetch (int column, value_type & value) const noexcept;
-    result_status fetch (std::string const & column_name, value_type & value) const noexcept;
+    DEBBY__EXPORT result_status fetch (int column, value_type & value) const noexcept;
+    DEBBY__EXPORT result_status fetch (std::string const & column_name, value_type & value) const noexcept;
 
     template <typename T, typename ColumntType>
     typename std::enable_if<!std::is_pointer<T>::value, T>::type
@@ -149,15 +150,15 @@ private:
     }
 
 public:
-    operator bool () const noexcept;
+    DEBBY__EXPORT operator bool () const noexcept;
 
     /**
      */
-    bool has_more () const noexcept;
+    DEBBY__EXPORT bool has_more () const noexcept;
 
     /**
      */
-    bool is_done () const noexcept;
+    DEBBY__EXPORT bool is_done () const noexcept;
 
     /**
      */
@@ -166,17 +167,17 @@ public:
     /**
      * Returns column count for this result.
      */
-    int column_count () const noexcept;
+    DEBBY__EXPORT int column_count () const noexcept;
 
     /**
      * Return column name for @a column.
      */
-    std::string column_name (int column) const noexcept;
+    DEBBY__EXPORT std::string column_name (int column) const noexcept;
 
     /**
      * Steps to next record.
      */
-    void next ();
+    DEBBY__EXPORT void next ();
 
     /**
      */

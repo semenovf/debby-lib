@@ -13,6 +13,7 @@
 #include "cast_traits.hpp"
 #include "time_point_traits.hpp"
 #include "uuid_traits.hpp"
+#include "pfs/debby/exports.hpp"
 #include "pfs/debby/result.hpp"
 #include "pfs/type_traits.hpp"
 
@@ -33,7 +34,7 @@ struct statement
         bool cached;
     };
 
-    static rep_type make (native_type sth, bool cached);
+    static DEBBY__EXPORT rep_type make (native_type sth, bool cached);
 
     template <typename T>
     static void bind_helper (rep_type * rep, std::string const & placeholder, T && value);
@@ -46,5 +47,20 @@ struct statement
         bind_helper(rep, placeholder, std::move(v));
     }
 };
+
+#if _MSC_VER
+template <> DEBBY__EXPORT void statement::bind_helper<std::nullptr_t> (statement::rep_type * rep
+    , std::string const & placeholder, std::nullptr_t && value);
+template <> DEBBY__EXPORT void statement::bind_helper<int> (statement::rep_type * rep
+    , std::string const & placeholder, int && value);
+template <> DEBBY__EXPORT void statement::bind_helper<std::intmax_t> (statement::rep_type * rep
+    , std::string const & placeholder, std::intmax_t && value);
+template <> DEBBY__EXPORT void statement::bind_helper<double> (statement::rep_type * rep
+    , std::string const & placeholder, double && value);
+template <> DEBBY__EXPORT void statement::bind_helper<std::string> (statement::rep_type * rep
+    , std::string const & placeholder, std::string && value);
+template <> DEBBY__EXPORT void statement::bind_helper<char const *> (statement::rep_type * rep
+    , std::string const & placeholder, char const * && value);
+#endif
 
 }}} // namespace debby::backend::sqlite3

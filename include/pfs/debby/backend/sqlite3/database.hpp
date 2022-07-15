@@ -10,6 +10,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "statement.hpp"
+#include "pfs/debby/exports.hpp"
 #include "pfs/debby/statement.hpp"
 #include "pfs/filesystem.hpp"
 #include <unordered_map>
@@ -54,7 +55,7 @@ struct database
      * @param path Path to the database.
      * @param create_if_missing If @c true create database if it missing.
      */
-    static rep_type make (pfs::filesystem::path const & path
+    static DEBBY__EXPORT rep_type make (pfs::filesystem::path const & path
         , bool create_if_missing = true);
 
 };
