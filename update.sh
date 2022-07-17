@@ -7,11 +7,10 @@ if [ -e .git ] ; then
 
     git checkout master && git pull origin master \
         && git submodule update --init --recursive \
-        && cd 3rdparty/portable-target && git checkout master && git pull origin master \
-        && cd $CWD \
-        && cd 3rdparty/pfs/common && git checkout master && git pull origin master && ./update.sh \
-        && cd $CWD \
-        && cd 3rdparty/rocksdb && git checkout $ROCKSDB_RELEASE
+        && git submodule update --init --remote -- 3rdparty/portable-target \
+        && git submodule update --init --remote -- 3rdparty/pfs/common \
+        && cd 3rdparty/rocksdb && git checkout $ROCKSDB_RELEASE \        
+        && cd $CWD
 
 fi
 
