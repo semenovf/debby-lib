@@ -9,7 +9,7 @@ if [ -e .git ] ; then
         && git submodule update --init --recursive \
         && git submodule update --init --remote -- 3rdparty/portable-target \
         && git submodule update --init --remote -- 3rdparty/pfs/common \
-        && cd 3rdparty/rocksdb && git checkout $ROCKSDB_RELEASE \        
+        && cd 3rdparty/rocksdb && git checkout $ROCKSDB_RELEASE \
         && cd $CWD
 
 fi
