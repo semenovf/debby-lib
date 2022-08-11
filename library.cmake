@@ -9,7 +9,6 @@
 cmake_minimum_required (VERSION 3.11)
 project(debby LANGUAGES CXX C)
 
-option(DEBBY__ENABLE_EXCEPTIONS "Enable exceptions for library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` library" ON)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` library" OFF)
 
@@ -19,10 +18,6 @@ endif()
 
 portable_target(ADD_SHARED ${PROJECT_NAME} ALIAS pfs::debby EXPORTS DEBBY__EXPORTS
     BIND_STATIC ${PROJECT_NAME}-static STATIC_ALIAS pfs::debby::static STATIC_EXPORTS DEBBY__STATIC)
-
-if (DEBBY__ENABLE_EXCEPTIONS)
-    set(PFS__ENABLE_EXCEPTIONS ON CACHE INTERNAL "")
-endif()
 
 if (DEBBY__ENABLE_SQLITE3)
     portable_target(SOURCES ${PROJECT_NAME}

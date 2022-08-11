@@ -10,6 +10,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
 #include "utils.hpp"
+#include "pfs/assert.hpp"
 #include "pfs/debby/result.hpp"
 #include "pfs/debby/backend/sqlite3/result.hpp"
 
@@ -106,7 +107,7 @@ template <>
 int
 result<BACKEND>::column_count () const noexcept
 {
-    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER);
     return sqlite3_column_count(_rep.sth);
 }
 
@@ -117,7 +118,7 @@ template <>
 std::string
 result<BACKEND>::column_name (int column) const noexcept
 {
-    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER);
 
     if (column >= 0 && column < sqlite3_column_count(_rep.sth))
         return std::string {sqlite3_column_name(_rep.sth, column)};
@@ -132,7 +133,7 @@ template <>
 void
 result<BACKEND>::next ()
 {
-    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER);
 
     auto rc = sqlite3_step(_rep.sth);
 
@@ -149,13 +150,12 @@ result<BACKEND>::next ()
         case SQLITE_ERROR: {
             _rep.state = backend::sqlite3::result::FAILURE;
 
-            auto err = error{
+            throw error {
                   make_error_code(errc::sql_error)
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
                 , backend::sqlite3::current_sql(_rep.sth)
             };
 
-            DEBBY__THROW(err);
             break;
         }
 
@@ -165,13 +165,12 @@ result<BACKEND>::next ()
         default: {
             _rep.state = backend::sqlite3::result::FAILURE;
 
-            auto err = error{
+            throw error {
                   make_error_code(errc::sql_error)
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
                 , backend::sqlite3::current_sql(_rep.sth)
             };
 
-            DEBBY__THROW(err);
             break;
         }
     }
@@ -187,7 +186,7 @@ template <>
 result_status
 result<BACKEND>::fetch (int column, value_type & value) const noexcept
 {
-    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER);
 
     auto upper_limit = sqlite3_column_count(_rep.sth);
 
@@ -281,7 +280,7 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
 
         default:
             // Unexpected column type, need to handle it.
-            DEBBY__ASSERT(false, "Unexpected column type");
+            PFS__ASSERT(false, "Unexpected column type");
             break;
     }
 
@@ -296,7 +295,7 @@ template <>
 result_status
 result<BACKEND>::fetch (std::string const & column_name, value_type & value) const noexcept
 {
-    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER);
 
     if (_rep.column_mapping.empty()) {
         auto count = sqlite3_column_count(_rep.sth);

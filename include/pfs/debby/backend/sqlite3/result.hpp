@@ -54,12 +54,10 @@ struct result {
         if (ptr) {
             target = to_native<NativeType>(*ptr);
         } else {
-            error err {
+            throw error {
                   make_error_code(errc::bad_value)
                 , "unsuitable data requested"
             };
-
-            DEBBY__THROW(err);
         }
     }
 

@@ -17,9 +17,6 @@
 
 namespace debby {
 
-#define DEBBY__ASSERT(condition, message) PFS__ASSERT(condition, message)
-#define DEBBY__THROW(x) PFS__THROW(x)
-
 enum class errc
 {
       success = 0

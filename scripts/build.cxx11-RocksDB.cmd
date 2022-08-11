@@ -5,4 +5,4 @@ set BUILD_DIR_SUFFIX=.RocksDB
 set BUILD_TESTS=ON
 set BUILD_DEMO=ON
 
-call ..\build-windows.cmd
+call build-windows.cmd

@@ -27,7 +27,7 @@ void check_set_get (pfs::filesystem::path const & db_path)
     if (fs::exists(db_path))
         fs::remove_all(db_path);
 
-    TRY {
+    try {
         auto db = database_t::make(db_path);
 
         REQUIRE(db);
@@ -70,10 +70,8 @@ void check_set_get (pfs::filesystem::path const & db_path)
         // FIXME Cause abnormal finishing
         //db.destroy();
         //REQUIRE(!db);
-    } CATCH(debby::error ex) {
-#if PFS__EXCEPTIONS_ENABLED
+    } catch (debby::error ex) {
         REQUIRE_MESSAGE(false, ex.what());
-#endif
     }
 
     // In Windows database must be closed/destructed before to avoid exception:

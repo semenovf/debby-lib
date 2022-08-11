@@ -29,7 +29,7 @@ namespace sqlite3 {
 
 static result_status query (database::rep_type const * rep, std::string const & sql)
 {
-    DEBBY__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER);
 
     int rc = sqlite3_exec(rep->dbh, sql.c_str(), nullptr, nullptr, nullptr);
 
@@ -80,11 +80,9 @@ database::make (fs::path const & path, bool create_if_missing)
         if (!rep.dbh) {
             // Unable to allocate memory for database handler.
             // Internal error code.
-            auto err = error{
+            throw error {
                 make_error_code(errc::bad_alloc)
             };
-
-            DEBBY__THROW(err);
         } else {
             sqlite3_close_v2(rep.dbh);
             rep.dbh = nullptr;
@@ -98,13 +96,11 @@ database::make (fs::path const & path, bool create_if_missing)
                 ec = make_error_code(errc::backend_error);
             }
 
-            auto err = error{
+            throw error {
                   ec
                 , fs::utf8_encode(path)
                 , build_errstr(rc, rep.dbh)
             };
-
-            DEBBY__THROW(err);
         }
     } else {
         // NOTE what for this call ?
@@ -118,7 +114,7 @@ database::make (fs::path const & path, bool create_if_missing)
         if (!res.ok()) {
             sqlite3_close_v2(rep.dbh);
             rep.dbh = nullptr;
-            DEBBY__THROW(res);
+            throw res;
         }
     }
 
@@ -169,7 +165,7 @@ relational_database<BACKEND>::query (std::string const & sql)
     auto res = backend::sqlite3::query(& _rep, sql);
 
     if (!res.ok())
-        DEBBY__THROW(res);
+        throw res;
 }
 
 template <>
@@ -197,7 +193,7 @@ template <>
 relational_database<BACKEND>::statement_type
 relational_database<BACKEND>::prepare (std::string const & sql, bool cache)
 {
-    DEBBY__ASSERT(_rep.dbh, NULL_HANDLER);
+    PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
     auto pos = _rep.cache.find(sql);
 
@@ -214,18 +210,16 @@ relational_database<BACKEND>::prepare (std::string const & sql, bool cache)
         , static_cast<int>(sql.size()), & sth, nullptr);
 
     if (SQLITE_OK != rc) {
-        error err {
+        throw error {
               make_error_code(errc::sql_error)
             , backend::sqlite3::build_errstr(rc, _rep.dbh)
             , sql
         };
-
-        DEBBY__THROW(err);
     }
 
     if (cache) {
         auto res = _rep.cache.emplace(sql, sth);
-        DEBBY__ASSERT(res.second, "key must be unique");
+        PFS__ASSERT(res.second, "key must be unique");
     }
 
     return statement_type::make(sth, cache);
@@ -235,7 +229,7 @@ template <>
 std::size_t
 relational_database<BACKEND>::rows_count (std::string const & table_name)
 {
-    DEBBY__ASSERT(_rep.dbh, NULL_HANDLER);
+    PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
     std::size_t count = 0;
     std::string sql = fmt::format("SELECT COUNT(1) as count FROM `{}`"
@@ -256,7 +250,7 @@ relational_database<BACKEND>::rows_count (std::string const & table_name)
         }
 
         // Expecting done
-        DEBBY__ASSERT(res.is_done(), "expecting done");
+        PFS__ASSERT(res.is_done(), "expecting done");
     }
 
     return count;
@@ -266,7 +260,7 @@ template <>
 std::vector<std::string>
 relational_database<BACKEND>::tables (std::string const & pattern)
 {
-    DEBBY__ASSERT(_rep.dbh, NULL_HANDLER);
+    PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
     std::string sql = std::string{"SELECT name FROM sqlite_master "
         "WHERE type='table' ORDER BY name"};
@@ -295,7 +289,7 @@ relational_database<BACKEND>::tables (std::string const & pattern)
             }
         }
 
-        DEBBY__ASSERT(res.is_done(), "expecting done");
+        PFS__ASSERT(res.is_done(), "expecting done");
     }
 
     return list;
@@ -311,7 +305,7 @@ template <>
 void
 relational_database<BACKEND>::remove (std::vector<std::string> const & tables)
 {
-    DEBBY__ASSERT(_rep.dbh, NULL_HANDLER);
+    PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
     if (tables.empty())
         return;
@@ -330,9 +324,7 @@ relational_database<BACKEND>::remove (std::vector<std::string> const & tables)
         commit();
     } catch (error ex) {
         rollback();
-#if PFS__EXCEPTIONS_ENABLED
         throw;
-#endif
     }
 }
 

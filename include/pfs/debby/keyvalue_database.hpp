@@ -114,7 +114,7 @@ public:
             if (ok) {
                 *ok = false;
             } else {
-                DEBBY__THROW(res);
+                throw res;
             }
         }
 
@@ -132,16 +132,14 @@ public:
         auto res = fetch(key, value);
 
         if (!res.ok())
-            DEBBY__THROW(res);
+            throw res;
 
         auto ptr = get_if<T>(& value);
 
         if (!ptr) {
-            error err {make_error_code(errc::bad_value)
+            throw error { make_error_code(errc::bad_value)
                 , fmt::format("unsuitable data stored by key: {}", key)
             };
-
-            DEBBY__THROW(err);
         }
 
         return static_cast<T>(*ptr);
@@ -159,7 +157,7 @@ public:
             if (res.code().value() == static_cast<int>(errc::key_not_found))
                 return default_value;
 
-            DEBBY__THROW(res);
+            throw res;
         }
 
         auto ptr = get_if<T>(& value);

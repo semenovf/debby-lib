@@ -28,7 +28,7 @@ struct cast_traits<NativeType, typename std::enable_if<
 
     static storage_type to_storage (pfs::universal_id const & value)
     {
-        return std::to_string(value);
+        return to_string(value);
     }
 
     static pfs::universal_id to_native (storage_type const & value)

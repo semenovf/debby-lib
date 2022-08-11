@@ -9,6 +9,7 @@
 //      2022.03.12 Refactored.
 ////////////////////////////////////////////////////////////////////////////////
 #include "pfs/fmt.hpp"
+#include "pfs/assert.hpp"
 #include "pfs/debby/error.hpp"
 #include "pfs/debby/keyvalue_database.hpp"
 #include "pfs/debby/backend/rocksdb/database.hpp"
@@ -57,7 +58,7 @@ static result_status read (database::rep_type const * rep
     , int & column_family_index
     , std::string & target)
 {
-    DEBBY__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER);
 
     std::string s;
 
@@ -112,7 +113,7 @@ static result_status read (database::rep_type const * rep
  */
 static result_status remove (database::rep_type * rep, database::key_type const & key)
 {
-    DEBBY__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER);
 
     ::rocksdb::Status status; // = _dbh->SingleDelete(::rocksdb::WriteOptions(), key);
 
@@ -149,7 +150,7 @@ result_status database::rep_type::write (
     , int column_family_index
     , char const * data, std::size_t len)
 {
-    DEBBY__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER);
 
     // Attempt to write `null` data interpreted as delete operation for key
     if (data) {
@@ -200,11 +201,10 @@ database::make (pfs::filesystem::path const & path, options_type * opts)
     // `Status DBImpl::Open(const DBOptions& db_options...`.
     // Need to use workaround:
     if (!fs::exists(path) && !opts->create_if_missing) {
-        auto err = error{
+        throw error {
               make_error_code(errc::database_not_found)
             , fs::utf8_encode(path)
         };
-        DEBBY__THROW(err);
     }
 
     ::rocksdb::Status status;
@@ -233,8 +233,7 @@ database::make (pfs::filesystem::path const & path, options_type * opts)
 
     if (!status.ok()) {
         auto ec = make_error_code(errc::backend_error);
-        auto err = error{ec, fs::utf8_encode(path), status.ToString()};
-        DEBBY__THROW(err);
+        throw error {ec, fs::utf8_encode(path), status.ToString()};
     }
 
     rep.path = path;
@@ -312,11 +311,10 @@ keyvalue_database<BACKEND>::destroy ()
 
         if (!status.ok()) {
             auto ec = make_error_code(errc::backend_error);
-            auto err = error{ec
+            throw error {ec
                 , fmt::format("destroy database failure: {}: {}"
                     , db_name
                     , status.ToString())};
-            DEBBY__THROW(err);
         }
     }
 }
@@ -330,7 +328,7 @@ keyvalue_database<BACKEND>::set (key_type const & key, std::string const & value
         , value.data(), value.size());
 
     if (err)
-        DEBBY__THROW(err);
+        throw err;
 }
 
 template <>
@@ -343,7 +341,7 @@ keyvalue_database<BACKEND>::set (key_type const & key
         , value, len);
 
     if (err)
-        DEBBY__THROW(err);
+        throw err;
 }
 
 template <>
@@ -355,7 +353,7 @@ keyvalue_database<BACKEND>::set (key_type const & key, blob_t const & value)
         , reinterpret_cast<char const *>(value.data()), value.size());
 
     if (err)
-        DEBBY__THROW(err);
+        throw err;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

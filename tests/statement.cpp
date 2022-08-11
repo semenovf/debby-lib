@@ -207,11 +207,9 @@ void check (pfs::filesystem::path const & db_path)
             }
 
             {
-#if PFS__EXCEPTIONS_ENABLED
                 // `null` value results throwing exception for `direct` variable
                 int n;
                 REQUIRE_THROWS((result["null"] >> n));
-#endif
 
                 pfs::optional<int> opt;
 
@@ -221,10 +219,8 @@ void check (pfs::filesystem::path const & db_path)
             }
 
             {
-#if PFS__EXCEPTIONS_ENABLED
                 // Unknown column results throwing exception
                 REQUIRE_THROWS((result["unknown"]));
-#endif
             }
 
             result.next();

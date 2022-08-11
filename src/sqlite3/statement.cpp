@@ -10,6 +10,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
 #include "utils.hpp"
+#include "pfs/assert.hpp"
 #include "pfs/debby/statement.hpp"
 #include "pfs/debby/backend/sqlite3/result.hpp"
 #include "pfs/debby/backend/sqlite3/statement.hpp"
@@ -34,30 +35,26 @@ static void bind_helper_func (statement::rep_type * rep
     , std::string const & placeholder
     , std::function<int (int /*index*/)> && sqlite3_binder_func)
 {
-    DEBBY__ASSERT(rep->sth, NULL_HANDLER);
+    PFS__ASSERT(rep->sth, NULL_HANDLER);
 
     int index = sqlite3_bind_parameter_index(rep->sth, placeholder.c_str());
 
     if (index == 0) {
-        auto err = error{
+        throw error {
               make_error_code(errc::invalid_argument)
             , std::string{"bad bind parameter name"}
             , placeholder
         };
-
-        DEBBY__THROW(err);
     }
 
     int rc = sqlite3_binder_func(index);
 
     if (SQLITE_OK != rc) {
-        auto err = error{
+        throw error {
               make_error_code(errc::backend_error)
             , build_errstr(rc, rep->sth)
             , current_sql(rep->sth)
         };
-
-        DEBBY__THROW(err);
     }
 }
 
@@ -226,11 +223,11 @@ template <>
 int
 statement<BACKEND>::rows_affected () const
 {
-    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER);
 
     auto dbh = sqlite3_db_handle(_rep.sth);
 
-    DEBBY__ASSERT(dbh, NULL_HANDLER);
+    PFS__ASSERT(dbh, NULL_HANDLER);
 
     //return sqlite3_changes64(_sth);
     return sqlite3_changes(dbh);
@@ -240,7 +237,7 @@ template <>
 statement<BACKEND>::result_type
 statement<BACKEND>::exec ()
 {
-    DEBBY__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER);
 
     std::error_code ec;
     backend::sqlite3::result::status status {backend::sqlite3::result::INITIAL};
@@ -258,12 +255,11 @@ statement<BACKEND>::exec ()
         case SQLITE_CONSTRAINT:
         case SQLITE_ERROR: {
             status = backend::sqlite3::result::FAILURE;
-            error err {
+            throw error {
                   make_error_code(errc::sql_error)
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
                 , backend::sqlite3::current_sql(_rep.sth)
             };
-            DEBBY__THROW(err);
         }
 
         // Perhaps the error handling should be different from the above.
@@ -271,12 +267,11 @@ statement<BACKEND>::exec ()
         case SQLITE_BUSY:
         default: {
             status = backend::sqlite3::result::FAILURE;
-            error err {
+            throw error {
                   make_error_code(errc::sql_error)
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
                 , backend::sqlite3::current_sql(_rep.sth)
             };
-            DEBBY__THROW(err);
         }
     }
 
