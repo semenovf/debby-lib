@@ -10,6 +10,7 @@
 #include "doctest.h"
 #include "pfs/string_view.hpp"
 #include "pfs/debby/backend/sqlite3/affinity_traits.hpp"
+#include "pfs/debby/backend/sqlite3/sha256_traits.hpp"
 #include "pfs/debby/backend/sqlite3/time_point_traits.hpp"
 #include "pfs/debby/backend/sqlite3/uuid_traits.hpp"
 
@@ -94,6 +95,18 @@ TEST_CASE("sqlite3 affinity") {
 
     CHECK(std::is_same<std::string, typename affinity_traits<char const *>::storage_type>::value);
     CHECK(affinity_traits<char const *>::name() == "TEXT");
+}
+
+TEST_CASE("SHA256 affinity") {
+    CHECK(std::is_same<std::string, typename affinity_traits<pfs::crypto::sha256_digest>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<pfs::crypto::sha256_digest &>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<pfs::crypto::sha256_digest const>::storage_type>::value);
+    CHECK(std::is_same<std::string, typename affinity_traits<pfs::crypto::sha256_digest const &>::storage_type>::value);
+
+    CHECK(affinity_traits<pfs::crypto::sha256_digest>::name() == "TEXT");
+    CHECK(affinity_traits<pfs::crypto::sha256_digest &>::name() == "TEXT");
+    CHECK(affinity_traits<pfs::crypto::sha256_digest const>::name() == "TEXT");
+    CHECK(affinity_traits<pfs::crypto::sha256_digest const &>::name() == "TEXT");
 }
 
 TEST_CASE("UUID affinity") {
