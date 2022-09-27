@@ -11,10 +11,15 @@
 #pragma once
 #include "error.hpp"
 #include "exports.hpp"
+#include "pfs/string_view.hpp"
 #include <string>
 #include <vector>
 
 namespace debby {
+
+using pfs::string_view;
+
+enum class transient_enum { no, yes };
 
 template <typename Backend>
 class statement final
@@ -53,22 +58,23 @@ public:
     /**
      */
     template <typename T>
+    void bind (int index, T && value)
+    {
+        Backend::template bind<T>(& _rep, index, std::forward<T>(value));
+    }
+
+    /**
+     */
+    template <typename T>
     void bind (std::string const & placeholder, T && value)
     {
         Backend::template bind<T>(& _rep, placeholder, std::forward<T>(value));
     }
 
     /**
-     * Set the @a placeholder to be bound to blob @a value with length @a len
-     * in the prepared statement.
-     *
-     * @details Placeholder mark (e.g :) must be included when specifying the
-     *          placeholder name.
      */
-    DEBBY__EXPORT void bind (std::string const & placeholder
-        , char const * blob
-        , std::size_t len
-        , bool transient);
+    DEBBY__EXPORT void bind (int index, std::string const & value
+        , transient_enum transient);
 
     /**
      * Set the @a placeholder to be bound to string @a value in the prepared
@@ -78,8 +84,25 @@ public:
      *          placeholder name.
      */
     DEBBY__EXPORT void bind (std::string const & placeholder
-        , std::string const & value
-        , bool transient);
+        , std::string const & value, transient_enum transient);
+
+    /**
+     */
+    DEBBY__EXPORT void bind (int index, string_view value, transient_enum transient);
+
+    /**
+     * Set the @a placeholder to be bound to string @a value in the prepared
+     * statement.
+     *
+     * @details Placeholder mark (e.g :) must be included when specifying the
+     *          placeholder name.
+     */
+    DEBBY__EXPORT void bind (std::string const & placeholder, string_view value
+        , transient_enum transient);
+
+    /**
+     */
+    DEBBY__EXPORT void bind (int index, char const * value, transient_enum transient);
 
     /**
      * Set the @a placeholder to be bound to C-string @a value with in the
@@ -89,8 +112,39 @@ public:
      *          placeholder name.
      */
     DEBBY__EXPORT void bind (std::string const & placeholder
-        , char const * value
-        , bool transient);
+        , char const * value, transient_enum transient);
+
+    /**
+     * Set the @a index to be bound to @a blob in the prepared statement.
+     */
+    DEBBY__EXPORT void bind (int index, std::uint8_t const * blob, std::size_t len
+        , transient_enum transient);
+
+    /**
+     * Set the @a index to be bound to @a blob in the prepared statement.
+     */
+    inline void bind (int index, char const * blob, std::size_t len
+        , transient_enum transient)
+    {
+        bind(index, reinterpret_cast<std::uint8_t const *>(blob), len, transient);
+    }
+
+    /**
+     * Set the @a placeholder to be bound to @a blob with length @a len
+     * in the prepared statement.
+     *
+     * @details Placeholder mark (e.g :) must be included when specifying the
+     *          placeholder name.
+     */
+    DEBBY__EXPORT void bind (std::string const & placeholder
+        , std::uint8_t const * blob, std::size_t len, transient_enum transient);
+
+    inline void bind (std::string const & placeholder
+        , char const * blob, std::size_t len, transient_enum transient)
+    {
+        bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob)
+            , len, transient);
+    }
 
 public:
     template <typename ...Args>

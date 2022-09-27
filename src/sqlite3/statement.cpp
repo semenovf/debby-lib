@@ -31,6 +31,23 @@ statement::rep_type statement::make (native_type sth, bool cached)
     return rep;
 }
 
+static void bind_helper_func (statement::rep_type * rep, int index
+    , std::function<int (int /*index*/)> && sqlite3_binder_func)
+{
+    PFS__ASSERT(rep->sth, NULL_HANDLER);
+
+    // In sqlite index must be started from 1
+    int rc = sqlite3_binder_func(index + 1);
+
+    if (SQLITE_OK != rc) {
+        throw error {
+              make_error_code(errc::backend_error)
+            , build_errstr(rc, rep->sth)
+            , current_sql(rep->sth)
+        };
+    }
+}
+
 static void bind_helper_func (statement::rep_type * rep
     , std::string const & placeholder
     , std::function<int (int /*index*/)> && sqlite3_binder_func)
@@ -69,58 +86,114 @@ statement::bind_helper (statement::rep_type * rep
     });
 }
 
-#define BIND_INT_DEF(T)                                                        \
+template <>
+void
+statement::bind_helper (statement::rep_type * rep, int index, bool && value)
+{
+    bind_helper_func(rep, index, [rep, value] (int index) {
+        return sqlite3_bind_int(rep->sth, index, (value ? 1 : 0));
+    });
+}
+
+#define BIND_INDEX_INT_DEF(T)                                                  \
     template <>                                                                \
     void                                                                       \
     statement::bind_helper (statement::rep_type * rep                          \
-        , std::string const & placeholder                                      \
-        , T && value)                                                          \
+        , int index, T && value)                                               \
+    {                                                                          \
+        return bind_helper_func(rep, index, [rep, value] (int index) {         \
+            return sqlite3_bind_int(rep->sth, index, static_cast<int>(value)); \
+        });                                                                    \
+    }
+
+#define BIND_INDEX_INT64_DEF(T)                                                \
+    template <>                                                                \
+    void                                                                       \
+    statement::bind_helper (statement::rep_type * rep                          \
+        , int index, T && value)                                               \
+    {                                                                          \
+        return bind_helper_func(rep, index, [rep, value] (int index) {         \
+            return sqlite3_bind_int64(rep->sth                                 \
+                , index                                                        \
+                , static_cast<sqlite3_int64>(value));                          \
+        });                                                                    \
+    }
+
+#define BIND_PLACEHOLDER_INT_DEF(T)                                            \
+    template <>                                                                \
+    void                                                                       \
+    statement::bind_helper (statement::rep_type * rep                          \
+        , std::string const & placeholder, T && value)                         \
     {                                                                          \
         return bind_helper_func(rep, placeholder, [rep, value] (int index) {   \
             return sqlite3_bind_int(rep->sth, index, static_cast<int>(value)); \
         });                                                                    \
     }
 
-#define BIND_INT64_DEF(T)                                                    \
-    template <>                                                              \
-    void                                                                     \
-    statement::bind_helper (statement::rep_type * rep                        \
-        , std::string const & placeholder                                    \
-        , T && value)                                                        \
-    {                                                                        \
-        return bind_helper_func(rep, placeholder, [rep, value] (int index) { \
-            return sqlite3_bind_int64(rep->sth                               \
-                , index                                                      \
-                , static_cast<sqlite3_int64>(value));                        \
-        });                                                                  \
+#define BIND_PLACEHOLDER_INT64_DEF(T)                                          \
+    template <>                                                                \
+    void                                                                       \
+    statement::bind_helper (statement::rep_type * rep                          \
+        , std::string const & placeholder, T && value)                         \
+    {                                                                          \
+        return bind_helper_func(rep, placeholder, [rep, value] (int index) {   \
+            return sqlite3_bind_int64(rep->sth                                 \
+                , index                                                        \
+                , static_cast<sqlite3_int64>(value));                          \
+        });                                                                    \
     }
 
-BIND_INT_DEF(char)
-BIND_INT_DEF(signed char)
-BIND_INT_DEF(unsigned char)
-BIND_INT_DEF(short)
-BIND_INT_DEF(unsigned short)
-BIND_INT_DEF(int)
-BIND_INT_DEF(unsigned int)
+BIND_INDEX_INT_DEF(char)
+BIND_INDEX_INT_DEF(signed char)
+BIND_INDEX_INT_DEF(unsigned char)
+BIND_INDEX_INT_DEF(short)
+BIND_INDEX_INT_DEF(unsigned short)
+BIND_INDEX_INT_DEF(int)
+BIND_INDEX_INT_DEF(unsigned int)
+
+BIND_PLACEHOLDER_INT_DEF(char)
+BIND_PLACEHOLDER_INT_DEF(signed char)
+BIND_PLACEHOLDER_INT_DEF(unsigned char)
+BIND_PLACEHOLDER_INT_DEF(short)
+BIND_PLACEHOLDER_INT_DEF(unsigned short)
+BIND_PLACEHOLDER_INT_DEF(int)
+BIND_PLACEHOLDER_INT_DEF(unsigned int)
 
 #if (defined(LONG_MAX) && LONG_MAX == 2147483647L)  \
         || (defined(_LONG_MAX__) && __LONG_MAX__ == 2147483647L)
-    BIND_INT_DEF(long)
-    BIND_INT_DEF(unsigned long)
+    BIND_INDEX_INT_DEF(long)
+    BIND_INDEX_INT_DEF(unsigned long)
+    BIND_PLACEHOLDER_INT_DEF(long)
+    BIND_PLACEHOLDER_INT_DEF(unsigned long)
 #else
-    BIND_INT64_DEF(long)
-    BIND_INT64_DEF(unsigned long)
+    BIND_INDEX_INT64_DEF(long)
+    BIND_INDEX_INT64_DEF(unsigned long)
+    BIND_PLACEHOLDER_INT64_DEF(long)
+    BIND_PLACEHOLDER_INT64_DEF(unsigned long)
 #endif
 
 #if defined(LONG_LONG_MAX) || defined(__LONG_LONG_MAX__)
-    BIND_INT64_DEF(long long)
-    BIND_INT64_DEF(unsigned long long)
+    BIND_INDEX_INT64_DEF(long long)
+    BIND_INDEX_INT64_DEF(unsigned long long)
+    BIND_PLACEHOLDER_INT64_DEF(long long)
+    BIND_PLACEHOLDER_INT64_DEF(unsigned long long)
 #endif
 
 #if defined(_MSC_VER)
-    BIND_INT64_DEF(__int64)
-    BIND_INT64_DEF(unsigned __int64)
+    BIND_INDEX_INT64_DEF(__int64)
+    BIND_INDEX_INT64_DEF(unsigned __int64)
+    BIND_PLACEHOLDER_INT64_DEF(__int64)
+    BIND_PLACEHOLDER_INT64_DEF(unsigned __int64)
 #endif
+
+template <>
+void
+statement::bind_helper (statement::rep_type * rep, int index, float && value)
+{
+    return bind_helper_func(rep, index, [rep, value] (int index) {
+        return sqlite3_bind_double(rep->sth, index, static_cast<double>(value));
+    });
+}
 
 template <>
 void
@@ -130,6 +203,15 @@ statement::bind_helper (statement::rep_type * rep
 {
     return bind_helper_func(rep, placeholder, [rep, value] (int index) {
         return sqlite3_bind_double(rep->sth, index, static_cast<double>(value));
+    });
+}
+
+template <>
+void
+statement::bind_helper (statement::rep_type * rep, int index, double && value)
+{
+    return bind_helper_func(rep, index, [rep, value] (int index) {
+        return sqlite3_bind_double(rep->sth, index, value);
     });
 }
 
@@ -146,12 +228,35 @@ statement::bind_helper (statement::rep_type * rep
 
 template <>
 void
+statement::bind_helper (statement::rep_type * rep, int index, std::nullptr_t &&)
+{
+    bind_helper_func(rep, index, [rep] (int index) {
+        return sqlite3_bind_null(rep->sth, index);
+    });
+}
+
+template <>
+void
 statement::bind_helper (statement::rep_type * rep
     , std::string const & placeholder
     , std::nullptr_t &&)
 {
     bind_helper_func(rep, placeholder, [rep] (int index) {
         return sqlite3_bind_null(rep->sth, index);
+    });
+}
+
+template <>
+void
+statement::bind_helper (statement::rep_type * rep, int index, std::string && value)
+{
+    auto str = value.c_str();
+    auto len = value.size();
+
+    backend::sqlite3::bind_helper_func(rep, index, [rep, str, len] (int index) {
+        return sqlite3_bind_text(rep->sth, index, str
+            , static_cast<int>(len)
+            , SQLITE_TRANSIENT);
     });
 }
 
@@ -167,6 +272,17 @@ statement::bind_helper (statement::rep_type * rep
     backend::sqlite3::bind_helper_func(rep, placeholder, [rep, str, len] (int index) {
         return sqlite3_bind_text(rep->sth, index, str
             , static_cast<int>(len)
+            , SQLITE_TRANSIENT);
+    });
+}
+
+template <>
+void
+statement::bind_helper (statement::rep_type * rep, int index, char const * && value)
+{
+    backend::sqlite3::bind_helper_func(rep, index, [rep, value] (int index) {
+        return sqlite3_bind_text(rep->sth, index, value
+            , static_cast<int>(std::strlen(value))
             , SQLITE_TRANSIENT);
     });
 }
@@ -283,9 +399,22 @@ statement<BACKEND>::exec ()
 
 template <>
 void
+statement<BACKEND>::bind (int index, std::string const & value, transient_enum transient)
+{
+    auto str = value.c_str();
+    auto len = value.size();
+
+    backend::sqlite3::bind_helper_func(& _rep, index, [this, str, len, transient] (int index) {
+        return sqlite3_bind_text(_rep.sth, index, str
+            , static_cast<int>(len)
+            , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
+    });
+}
+
+template <>
+void
 statement<BACKEND>::bind (std::string const & placeholder
-    , std::string const & value
-    , bool transient)
+    , std::string const & value, transient_enum transient)
 {
     auto str = value.c_str();
     auto len = value.size();
@@ -293,40 +422,100 @@ statement<BACKEND>::bind (std::string const & placeholder
     backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, str, len, transient] (int index) {
         return sqlite3_bind_text(_rep.sth, index, str
             , static_cast<int>(len)
-            , transient ? SQLITE_TRANSIENT : SQLITE_STATIC);
+            , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
+    });
+}
+
+////////////
+template <>
+void
+statement<BACKEND>::bind (int index, string_view value, transient_enum transient)
+{
+    auto str = value.data();
+    auto len = value.size();
+
+    backend::sqlite3::bind_helper_func(& _rep, index, [this, str, len, transient] (int index) {
+        return sqlite3_bind_text(_rep.sth, index, str
+            , static_cast<int>(len)
+            , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
+    });
+}
+
+template <>
+void
+statement<BACKEND>::bind (std::string const & placeholder, string_view value
+    , transient_enum transient)
+{
+    auto str = value.data();
+    auto len = value.size();
+
+    backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, str, len, transient] (int index) {
+        return sqlite3_bind_text(_rep.sth, index, str
+            , static_cast<int>(len)
+            , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
+    });
+}
+
+template <>
+void
+statement<BACKEND>::bind (int index, char const * value, transient_enum transient)
+{
+    backend::sqlite3::bind_helper_func(& _rep, index, [this, value, transient] (int index) {
+        return sqlite3_bind_text(_rep.sth, index, value
+            , static_cast<int>(std::strlen(value))
+            , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
     });
 }
 
 template <>
 void
 statement<BACKEND>::bind (std::string const & placeholder
-    , char const * value
-    , bool transient)
+    , char const * value, transient_enum transient)
 {
     backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, transient] (int index) {
         return sqlite3_bind_text(_rep.sth, index, value
             , static_cast<int>(std::strlen(value))
-            , transient ? SQLITE_TRANSIENT : SQLITE_STATIC);
+            , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
     });
 }
 
 template <>
 void
+statement<BACKEND>::bind (int index, std::uint8_t const * value, std::size_t len
+    , transient_enum transient)
+{
+    if (len > (std::numeric_limits<int>::max)()) {
+        backend::sqlite3::bind_helper_func(& _rep, index, [this, value, len, transient] (int index) {
+            return sqlite3_bind_blob64(_rep.sth, index, value
+                , static_cast<sqlite3_int64>(len)
+                , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
+        });
+    } else {
+        backend::sqlite3::bind_helper_func(& _rep, index, [this, value, len, transient] (int index) {
+            return sqlite3_bind_blob(_rep.sth, index, value
+                , static_cast<int>(len)
+                , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
+        });
+    }
+}
+
+template <>
+void
 statement<BACKEND>::bind (std::string const & placeholder
-    , char const * value, std::size_t len
-    , bool transient)
+    , std::uint8_t const * value, std::size_t len
+    , transient_enum transient)
 {
     if (len > (std::numeric_limits<int>::max)()) {
         backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, len, transient] (int index) {
             return sqlite3_bind_blob64(_rep.sth, index, value
                 , static_cast<sqlite3_int64>(len)
-                , transient ? SQLITE_TRANSIENT : SQLITE_STATIC);
+                , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
         });
     } else {
         backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, len, transient] (int index) {
             return sqlite3_bind_blob(_rep.sth, index, value
                 , static_cast<int>(len)
-                , transient ? SQLITE_TRANSIENT : SQLITE_STATIC);
+                , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
         });
     }
 }

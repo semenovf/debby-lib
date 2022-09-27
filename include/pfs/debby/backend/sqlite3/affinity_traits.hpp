@@ -12,6 +12,7 @@
 #include "pfs/optional.hpp"
 #include <cstdint>
 #include <string>
+ #include <vector>
 
 namespace debby {
 namespace backend {
@@ -41,6 +42,12 @@ struct text_affinity_traits
 {
     using storage_type = std::string;
     static std::string name () { return "TEXT"; }
+};
+
+struct blob_affinity_traits
+{
+    using storage_type = std::vector<std::uint8_t>;
+    static std::string name () { return "BLOB"; }
 };
 
 template <typename NativeType, typename Constraints = void>
@@ -83,6 +90,13 @@ struct affinity_traits<NativeType, typename std::enable_if<
     std::is_same<NativeType, char const *>::value, void>::type>
     : text_affinity_traits
 {};
+
+template <typename NativeType>
+struct affinity_traits<NativeType, typename std::enable_if<
+    std::is_same<pfs::remove_cvref_t<NativeType>, std::vector<std::uint8_t>>::value, void>::type>
+    : blob_affinity_traits
+{};
+
 
 template <typename NativeType>
 struct affinity_traits<pfs::optional<NativeType>, void>: affinity_traits<NativeType> {};

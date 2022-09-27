@@ -67,6 +67,23 @@ struct cast_traits<NativeType, typename std::enable_if<
 };
 
 template <typename NativeType>
+struct cast_traits<NativeType, typename std::enable_if<
+       std::is_same<pfs::remove_cvref_t<NativeType>, std::vector<std::uint8_t>>::value, void>::type>
+{
+    using storage_type = typename affinity_traits<NativeType>::storage_type;
+
+    static storage_type to_storage (NativeType const & value)
+    {
+        return value;
+    }
+
+    static NativeType to_native (storage_type const & value)
+    {
+        return value;
+    }
+};
+
+template <typename NativeType>
 struct cast_traits<pfs::optional<NativeType>, void>: cast_traits<NativeType> {};
 
 template <typename NativeType>

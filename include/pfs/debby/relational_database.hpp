@@ -113,12 +113,18 @@ public:
     DEBBY__EXPORT bool exists (std::string const & name);
 
 public:
+    /**
+     * @throw debby::error on create/open data failure.
+     */
     template <typename ...Args>
     static relational_database make (Args &&... args)
     {
         return relational_database{Backend::make(std::forward<Args>(args)...)};
     }
 
+    /**
+     * @throw debby::error on create/open data failure.
+     */
     template <typename ...Args>
     static std::unique_ptr<relational_database> make_unique (Args &&... args)
     {
