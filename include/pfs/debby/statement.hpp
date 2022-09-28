@@ -130,6 +130,24 @@ public:
     }
 
     /**
+     * Set the @a index to be bound to @a blob in the prepared statement.
+     */
+    inline void bind (int index, std::vector<std::uint8_t> blob
+        , transient_enum transient)
+    {
+        bind(index, blob.data(), blob.size(), transient);
+    }
+
+    /**
+     * Set the @a index to be bound to @a blob in the prepared statement.
+     */
+    inline void bind (int index, std::vector<char> const & blob
+        , transient_enum transient)
+    {
+        bind(index, reinterpret_cast<std::uint8_t const *>(blob.data()), blob.size(), transient);
+    }
+
+    /**
      * Set the @a placeholder to be bound to @a blob with length @a len
      * in the prepared statement.
      *
@@ -144,6 +162,19 @@ public:
     {
         bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob)
             , len, transient);
+    }
+
+    inline void bind (std::string const & placeholder
+        , std::vector<std::uint8_t> const & blob, transient_enum transient)
+    {
+        bind(placeholder, blob.data(), blob.size(), transient);
+    }
+
+    inline void bind (std::string const & placeholder
+        , std::vector<char> const & blob, transient_enum transient)
+    {
+        bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob.data())
+            , blob.size(), transient);
     }
 
 public:
