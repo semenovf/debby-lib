@@ -9,6 +9,7 @@
 #pragma once
 #include "affinity_traits.hpp"
 #include "pfs/string_view.hpp"
+#include "pfs/utility.hpp"
 
 namespace debby {
 namespace backend {
@@ -80,6 +81,23 @@ struct cast_traits<NativeType, typename std::enable_if<
     static NativeType to_native (storage_type const & value)
     {
         return value;
+    }
+};
+
+template <typename NativeType>
+struct cast_traits<NativeType, typename std::enable_if<
+       std::is_enum<pfs::remove_cvref_t<NativeType>>::value, void>::type>
+{
+    using storage_type = typename affinity_traits<NativeType>::storage_type;
+
+    static storage_type to_storage (NativeType const & value)
+    {
+        return pfs::to_underlying(value);
+    }
+
+    static NativeType to_native (storage_type const & value)
+    {
+        return static_cast<NativeType>(value);
     }
 };
 
