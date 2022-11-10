@@ -29,7 +29,7 @@ if (NOT DEBBY__ROCKSDB_ROOT)
     set(DEBBY__ROCKSDB_ROOT ${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb)
 endif()
 
-add_subdirectory(${DEBBY__ROCKSDB_ROOT} rocksdb)
+add_subdirectory(${DEBBY__ROCKSDB_ROOT} rocksdb EXCLUDE_FROM_ALL)
 target_include_directories(rocksdb PUBLIC
     $<BUILD_INTERFACE:${DEBBY__ROCKSDB_ROOT}/include>)
     # $<INSTALL_INTERFACE:include/mylib>  # <prefix>/include/mylib
