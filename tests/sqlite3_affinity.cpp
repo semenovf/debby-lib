@@ -122,20 +122,20 @@ TEST_CASE("UUID affinity") {
 }
 
 TEST_CASE("time_point affinity") {
-    CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::time_point>::storage_type>::value);
-    CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::time_point &>::storage_type>::value);
-    CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::time_point const>::storage_type>::value);
-    CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::time_point const &>::storage_type>::value);
+    CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::local_time_point>::storage_type>::value);
+    CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::local_time_point &>::storage_type>::value);
+    CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::local_time_point const>::storage_type>::value);
+    CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::local_time_point const &>::storage_type>::value);
 
     CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::utc_time_point>::storage_type>::value);
     CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::utc_time_point &>::storage_type>::value);
     CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::utc_time_point const>::storage_type>::value);
     CHECK(std::is_same<std::int64_t, typename affinity_traits<pfs::utc_time_point const &>::storage_type>::value);
 
-    CHECK(affinity_traits<pfs::time_point>::name() == "INTEGER");
-    CHECK(affinity_traits<pfs::time_point &>::name() == "INTEGER");
-    CHECK(affinity_traits<pfs::time_point const>::name() == "INTEGER");
-    CHECK(affinity_traits<pfs::time_point const &>::name() == "INTEGER");
+    CHECK(affinity_traits<pfs::local_time_point>::name() == "INTEGER");
+    CHECK(affinity_traits<pfs::local_time_point &>::name() == "INTEGER");
+    CHECK(affinity_traits<pfs::local_time_point const>::name() == "INTEGER");
+    CHECK(affinity_traits<pfs::local_time_point const &>::name() == "INTEGER");
 
     CHECK(affinity_traits<pfs::utc_time_point>::name() == "INTEGER");
     CHECK(affinity_traits<pfs::utc_time_point &>::name() == "INTEGER");

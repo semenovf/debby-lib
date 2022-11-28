@@ -15,10 +15,10 @@ namespace debby {
 namespace backend {
 namespace sqlite3 {
 
-template <> struct affinity_traits<pfs::time_point> : integral64_affinity_traits {};
-template <> struct affinity_traits<pfs::time_point &> : integral64_affinity_traits {};
-template <> struct affinity_traits<pfs::time_point const> : integral64_affinity_traits {};
-template <> struct affinity_traits<pfs::time_point const &> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::local_time_point> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::local_time_point &> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::local_time_point const> : integral64_affinity_traits {};
+template <> struct affinity_traits<pfs::local_time_point const &> : integral64_affinity_traits {};
 
 template <> struct affinity_traits<pfs::utc_time_point> : integral64_affinity_traits {};
 template <> struct affinity_traits<pfs::utc_time_point &> : integral64_affinity_traits {};
@@ -27,18 +27,18 @@ template <> struct affinity_traits<pfs::utc_time_point const &> : integral64_aff
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::time_point>::value, void>::type>
+       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::local_time_point>::value, void>::type>
 {
-    using storage_type = typename affinity_traits<pfs::time_point>::storage_type;
+    using storage_type = typename affinity_traits<pfs::local_time_point>::storage_type;
 
-    static storage_type to_storage (pfs::time_point const & value)
+    static storage_type to_storage (pfs::local_time_point const & value)
     {
-        return pfs::to_millis(value).count();
+        return value.to_millis().count();
     }
 
-    static pfs::time_point to_native (storage_type const & value)
+    static pfs::local_time_point to_native (storage_type const & value)
     {
-        return pfs::from_millis(std::chrono::milliseconds{value});
+        return pfs::local_time_point{std::chrono::milliseconds{value}};
     }
 };
 
@@ -50,12 +50,12 @@ struct cast_traits<NativeType, typename std::enable_if<
 
     static storage_type to_storage (pfs::utc_time_point const & value)
     {
-        return pfs::to_millis(value.value).count();
+        return value.to_millis().count();
     }
 
     static pfs::utc_time_point to_native (storage_type const & value)
     {
-        return pfs::utc_time_point{pfs::from_millis(std::chrono::milliseconds{value})};
+        return pfs::utc_time_point{std::chrono::milliseconds{value}};
     }
 };
 

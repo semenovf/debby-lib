@@ -111,15 +111,14 @@ TEST_CASE("UUID cast traits") {
 }
 
 TEST_CASE("time_point cast traits") {
-    using pfs::time_point;
+    using pfs::local_time_point;
     using pfs::utc_time_point;
 
-    auto tp = pfs::from_iso8601("2021-11-22T11:33:42.999+0500");
+    auto u = utc_time_point::from_iso8601("2021-11-22T11:33:42.999+0500");
+    CHECK(cast_traits<utc_time_point>::to_storage(u) == u.to_millis().count());
+    CHECK(cast_traits<utc_time_point>::to_native(u.to_millis().count()) == u);
 
-    REQUIRE(tp.has_value());
-    CHECK(cast_traits<time_point>::to_storage(tp->value) == pfs::to_millis(tp->value).count());
-    CHECK(cast_traits<utc_time_point>::to_storage(*tp) == pfs::to_millis(*tp).count());
-
-    CHECK(cast_traits<time_point>::to_native(pfs::to_millis(tp->value).count()) == tp->value);
-    CHECK(cast_traits<utc_time_point>::to_native(pfs::to_millis(tp->value).count()).value == tp->value);
+    auto l = pfs::local_time_point_cast(u);
+    CHECK(cast_traits<local_time_point>::to_storage(l) == l.to_millis().count());
+    CHECK(cast_traits<local_time_point>::to_native(l.to_millis().count()) == l);
 }
