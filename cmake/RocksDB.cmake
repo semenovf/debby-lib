@@ -20,6 +20,9 @@ set(WITH_BENCHMARK_TOOLS OFF CACHE BOOL "Disable build benchmarks for RocksDB")
 set(WITH_CORE_TOOLS OFF CACHE BOOL "Disable build core tools for RocksDB")
 set(WITH_TOOLS OFF CACHE BOOL "Disable build tools for RocksDB")
 
+# Do not ON this option as of project uses some features disabled by rocksdb 'liting'.
+set(ROCKSDB_LITE OFF CACHE BOOL "Build lite version for RocksDB (see ROCKSDB_LITE.md for details)")
+
 # This option fixes crashes on Windows similar to https://github.com/facebook/rocksdb/issues/9573
 set(PORTABLE ON CACHE BOOL "Build a portable binary")
 
