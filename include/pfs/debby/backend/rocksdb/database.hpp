@@ -83,10 +83,10 @@ struct database
      *
      * @throw debby::error().
      */
-    static DEBBY__EXPORT rep_type make (pfs::filesystem::path const & path
+    static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
         , options_type * popts = nullptr);
 
-    static DEBBY__EXPORT rep_type make (pfs::filesystem::path const & path
+    static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
         , bool create_if_missing);
 };
 

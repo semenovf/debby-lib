@@ -119,7 +119,7 @@ public:
     template <typename ...Args>
     static relational_database make (Args &&... args)
     {
-        return relational_database{Backend::make(std::forward<Args>(args)...)};
+        return relational_database{Backend::make_r(std::forward<Args>(args)...)};
     }
 
     /**
@@ -128,7 +128,7 @@ public:
     template <typename ...Args>
     static std::unique_ptr<relational_database> make_unique (Args &&... args)
     {
-        auto ptr = new relational_database {Backend::make(std::forward<Args>(args)...)};
+        auto ptr = new relational_database {Backend::make_r(std::forward<Args>(args)...)};
         return std::unique_ptr<relational_database>(ptr);
     }
 };

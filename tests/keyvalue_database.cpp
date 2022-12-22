@@ -13,6 +13,8 @@
 #include <limits>
 #include "pfs/debby/keyvalue_database.hpp"
 
+#include "pfs/debby/backend/sqlite3/database.hpp"
+
 #if DEBBY__ROCKSDB_ENABLED
 #   include "pfs/debby/backend/rocksdb/database.hpp"
 #endif
@@ -80,9 +82,14 @@ void check_set_get (pfs::filesystem::path const & db_path)
         fs::remove_all(db_path);
 }
 
+TEST_CASE("sqlite3 set/get") {
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3-kv.db");
+    check_set_get<debby::backend::sqlite3::database>(db_path);
+}
+
 #if DEBBY__ROCKSDB_ENABLED
 TEST_CASE("rocksdb set/get") {
-    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-rocksdb.db");
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-rocksdb-kv.db");
     check_set_get<debby::backend::rocksdb::database>(db_path);
 }
 #endif

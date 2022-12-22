@@ -11,6 +11,7 @@
 #include "pfs/filesystem.hpp"
 #include "pfs/fmt.hpp"
 #include "pfs/debby/error.hpp"
+#include "pfs/debby/keyvalue_database.hpp"
 #include "pfs/debby/relational_database.hpp"
 #include "pfs/debby/backend/sqlite3/database.hpp"
 #include "sqlite3.h"
@@ -46,7 +47,7 @@ static result_status query (database::rep_type const * rep, std::string const & 
 }
 
 database::rep_type
-database::make (fs::path const & path, bool create_if_missing)
+database::make_r (fs::path const & path, bool create_if_missing)
 {
     rep_type rep;
     rep.dbh = nullptr;
@@ -353,6 +354,388 @@ relational_database<BACKEND>::exists (std::string const & name)
     }
 
     return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Key-value database
+//
+namespace backend {
+namespace sqlite3 {
+
+database::rep_type
+database::make_kv (pfs::filesystem::path const & path, bool create_if_missing)
+{
+    auto rep = make_r(path, create_if_missing);
+
+    std::string sql = "CREATE TABLE IF NOT EXISTS `debby`"
+        " (`key` TEXT NOT NULL UNIQUE, `type` INTEGER NOT NULL, `value` BLOB"
+        " , PRIMARY KEY(`key`)) WITHOUT ROWID";
+
+    auto res = query(& rep, sql);
+
+    if (!res.ok()) {
+        sqlite3_close_v2(rep.dbh);
+        rep.dbh = nullptr;
+        throw res;
+    }
+
+    return rep;
+}
+
+/**
+ * Removes value for @a key.
+ */
+static result_status remove (database::rep_type * rep, database::key_type const & key)
+{
+    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+
+    std::string sql = fmt::format("DELETE FROM `debby` WHERE `key` = '{}'", key);
+
+    return query(rep, sql);
+}
+
+result_status database::rep_type::write (
+      database::rep_type * rep
+    , database::key_type const & key
+    , int column_family_index
+    , char const * data, std::size_t len)
+{
+    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+
+    std::string sql {"INSERT OR REPLACE INTO `debby`"
+        " (`key`, `type`, `value`) VALUES (?, ?, ?)"};
+
+    sqlite3_stmt * stmt = nullptr;
+    auto rc = sqlite3_prepare_v2(rep->dbh, sql.c_str(), static_cast<int>(sql.size())
+        , & stmt, nullptr);
+
+    if (SQLITE_OK != rc) {
+        auto err = error{make_error_code(errc::sql_error)
+            , build_errstr(rc, rep->dbh)
+            , sql
+        };
+
+        return err;
+    }
+
+    sqlite3_bind_text(stmt, 1, key.c_str(), static_cast<int>(key.size()), SQLITE_STATIC);
+    sqlite3_bind_int (stmt, 2, column_family_index);
+    sqlite3_bind_blob(stmt, 3, data, static_cast<int>(len), SQLITE_STATIC);
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_DONE) {
+        sqlite3_finalize(stmt);
+        auto err = error{
+              make_error_code(errc::sql_error)
+            , build_errstr(rc, stmt)
+            , current_sql(stmt)
+        };
+
+        return err;
+    }
+
+    sqlite3_finalize(stmt);
+    return result_status{};
+}
+
+static result_status read (database::rep_type const * rep
+    , database::key_type const & key
+    , int & column_family_index
+    , std::string & target)
+{
+    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+
+    std::string sql = fmt::format("SELECT `type`, `value` FROM `debby`"
+        " WHERE `key` = '{}'", key);
+
+    sqlite3_stmt * stmt = nullptr;
+    auto rc = sqlite3_prepare_v2(rep->dbh, sql.c_str(), static_cast<int>(sql.size())
+        , & stmt, nullptr);
+
+    if (SQLITE_OK != rc) {
+        auto err = error{make_error_code(errc::sql_error)
+            , build_errstr(rc, rep->dbh)
+            , sql
+        };
+
+        return err;
+    }
+
+    rc = sqlite3_step(stmt);
+
+    if (rc != SQLITE_ROW) {
+        sqlite3_finalize(stmt);
+        auto err = error{
+              make_error_code(errc::key_not_found)
+            , fmt::format("key not found: '{}'", key)
+        };
+
+        return err;
+    }
+
+    column_family_index = sqlite3_column_int(stmt, 0);
+
+    auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(stmt, 1));
+    int size = sqlite3_column_bytes(stmt, 1);
+    target = std::string(cstr, size);
+
+    sqlite3_finalize(stmt);
+
+    return result_status{};
+}
+
+}} // namespace backend::sqlite3
+
+template <>
+keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
+    : _rep(std::move(rep))
+{}
+
+template <>
+keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
+{
+    _rep = std::move(other._rep);
+    other._rep.dbh = nullptr;
+}
+
+template <>
+keyvalue_database<BACKEND>::~keyvalue_database ()
+{
+    if (_rep.dbh)
+        sqlite3_close_v2(_rep.dbh);
+
+    _rep.dbh = nullptr;
+}
+
+template <>
+keyvalue_database<BACKEND>::operator bool () const noexcept
+{
+    return _rep.dbh != nullptr;
+}
+
+template <>
+void
+keyvalue_database<BACKEND>::destroy ()
+{
+    // TODO DEPRECATED This method will be removed later.
+}
+
+// TODO This method is equivalent to `backend::rocksdb::fetch`, must be optimized.
+template <>
+result_status
+keyvalue_database<BACKEND>::fetch (key_type const & key
+    , keyvalue_database<BACKEND>::value_type & value) const noexcept
+{
+    int column_family_index = -1;
+    std::string target;
+
+    auto res = backend::sqlite3::read(& _rep, key, column_family_index, target);
+
+    if (!res.ok()) {
+        value = value_type{nullptr};
+        return res;
+    }
+
+    bool corrupted = false;
+
+    if (target.size() == 0) {
+        switch (column_family_index) {
+            case backend::sqlite3::database::BLOB_COLUMN_FAMILY_INDEX:
+                value = value_type{blob_t{}};
+                return result_status{};
+            case backend::sqlite3::database::STR_COLUMN_FAMILY_INDEX:
+                value = value_type{std::string{}};
+                return result_status{};
+
+            case backend::sqlite3::database::INT_COLUMN_FAMILY_INDEX:
+            case backend::sqlite3::database::FP_COLUMN_FAMILY_INDEX:
+            default:
+                corrupted = true;
+                break;
+        }
+    }
+
+    auto len = target.size();
+
+    if (!corrupted) {
+        switch (column_family_index) {
+            case backend::sqlite3::database::INT_COLUMN_FAMILY_INDEX: {
+                std::intmax_t intmax_value{0};
+
+                switch(len) {
+                    case sizeof(std::int8_t): {
+                        backend::sqlite3::database::fixed_packer<std::int8_t> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        intmax_value = static_cast<std::intmax_t>(p.value);
+                        break;
+                    }
+
+                    case sizeof(std::int16_t): {
+                        backend::sqlite3::database::fixed_packer<std::int16_t> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        intmax_value = static_cast<std::intmax_t>(p.value);
+                        break;
+                    }
+
+                    case sizeof(std::int32_t): {
+                        backend::sqlite3::database::fixed_packer<std::int32_t> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        intmax_value = static_cast<std::intmax_t>(p.value);
+                        break;
+                    }
+
+                    case sizeof(std::int64_t): {
+                        backend::sqlite3::database::fixed_packer<std::int64_t> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        intmax_value = static_cast<std::intmax_t>(p.value);
+                        break;
+                    }
+
+                    default:
+                        corrupted = true;
+                        break;
+                }
+
+                if (!corrupted) {
+                    if (pfs::holds_alternative<bool>(value)) {
+                        value = static_cast<bool>(intmax_value);
+                    } else if (pfs::holds_alternative<double>(value)) {
+                        value = static_cast<double>(intmax_value);
+                    } else if (pfs::holds_alternative<blob_t>(value)) {
+                        blob_t blob(sizeof(intmax_value));
+                        std::memcpy(blob.data(), & intmax_value, sizeof(intmax_value));
+                        value = std::move(blob);
+                    } else if (pfs::holds_alternative<std::string>(value)) {
+                        std::string s = std::to_string(intmax_value);
+                        value = std::move(s);
+                    } else { // std::nullptr_t, std::intmax_t
+                        value = intmax_value;
+                    }
+
+                    return result_status{};
+                }
+
+                break;
+            }
+
+            case backend::sqlite3::database::FP_COLUMN_FAMILY_INDEX: {
+                double double_value{0};
+
+                switch(len) {
+                    case sizeof(float): {
+                        backend::sqlite3::database::fixed_packer<float> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        double_value = static_cast<double>(p.value);
+                        break;
+                    }
+
+                    case sizeof(double): {
+                        backend::sqlite3::database::fixed_packer<double> p;
+                        std::memcpy(p.bytes, target.data(), len);
+                        double_value = static_cast<double>(p.value);
+                        break;
+                    }
+
+                    default:
+                        corrupted = true;
+                        break;
+                }
+
+                if (!corrupted) {
+                    if (pfs::holds_alternative<bool>(value)) {
+                        value = static_cast<bool>(double_value);
+                    } else if (pfs::holds_alternative<std::intmax_t>(value)) {
+                        value = static_cast<std::intmax_t>(double_value);
+                    } else if (pfs::holds_alternative<blob_t>(value)) {
+                        blob_t blob(sizeof(double));
+                        std::memcpy(blob.data(), & double_value, sizeof(double_value));
+                        value = std::move(blob);
+                    } else if (pfs::holds_alternative<std::string>(value)) {
+                        std::string s = std::to_string(double_value);
+                        value = std::move(s);
+                    } else { // std::nullptr_t, double
+                        value = double_value;
+                    }
+
+                    return result_status{};
+                }
+
+                break;
+            }
+
+            case backend::sqlite3::database::BLOB_COLUMN_FAMILY_INDEX: {
+                blob_t blob;
+                blob.resize(len);
+                std::memcpy(blob.data(), target.data(), len);
+                value = value_type{std::move(blob)};
+                return result_status{};
+            }
+
+            case backend::sqlite3::database::STR_COLUMN_FAMILY_INDEX:
+                value = value_type{std::move(target)};
+                return result_status{};
+
+            default:
+                corrupted = true;
+                break;
+        }
+    }
+
+    if (corrupted) {
+        error err {make_error_code(errc::bad_value)
+            , fmt::format("unsuitable or corrupted data stored"
+                " by key: {}", key)
+        };
+
+        return err;
+    }
+
+    return result_status{};
+}
+
+template <>
+void
+keyvalue_database<BACKEND>::set (key_type const & key, std::string const & value)
+{
+    auto err = rep_type::write(& _rep, key
+        , backend::sqlite3::database::STR_COLUMN_FAMILY_INDEX
+        , value.data(), value.size());
+
+    if (err)
+        throw err;
+}
+
+template <>
+void
+keyvalue_database<BACKEND>::set (key_type const & key
+    , char const * value, std::size_t len)
+{
+    auto err = rep_type::write(& _rep, key
+        , backend::sqlite3::database::STR_COLUMN_FAMILY_INDEX
+        , value, len);
+
+    if (err)
+        throw err;
+}
+
+template <>
+void
+keyvalue_database<BACKEND>::set (key_type const & key, blob_t const & value)
+{
+    auto err = rep_type::write(& _rep, key
+        , backend::sqlite3::database::BLOB_COLUMN_FAMILY_INDEX
+        , reinterpret_cast<char const *>(value.data()), value.size());
+
+    if (err)
+        throw err;
+}
+
+template <>
+void
+keyvalue_database<BACKEND>::remove (key_type const & key)
+{
+    backend::sqlite3::remove(& _rep, key);
 }
 
 } // namespace debby

@@ -52,6 +52,8 @@ public:
     DEBBY__EXPORT operator bool () const noexcept;
 
     /**
+     * DEPRECATED This method can be unsafe. Avoid use it. Will be removed later.
+     *
      * Drops database (delete all tables/files).
      *
      * @details Database will be closed before if need. Database becomes invalid
@@ -179,13 +181,13 @@ public:
     template <typename ...Args>
     static keyvalue_database make (Args &&... args)
     {
-        return keyvalue_database{Backend::make(std::forward<Args>(args)...)};
+        return keyvalue_database{Backend::make_kv(std::forward<Args>(args)...)};
     }
 
     template <typename ...Args>
     static std::unique_ptr<keyvalue_database> make_unique (Args &&... args)
     {
-        auto ptr = new keyvalue_database {Backend::make(std::forward<Args>(args)...)};
+        auto ptr = new keyvalue_database {Backend::make_kv(std::forward<Args>(args)...)};
         return std::unique_ptr<keyvalue_database>(ptr);
     }
 };

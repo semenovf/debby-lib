@@ -24,14 +24,58 @@ namespace sqlite3 {
 
 struct database
 {
-    using native_type = struct sqlite3 *;
+    using native_type    = struct sqlite3 *;
     using statement_type = debby::statement<debby::backend::sqlite3::statement>;
-    using cache_type  = std::unordered_map<std::string, struct sqlite3_stmt *>;
+    using cache_type     = std::unordered_map<std::string, struct sqlite3_stmt *>;
+
+    // Key-Value database traits
+    using key_type     = std::string;
+
+    enum {
+          INT_COLUMN_FAMILY_INDEX = 0
+        , FP_COLUMN_FAMILY_INDEX
+        , STR_COLUMN_FAMILY_INDEX
+        , BLOB_COLUMN_FAMILY_INDEX
+    };
+
+    template <typename T>
+    union fixed_packer
+    {
+        T value;
+        char bytes[sizeof(T)];
+    };
 
     struct rep_type
     {
         native_type dbh;
         cache_type  cache; // Prepared statements cache
+
+        //
+        // Key-Value database traits
+        //
+        static DEBBY__EXPORT result_status write (
+              database::rep_type * rep
+            , database::key_type const & key
+            , int column_family_index
+            , char const * data, std::size_t len);
+
+        template <typename T>
+        static typename std::enable_if<std::is_integral<T>::value, result_status>::type
+        set (database::rep_type * rep, key_type const & key, T value)
+        {
+            fixed_packer<T> p;
+            p.value = value;
+            return write(rep, key, INT_COLUMN_FAMILY_INDEX, p.bytes, sizeof(T));
+        }
+
+        template <typename T>
+        static typename std::enable_if<std::is_floating_point<T>::value, result_status>::type
+        set (database::rep_type * rep, key_type const & key, T value)
+        {
+            fixed_packer<T> p;
+            p.value = value;
+            return write(rep, key, FP_COLUMN_FAMILY_INDEX, p.bytes, sizeof(T));
+        }
     };
 
     /**
@@ -55,9 +99,11 @@ struct database
      * @param path Path to the database.
      * @param create_if_missing If @c true create database if it missing.
      */
-    static DEBBY__EXPORT rep_type make (pfs::filesystem::path const & path
+    static DEBBY__EXPORT rep_type make_r (pfs::filesystem::path const & path
         , bool create_if_missing = true);
 
+    static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
+        , bool create_if_missing = true);
 };
 
 }}} // namespace debby::backend::sqlite3

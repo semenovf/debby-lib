@@ -175,7 +175,7 @@ result_status database::rep_type::write (
 }
 
 database::rep_type
-database::make (pfs::filesystem::path const & path, options_type * opts)
+database::make_kv (pfs::filesystem::path const & path, options_type * opts)
 {
     rep_type rep;
     rep.dbh = nullptr;
@@ -242,11 +242,11 @@ database::make (pfs::filesystem::path const & path, options_type * opts)
 }
 
 database::rep_type
-database::make (pfs::filesystem::path const & path, bool create_if_missing)
+database::make_kv (pfs::filesystem::path const & path, bool create_if_missing)
 {
     auto opts = default_options();
     opts.create_if_missing = create_if_missing;
-    return make(path, & opts);
+    return make_kv(path, & opts);
 }
 
 }} // namespace backend::rocksdb
@@ -298,6 +298,8 @@ template <>
 void
 keyvalue_database<BACKEND>::destroy ()
 {
+    // TODO DEPRECATED This method will be removed later.
+
     if (!*this)
         return;
 
@@ -367,7 +369,7 @@ keyvalue_database<BACKEND>::remove (key_type const & key)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// keyvalue_database::remove
+// keyvalue_database::fetch
 ////////////////////////////////////////////////////////////////////////////////
 template <>
 result_status
