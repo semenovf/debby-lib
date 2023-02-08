@@ -210,6 +210,8 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
                 value = static_cast<bool>(n);
             } else if (pfs::holds_alternative<double>(value)) {
                 value = static_cast<double>(n);
+            } else if (pfs::holds_alternative<float>(value)) {
+                value = static_cast<float>(n);
             } else if (pfs::holds_alternative<blob_t>(value)) {
                 blob_t blob(sizeof(sqlite3_int64));
                 std::memcpy(blob.data(), &n, sizeof(n));
@@ -226,7 +228,11 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
         case SQLITE_FLOAT: {
             double f = sqlite3_column_double(_rep.sth, column);
 
-            if (pfs::holds_alternative<bool>(value)) {
+            if (pfs::holds_alternative<double>(value)) {
+                value = f;
+            } else if (pfs::holds_alternative<float>(value)) {
+                value = static_cast<float>(f);
+            } else if (pfs::holds_alternative<bool>(value)) {
                 value = static_cast<bool>(f);
             } else if (pfs::holds_alternative<std::intmax_t>(value)) {
                 value = static_cast<std::intmax_t>(f);
@@ -237,7 +243,7 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
             } else if (pfs::holds_alternative<std::string>(value)) {
                 std::string s = std::to_string(f);
                 value = std::move(s);
-            } else { // std::nullptr_t, double
+            } else { // std::nullptr_t
                 value = f;
             }
 
@@ -266,6 +272,8 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
                 value = value_type::make_zero<bool>();
             } else if (pfs::holds_alternative<std::intmax_t>(value)) {
                 value = value_type::make_zero<std::intmax_t>();
+            } else if (pfs::holds_alternative<float>(value)) {
+                value = value_type::make_zero<float>();
             } else if (pfs::holds_alternative<double>(value)) {
                 value = value_type::make_zero<double>();
             } else if (pfs::holds_alternative<blob_t>(value)) {

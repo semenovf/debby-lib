@@ -19,7 +19,7 @@
 namespace debby {
 
 template <typename Backend>
-class result final
+class result
 {
     using rep_type = typename Backend::rep_type;
 

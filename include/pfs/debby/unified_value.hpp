@@ -21,6 +21,7 @@ using basic_value_t = pfs::variant<
       std::nullptr_t
     , bool
     , std::intmax_t
+    , float
     , double
     , blob_t        // bytes sequence
     , std::string>; // utf-8 encoded string
@@ -36,7 +37,7 @@ struct unified_value: public basic_value_t
     {}
 
     template <typename T>
-    unified_value (T x, typename std::enable_if<std::is_same<T, bool>::value>::type * = 0)
+    unified_value (T x, typename std::enable_if<std::is_same<typename std::decay<T>::type, bool>::value>::type * = 0)
         : basic_value_t(static_cast<bool>(x))
     {}
 
@@ -50,11 +51,17 @@ struct unified_value: public basic_value_t
     {}
 
     /**
-     * Construct unified_value from any floatig point type (float and double).
+     * Construct unified_value from single precision floatig point type (float).
      */
-    template <typename T>
-    unified_value (T x, typename std::enable_if<std::is_floating_point<T>::value>::type * = 0)
-        : basic_value_t(static_cast<double>(x))
+    unified_value (float x)
+        : basic_value_t(x)
+    {}
+
+    /**
+     * Construct unified_value from double precision floatig point type (double).
+     */
+    unified_value (double x)
+        : basic_value_t(x)
     {}
 
     /**
@@ -93,14 +100,14 @@ struct unified_value: public basic_value_t
     {}
 
     template <typename T>
-    static typename std::enable_if<std::is_same<std::nullptr_t,T>::value, unified_value>::type 
+    static typename std::enable_if<std::is_same<std::nullptr_t,T>::value, unified_value>::type
     make_zero ()
     {
         return unified_value{};
     }
 
     template <typename T>
-    static typename std::enable_if<std::is_same<bool, T>::value, unified_value>::type
+    static typename std::enable_if<std::is_same<typename std::decay<T>::type, bool>::value, unified_value>::type
     make_zero ()
     {
         return unified_value{false};
@@ -108,7 +115,7 @@ struct unified_value: public basic_value_t
 
     template <typename T>
     static typename std::enable_if<std::is_integral<T>::value
-        && !std::is_same<T, bool>::value, unified_value>::type
+        && !std::is_same<typename std::decay<T>::type, bool>::value, unified_value>::type
     make_zero ()
     {
         return unified_value{static_cast<std::intmax_t>(0)};
@@ -118,25 +125,25 @@ struct unified_value: public basic_value_t
     static typename std::enable_if<std::is_floating_point<T>::value, unified_value>::type
     make_zero ()
     {
-        return unified_value{static_cast<double>(0)};
+        return unified_value{T{0}};
     }
 
     template <typename T>
-    static typename std::enable_if<std::is_same<std::string, T>::value, unified_value>::type
+    static typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, unified_value>::type
     make_zero ()
     {
         return unified_value{std::string{}};
     }
 
     template <typename T>
-    static typename std::enable_if<std::is_same<string_view, T>::value, unified_value>::type
+    static typename std::enable_if<std::is_same<typename std::decay<T>::type, string_view>::value, unified_value>::type
     make_zero ()
     {
         return unified_value{std::string{}};
     }
 
     template <typename T>
-    static typename std::enable_if<std::is_same<blob_t, T>::value, unified_value>::type
+    static typename std::enable_if<std::is_same<typename std::decay<T>::type, blob_t>::value, unified_value>::type
         make_zero()
     {
         return unified_value{blob_t{}};
@@ -151,7 +158,7 @@ get_if (unified_value * u)
 }
 
 template <typename T>
-inline typename std::enable_if<std::is_same<T, bool>::value, T>::type *
+inline typename std::enable_if<std::is_same<typename std::decay<T>::type, bool>::value, T>::type *
 get_if (unified_value * u)
 {
     return pfs::get_if<bool>(u);
@@ -166,21 +173,28 @@ get_if (unified_value * u)
 }
 
 template <typename T>
-inline typename std::enable_if<std::is_floating_point<T>::value, double>::type *
+inline typename std::enable_if<std::is_same<typename std::decay<T>::type, float>::value, T>::type *
+get_if (unified_value * u)
+{
+    return pfs::get_if<float>(u);
+}
+
+template <typename T>
+inline typename std::enable_if<std::is_same<typename std::decay<T>::type, double>::value, T>::type *
 get_if (unified_value * u)
 {
     return pfs::get_if<double>(u);
 }
 
 template <typename T>
-inline typename std::enable_if<std::is_same<T, std::string>::value, std::string>::type *
+inline typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, T>::type *
 get_if (unified_value * u)
 {
     return pfs::get_if<std::string>(u);
 }
 
 template <typename T>
-inline typename std::enable_if<std::is_same<T, blob_t>::value, blob_t>::type *
+inline typename std::enable_if<std::is_same<typename std::decay<T>::type, blob_t>::value, T>::type *
 get_if (unified_value * u)
 {
     return pfs::get_if<blob_t>(u);

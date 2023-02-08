@@ -7,6 +7,7 @@
 //      2021.11.24 Initial version.
 //      2021.12.18 Reimplemented with new error handling.
 //      2022.03.12 Refactored.
+//      2023.02.07 Applied new API.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "statement.hpp"
@@ -29,53 +30,12 @@ struct database
     using cache_type     = std::unordered_map<std::string, struct sqlite3_stmt *>;
 
     // Key-Value database traits
-    using key_type     = std::string;
-
-    enum {
-          INT_COLUMN_FAMILY_INDEX = 0
-        , FP_COLUMN_FAMILY_INDEX
-        , STR_COLUMN_FAMILY_INDEX
-        , BLOB_COLUMN_FAMILY_INDEX
-    };
-
-    template <typename T>
-    union fixed_packer
-    {
-        T value;
-        char bytes[sizeof(T)];
-    };
+    using key_type = std::string;
 
     struct rep_type
     {
         native_type dbh;
         cache_type  cache; // Prepared statements cache
-
-        //
-        // Key-Value database traits
-        //
-        static DEBBY__EXPORT result_status write (
-              database::rep_type * rep
-            , database::key_type const & key
-            , int column_family_index
-            , char const * data, std::size_t len);
-
-        template <typename T>
-        static typename std::enable_if<std::is_integral<T>::value, result_status>::type
-        set (database::rep_type * rep, key_type const & key, T value)
-        {
-            fixed_packer<T> p;
-            p.value = value;
-            return write(rep, key, INT_COLUMN_FAMILY_INDEX, p.bytes, sizeof(T));
-        }
-
-        template <typename T>
-        static typename std::enable_if<std::is_floating_point<T>::value, result_status>::type
-        set (database::rep_type * rep, key_type const & key, T value)
-        {
-            fixed_packer<T> p;
-            p.value = value;
-            return write(rep, key, FP_COLUMN_FAMILY_INDEX, p.bytes, sizeof(T));
-        }
     };
 
     /**

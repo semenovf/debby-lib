@@ -47,18 +47,18 @@ void test_integral64_type ()
     CHECK(affinity_traits<IntegralT const &>::name() == "INTEGER");
 }
 
-template <typename IntegralT>
+template <typename FloatT>
 void test_floating_type ()
 {
-    CHECK(std::is_same<double, typename affinity_traits<IntegralT>::storage_type>::value);
-    CHECK(std::is_same<double, typename affinity_traits<IntegralT &>::storage_type>::value);
-    CHECK(std::is_same<double, typename affinity_traits<IntegralT const>::storage_type>::value);
-    CHECK(std::is_same<double, typename affinity_traits<IntegralT const &>::storage_type>::value);
+    CHECK(std::is_same<FloatT, typename affinity_traits<FloatT>::storage_type>::value);
+    CHECK(std::is_same<FloatT, typename affinity_traits<FloatT &>::storage_type>::value);
+    CHECK(std::is_same<FloatT, typename affinity_traits<FloatT const>::storage_type>::value);
+    CHECK(std::is_same<FloatT, typename affinity_traits<FloatT const &>::storage_type>::value);
 
-    CHECK(affinity_traits<IntegralT>::name() == "REAL");
-    CHECK(affinity_traits<IntegralT &>::name() == "REAL");
-    CHECK(affinity_traits<IntegralT const>::name() == "REAL");
-    CHECK(affinity_traits<IntegralT const &>::name() == "REAL");
+    CHECK(affinity_traits<FloatT>::name() == "REAL");
+    CHECK(affinity_traits<FloatT &>::name() == "REAL");
+    CHECK(affinity_traits<FloatT const>::name() == "REAL");
+    CHECK(affinity_traits<FloatT const &>::name() == "REAL");
 }
 
 template <typename StringT>

@@ -20,7 +20,7 @@ struct cast_traits;
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-    std::is_arithmetic<pfs::remove_cvref_t<NativeType>>::value, void>::type>
+    std::is_arithmetic<typename std::decay<NativeType>::type>::value, void>::type>
 {
     using storage_type = typename affinity_traits<NativeType>::storage_type;
 
@@ -37,7 +37,7 @@ struct cast_traits<NativeType, typename std::enable_if<
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, std::string>::value, void>::type>
+       std::is_same<typename std::decay<NativeType>::type, std::string>::value, void>::type>
 {
     using storage_type = typename affinity_traits<NativeType>::storage_type;
 
@@ -54,7 +54,7 @@ struct cast_traits<NativeType, typename std::enable_if<
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-    std::is_same<pfs::remove_cvref_t<NativeType>, pfs::string_view>::value, void>::type>
+    std::is_same<typename std::decay<NativeType>::type, pfs::string_view>::value, void>::type>
 {
     using storage_type = typename affinity_traits<NativeType>::storage_type;
 
@@ -69,7 +69,7 @@ struct cast_traits<NativeType, typename std::enable_if<
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, std::vector<std::uint8_t>>::value, void>::type>
+       std::is_same<typename std::decay<NativeType>::type, std::vector<std::uint8_t>>::value, void>::type>
 {
     using storage_type = typename affinity_traits<NativeType>::storage_type;
 
@@ -86,7 +86,7 @@ struct cast_traits<NativeType, typename std::enable_if<
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_enum<pfs::remove_cvref_t<NativeType>>::value, void>::type>
+       std::is_enum<typename std::decay<NativeType>::type>::value, void>::type>
 {
     using storage_type = typename affinity_traits<NativeType>::storage_type;
 

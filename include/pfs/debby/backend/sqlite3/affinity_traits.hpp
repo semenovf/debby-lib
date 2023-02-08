@@ -32,7 +32,13 @@ struct integral64_affinity_traits
     static std::string name () { return "INTEGER"; }
 };
 
-struct floating_affinity_traits
+struct float_affinity_traits
+{
+    using storage_type = float;
+    static std::string name () { return "REAL"; }
+};
+
+struct double_affinity_traits
 {
     using storage_type = double;
     static std::string name () { return "REAL"; }
@@ -56,7 +62,7 @@ struct affinity_traits;
 // Affinity traits for integers
 template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
-       std::is_integral<pfs::remove_cvref_t<NativeType>>::value
+       std::is_integral<typename std::decay<NativeType>::type>::value
        && sizeof(NativeType) <= 4, void>::type>
     : integral_affinity_traits
 {};
@@ -64,7 +70,7 @@ struct affinity_traits<NativeType, typename std::enable_if<
 // Affinity traits for 64-bit integers
 template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
-        std::is_integral<pfs::remove_cvref_t<NativeType>>::value
+        std::is_integral<typename std::decay<NativeType>::type>::value
         && (sizeof(NativeType) > 4 && sizeof(NativeType) <= 8), void>::type>
     : integral64_affinity_traits
 {};
@@ -72,21 +78,27 @@ struct affinity_traits<NativeType, typename std::enable_if<
 // Affinity traits for floating point values
 template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
-    std::is_floating_point<pfs::remove_cvref_t<NativeType>>::value, void>::type>
-    : floating_affinity_traits
+    std::is_same<typename std::decay<NativeType>::type, float>::value, void>::type>
+    : float_affinity_traits
+{};
+
+template <typename NativeType>
+struct affinity_traits<NativeType, typename std::enable_if<
+    std::is_same<typename std::decay<NativeType>::type, double>::value, void>::type>
+    : double_affinity_traits
 {};
 
 // Affinity traits for std::string
 template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
-    std::is_same<pfs::remove_cvref_t<NativeType>, std::string>::value, void>::type>
+    std::is_same<typename std::decay<NativeType>::type, std::string>::value, void>::type>
     : text_affinity_traits
 {};
 
 // Affinity traits for string_view
 template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
-    std::is_same<pfs::remove_cvref_t<NativeType>, pfs::string_view>::value, void>::type>
+    std::is_same<typename std::decay<NativeType>::type, pfs::string_view>::value, void>::type>
     : text_affinity_traits
 {};
 
@@ -100,15 +112,15 @@ struct affinity_traits<NativeType, typename std::enable_if<
 // Affinity traits for blobs
 template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
-    std::is_same<pfs::remove_cvref_t<NativeType>, std::vector<std::uint8_t>>::value, void>::type>
+    std::is_same<typename std::decay<NativeType>::type, std::vector<std::uint8_t>>::value, void>::type>
     : blob_affinity_traits
 {};
 
 // Affinity traits for enumerations
 template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
-    std::is_enum<pfs::remove_cvref_t<NativeType>>::value, void>::type>
-    : affinity_traits<typename std::underlying_type<pfs::remove_cvref_t<NativeType>>::type>
+    std::is_enum<typename std::decay<NativeType>::type>::value, void>::type>
+    : affinity_traits<typename std::underlying_type<typename std::decay<NativeType>::type>::type>
 {};
 
 template <typename NativeType>

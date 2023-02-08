@@ -13,6 +13,7 @@
 #include "exports.hpp"
 #include "unified_value.hpp"
 #include "pfs/fmt.hpp"
+#include "pfs/string_view.hpp"
 #include <string>
 #include <cstring>
 #include <memory>
@@ -20,7 +21,7 @@
 namespace debby {
 
 template <typename Backend>
-class keyvalue_database final
+class keyvalue_database
 {
     using rep_type = typename Backend::rep_type;
 
@@ -38,12 +39,30 @@ private:
     keyvalue_database & operator = (keyvalue_database const & other) = delete;
     keyvalue_database & operator = (keyvalue_database && other) = delete;
 
+    DEBBY__EXPORT void set_arithmetic (key_type const & key, std::intmax_t value
+        , std::size_t size, error * perr = nullptr);
+
+    DEBBY__EXPORT void set_arithmetic (key_type const & key, double value
+        , std::size_t size, error * perr = nullptr);
+
+    DEBBY__EXPORT void set_arithmetic (key_type const & key, float value
+        , std::size_t size, error * perr = nullptr);
+
+    DEBBY__EXPORT void set_chars (key_type const & key, char const * data
+        , std::size_t size, error * perr = nullptr);
+
+    DEBBY__EXPORT void set_blob (key_type const & key, char const * data
+        , std::size_t size, error * perr = nullptr);
+
+    DEBBY__EXPORT std::intmax_t get_integer (key_type const & key, error * perr = nullptr) const;
+    DEBBY__EXPORT float get_float (key_type const & key, error * perr = nullptr) const;
+    DEBBY__EXPORT double get_double (key_type const & key, error * perr = nullptr) const;
+    DEBBY__EXPORT std::string get_string (key_type const & key, error * perr = nullptr) const;
+    DEBBY__EXPORT blob_t get_blob (key_type const & key, error * perr = nullptr) const;
+
 public:
     DEBBY__EXPORT keyvalue_database (keyvalue_database && other);
     DEBBY__EXPORT ~keyvalue_database ();
-
-private:
-    DEBBY__EXPORT result_status fetch (key_type const & key, value_type & value) const noexcept;
 
 public:
     /**
@@ -52,122 +71,121 @@ public:
     DEBBY__EXPORT operator bool () const noexcept;
 
     /**
-     * DEPRECATED This method can be unsafe. Avoid use it. Will be removed later.
-     *
-     * Drops database (delete all tables/files).
-     *
-     * @details Database will be closed before if need. Database becomes invalid
-     *      after destroying.
-     *
-     * @throw debby::error(errc::backend_error) on backend failure.
-     */
-    DEBBY__EXPORT void destroy ();
-
-    /**
      * Stores arithmetic type @a value associated with @a key into database.
      */
     template <typename T>
-    typename std::enable_if<std::is_arithmetic<T>::value, void>::type
-    set (key_type const & key, T value)
+    typename std::enable_if<std::is_integral<T>::value, void>::type
+    set (key_type const & key, T value, error * perr = nullptr)
     {
-        rep_type::template set<T>(& _rep, key, value);
+        set_arithmetic(key, static_cast<std::intmax_t>(value), sizeof(T), perr);
+    }
+
+    template <typename T>
+    typename std::enable_if<std::is_floating_point<T>::value, void>::type
+    set (key_type const & key, T value, error * perr = nullptr)
+    {
+        set_arithmetic(key, value, sizeof(T), perr);
     }
 
     /**
      * Stores string @a value associated with @a key into database.
-     *
-     * @throw debby::error()
      */
-    DEBBY__EXPORT void set (key_type const & key, std::string const & value);
+    void set (key_type const & key, std::string const & value, error * perr = nullptr)
+    {
+        set_chars(key, value.c_str(), value.size(), perr);
+    }
+
+    /**
+     * Stores string view @a value associated with @a key into database.
+     */
+    void set (key_type const & key, pfs::string_view value, error * perr = nullptr)
+    {
+        set_chars(key, value.data(), value.size(), perr);
+    }
 
     /**
      * Stores character sequence @a value with length @a len associated
      * with @a key into database.
      */
-    DEBBY__EXPORT void set (key_type const & key, char const * value, std::size_t len);
+    void set (key_type const & key, char const * value, std::size_t len, error * perr = nullptr)
+    {
+        set_chars(key, value, len, perr);
+    }
 
     /**
      * Stores C-string @a value associated with @a key into database.
      */
-    void set (key_type const & key, char const * value)
+    void set (key_type const & key, char const * value, error * perr = nullptr)
     {
-        return set(key, value, std::strlen(value));
+        set_chars(key, value, std::strlen(value), perr);
     }
 
     /**
      * Stores blob @a value associated with @a key into database.
      */
-    DEBBY__EXPORT void set (key_type const & key, blob_t const & value);
-
-    /**
-     * @param ok stores @c true if no error occurres, @c false otherwise.
-     *
-     * @throw debby::error if error occurred and @a ok is not @c nullptr.
-     */
-    value_type fetch (key_type const & key, bool * ok = nullptr) const
+    void set (key_type const & key, blob_t const & value, error * perr = nullptr)
     {
-        if (ok)
-            *ok = true;
-
-        value_type value;
-        auto res = fetch(key, value);
-
-        if (!res.ok()) {
-            if (ok) {
-                *ok = false;
-            } else {
-                throw res;
-            }
-        }
-
-        return value;
+        set_blob(key, value, perr);
     }
 
     /**
      */
     template <typename T>
-    T get (key_type const & key)
+    typename std::enable_if<std::is_integral<T>::value, T>::type
+    get (key_type const & key, error * perr = nullptr) const
     {
-        // Assign type to value
-        value_type value = value_type::make_zero<T>();
-
-        auto res = fetch(key, value);
-
-        if (!res.ok())
-            throw res;
-
-        auto ptr = get_if<T>(& value);
-
-        if (!ptr) {
-            throw error { make_error_code(errc::bad_value)
-                , fmt::format("unsuitable data stored by key: {}", key)
-            };
-        }
-
-        return static_cast<T>(*ptr);
+        return static_cast<T>(get_integer(key, perr));
     }
 
     template <typename T>
-    T get_or (key_type const & key, T const & default_value)
+    typename std::enable_if<std::is_same<typename std::decay<T>::type, float>::value, T>::type
+    get (key_type const & key, error * perr = nullptr) const
     {
-        // Assign type to value
-        value_type value = value_type::make_zero<T>();
+        return static_cast<T>(get_float(key, perr));
+    }
 
-        auto res = fetch(key, value);
+    template <typename T>
+    typename std::enable_if<std::is_same<typename std::decay<T>::type, double>::value, T>::type
+    get (key_type const & key, error * perr = nullptr) const
+    {
+        return static_cast<T>(get_double(key, perr));
+    }
 
-        if (!res.ok()) {
-            if (res.code().value() == static_cast<int>(errc::key_not_found))
-                return default_value;
+    template <typename T>
+    typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, T>::type
+    get (key_type const & key, error * perr = nullptr) const
+    {
+        return get_string(key, perr);
+    }
 
-            throw res;
-        }
+    template <typename T>
+    typename std::enable_if<std::is_same<typename std::decay<T>::type, blob_t>::value, T>::type
+    get (key_type const & key, error * perr = nullptr) const
+    {
+        return get_blob(key, perr);
+    }
 
-        auto ptr = get_if<T>(& value);
+    template <typename T>
+    T get_or (key_type const & key, T const & default_value, error * perr = nullptr) const
+    {
+        error err;
+        auto result = get<T>(key, & err);
 
-        if (!ptr)
+        if (!err)
+            return result;
+
+        if (make_error_code(errc::bad_value) == err.code())
             return default_value;
 
-        return static_cast<T>(*ptr);
+        if (make_error_code(errc::key_not_found) == err.code())
+            return default_value;
+
+        if (perr)
+            *perr = err;
+        else
+            throw err;
+
+        return default_value;
     }
 
     /**
@@ -175,7 +193,7 @@ public:
      *
      * @throw debby::error()
      */
-    DEBBY__EXPORT void remove (key_type const & key);
+    DEBBY__EXPORT void remove (key_type const & key, error * perr = nullptr);
 
 public:
     template <typename ...Args>

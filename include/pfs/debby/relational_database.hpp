@@ -17,7 +17,7 @@
 namespace debby {
 
 template <typename Backend>
-class relational_database final
+class relational_database
 {
     using rep_type = typename Backend::rep_type;
 

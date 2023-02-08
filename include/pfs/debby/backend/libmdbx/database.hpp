@@ -4,41 +4,32 @@
 // This file is part of `debby-lib`.
 //
 // Changelog:
-//      2021.12.07 Initial version.
-//      2021.12.16 Reimplemented with new error handling.
-//      2022.03.12 Refactored.
-//      2023.02.08 Applied new API.
+//      2023.02.06 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "pfs/debby/error.hpp"
 #include "pfs/debby/exports.hpp"
 #include "pfs/filesystem.hpp"
-#include <vector>
 
-namespace rocksdb {
-class DB;
-class ColumnFamilyHandle;
-struct Options;
-} // namespace rocksdb
+struct MDBX_env;
 
 namespace debby {
 namespace backend {
-namespace rocksdb {
+namespace libmdbx {
 
 struct database
 {
     using key_type     = std::string;
-    using native_type  = ::rocksdb::DB *;
-    using options_type = ::rocksdb::Options;
+    using native_type  = std::uint32_t; // Must be same type as MDBX_dbi
 
-    template <typename T>
-    union fixed_packer
-    {
-        T value;
-        char bytes[sizeof(T)];
+    struct options_type {
+        std::uint32_t env; // See MDBX_env_flags_t
+        std::uint32_t db;  // See MDBX_db_flags_t
     };
 
     struct rep_type
     {
+        MDBX_env * env {nullptr};
         native_type dbh;
         pfs::filesystem::path path;
     };
@@ -48,15 +39,14 @@ struct database
      * missing when @a create_if_missing set to @c true.
      *
      * @param path Path to the database.
-     * @param opts RocksDB specific options or @c nullptr for default options.
      *
      * @throw debby::error().
      */
     static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
-        , options_type * popts, error * perr = nullptr);
+        , options_type opts, error * perr = nullptr);
 
     static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
         , bool create_if_missing, error * perr = nullptr);
 };
 
-}}} // namespace debby::backend::rocksdb
+}}} // namespace debby::backend::libmdbx

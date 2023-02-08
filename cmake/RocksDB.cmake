@@ -1,7 +1,7 @@
 ################################################################################
 # Copyright (c) 2021 Vladislav Trifochkin
 #
-# This file is part of [debby-lib](https://github.com/semenovf/debby-lib) library.
+# This file is part of `debby-lib`..
 #
 # Changelog:
 #      2021.11.17 Initial version.
@@ -14,14 +14,12 @@ cmake_minimum_required (VERSION 3.5)
 # https://github.com/facebook/rocksdb/blob/main/INSTALL.md
 #
 set(ROCKSDB_BUILD_SHARED OFF CACHE BOOL "Disable build RocksDB as shared")
+set(ROCKSDB_LITE ON CACHE BOOL "Build lite version for RocksDB (see ROCKSDB_LITE.md for details)")
 set(WITH_GFLAGS OFF CACHE BOOL "Disable 'gflags' dependency for RocksDB")
 set(WITH_TESTS OFF CACHE BOOL "Disable build tests for RocksDB")
 set(WITH_BENCHMARK_TOOLS OFF CACHE BOOL "Disable build benchmarks for RocksDB")
 set(WITH_CORE_TOOLS OFF CACHE BOOL "Disable build core tools for RocksDB")
 set(WITH_TOOLS OFF CACHE BOOL "Disable build tools for RocksDB")
-
-# Do not ON this option as of project uses some features disabled by rocksdb 'liting'.
-set(ROCKSDB_LITE OFF CACHE BOOL "Build lite version for RocksDB (see ROCKSDB_LITE.md for details)")
 
 # This option fixes crashes on Windows similar to https://github.com/facebook/rocksdb/issues/9573
 set(PORTABLE ON CACHE BOOL "Build a portable binary")

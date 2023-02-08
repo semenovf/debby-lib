@@ -22,7 +22,7 @@ using pfs::string_view;
 enum class transient_enum { no, yes };
 
 template <typename Backend>
-class statement final
+class statement
 {
     using rep_type = typename Backend::rep_type;
 

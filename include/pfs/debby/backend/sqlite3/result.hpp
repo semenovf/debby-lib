@@ -15,6 +15,7 @@
 #include "pfs/debby/unified_value.hpp"
 #include "pfs/optional.hpp"
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 
 struct sqlite3_stmt;
@@ -54,10 +55,25 @@ struct result {
         if (ptr) {
             target = to_native<NativeType>(*ptr);
         } else {
-            throw error {
-                  make_error_code(errc::bad_value)
-                , "unsuitable data requested"
-            };
+            if (std::is_same<typename std::decay<NativeType>::type, double>::value) {
+                auto ptr = get_if<float>(& v);
+
+                if (ptr) {
+                    target = to_native<float>(*ptr);
+                } else {
+                    throw error { errc::bad_value, "unsuitable data requested" };
+                }
+            } else if (std::is_same<typename std::decay<NativeType>::type, float>::value) {
+                auto ptr = get_if<double>(& v);
+
+                if (ptr) {
+                    target = to_native<double>(*ptr);
+                } else {
+                    throw error { errc::bad_value, "unsuitable data requested" };
+                }
+            } else {
+                throw error { errc::bad_value, "unsuitable data requested" };
+            }
         }
     }
 
