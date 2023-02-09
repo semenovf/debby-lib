@@ -9,32 +9,46 @@
 cmake_minimum_required (VERSION 3.11)
 project(debby LANGUAGES CXX C)
 
+option(DEBBY__BUILD_SHARED "Enable build shared library" ON)
+option(DEBBY__BUILD_STATIC "Enable build static library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
 option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" ON)
+option(DEBBY__ENABLE_MAP  "Enable `in-memory` map backend" ON)
+option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
 
 if (NOT PORTABLE_TARGET__CURRENT_PROJECT_DIR)
     set(PORTABLE_TARGET__CURRENT_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
 
-portable_target(ADD_SHARED ${PROJECT_NAME} ALIAS pfs::debby EXPORTS DEBBY__EXPORTS
-    BIND_STATIC ${PROJECT_NAME}-static STATIC_ALIAS pfs::debby::static STATIC_EXPORTS DEBBY__STATIC)
+if (DEBBY__BUILD_SHARED)
+    portable_target(ADD_SHARED ${PROJECT_NAME} ALIAS pfs::debby EXPORTS DEBBY__EXPORTS)
+endif()
 
-portable_target(SOURCES ${PROJECT_NAME}
-    ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/map.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/unordered_map.cpp)
+if (DEBBY__BUILD_STATIC)
+    set(STATIC_PROJECT_NAME ${PROJECT_NAME}-static)
+    portable_target(ADD_STATIC ${STATIC_PROJECT_NAME} ALIAS pfs::debby::static EXPORTS DEBBY__STATIC)
+endif()
+
+if (DEBBY__ENABLE_MAP)
+    list(APPEND _sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/map.cpp)
+    list(APPEND _definitions "DEBBY__MAP_ENABLED=1")
+endif()
+
+if (DEBBY__ENABLE_UNORDERED_MAP)
+    list(APPEND _sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/unordered_map.cpp)
+    list(APPEND _definitions "DEBBY__UNORDERED_MAP_ENABLED=1")
+endif()
 
 if (DEBBY__ENABLE_SQLITE3)
-    portable_target(SOURCES ${PROJECT_NAME}
+    list(APPEND _sources
         ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp)
 
-    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "DEBBY__SQLITE3_ENABLED=1")
-    portable_target(DEFINITIONS ${PROJECT_NAME}-static PUBLIC "DEBBY__SQLITE3_ENABLED=1")
-    message(STATUS "`sqlite3` enabled")
+    list(APPEND _definitions "DEBBY__SQLITE3_ENABLED=1")
 endif()
 
 if (NOT TARGET pfs::common)
@@ -54,14 +68,16 @@ if (DEBBY__ENABLE_ROCKSDB)
     portable_target(INCLUDE_PROJECT
         ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/RocksDB.cmake)
 
-    portable_target(SOURCES ${PROJECT_NAME}
-        ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
-    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "DEBBY__ROCKSDB_ENABLED=1")
-    portable_target(DEFINITIONS ${PROJECT_NAME}-static PUBLIC "DEBBY__ROCKSDB_ENABLED=1")
-    portable_target(LINK ${PROJECT_NAME} PRIVATE rocksdb)
-    portable_target(LINK ${PROJECT_NAME}-static PRIVATE rocksdb)
+    list(APPEND _sources ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
+    list(APPEND _definitions "DEBBY__ROCKSDB_ENABLED=1")
 
-    message(STATUS "`RocksDB` enabled")
+    if (DEBBY__BUILD_SHARED)
+        portable_target(LINK ${PROJECT_NAME} PRIVATE rocksdb)
+    endif()
+
+    if (DEBBY__BUILD_STATIC)
+        portable_target(LINK ${STATIC_PROJECT_NAME} PRIVATE rocksdb)
+    endif()
 endif(DEBBY__ENABLE_ROCKSDB)
 
 if (DEBBY__ENABLE_LIBMDBX)
@@ -76,17 +92,28 @@ if (DEBBY__ENABLE_LIBMDBX)
     portable_target(INCLUDE_PROJECT
         ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/libmdbx.cmake)
 
-    portable_target(SOURCES ${PROJECT_NAME}
-        ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/database.cpp)
-    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC "DEBBY__LIBMDBX_ENABLED=1")
-    portable_target(DEFINITIONS ${PROJECT_NAME}-static PUBLIC "DEBBY__LIBMDBX_ENABLED=1")
-    portable_target(LINK ${PROJECT_NAME} PRIVATE mdbx-static)
-    portable_target(LINK ${PROJECT_NAME}-static PRIVATE mdbx-static)
+    list(APPEND _sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/database.cpp)
+    list(APPEND _definitions "DEBBY__LIBMDBX_ENABLED=1")
 
-    #message(STATUS "`RocksDB` enabled")
+    if (DEBBY__BUILD_SHARED)
+        portable_target(LINK ${PROJECT_NAME} PRIVATE mdbx-static)
+    endif()
+
+    if (DEBBY__BUILD_STATIC)
+        portable_target(LINK ${STATIC_PROJECT_NAME} PRIVATE mdbx-static)
+    endif()
 endif(DEBBY__ENABLE_LIBMDBX)
 
-portable_target(INCLUDE_DIRS ${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
-portable_target(LINK ${PROJECT_NAME} PUBLIC pfs::common)
-portable_target(LINK ${PROJECT_NAME}-static PUBLIC pfs::common)
+if (DEBBY__BUILD_SHARED)
+    portable_target(SOURCES ${PROJECT_NAME} ${_sources})
+    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC ${_definitions})
+    portable_target(INCLUDE_DIRS ${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+    portable_target(LINK ${PROJECT_NAME} PUBLIC pfs::common)
+endif()
 
+if (DEBBY__BUILD_STATIC)
+    portable_target(SOURCES ${STATIC_PROJECT_NAME} ${_sources})
+    portable_target(DEFINITIONS ${STATIC_PROJECT_NAME} PUBLIC ${_definitions})
+    portable_target(INCLUDE_DIRS ${STATIC_PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+    portable_target(LINK ${STATIC_PROJECT_NAME} PUBLIC pfs::common)
+endif()

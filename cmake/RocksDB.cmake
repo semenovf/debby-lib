@@ -14,7 +14,11 @@ cmake_minimum_required (VERSION 3.5)
 # https://github.com/facebook/rocksdb/blob/main/INSTALL.md
 #
 set(ROCKSDB_BUILD_SHARED OFF CACHE BOOL "Disable build RocksDB as shared")
-set(ROCKSDB_LITE ON CACHE BOOL "Build lite version for RocksDB (see ROCKSDB_LITE.md for details)")
+
+# ATTENTION! ROCKSDB_LITE causes a segmentation fault while open the database.
+# See `make_kv()` in `src/rocksdb/database.cpp`.
+#set(ROCKSDB_LITE ON CACHE BOOL "Build lite version for RocksDB (see ROCKSDB_LITE.md for details)")
+
 set(WITH_GFLAGS OFF CACHE BOOL "Disable 'gflags' dependency for RocksDB")
 set(WITH_TESTS OFF CACHE BOOL "Disable build tests for RocksDB")
 set(WITH_BENCHMARK_TOOLS OFF CACHE BOOL "Disable build benchmarks for RocksDB")

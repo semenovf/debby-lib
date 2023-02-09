@@ -44,8 +44,7 @@ struct database
     };
 
     /**
-     * Open database specified by @a path and create it if
-     * missing when @a create_if_missing set to @c true.
+     * Open database specified by @a path.
      *
      * @param path Path to the database.
      * @param opts RocksDB specific options or @c nullptr for default options.
@@ -55,8 +54,17 @@ struct database
     static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
         , options_type * popts, error * perr = nullptr);
 
+    /**
+     * Open database specified by @a path and create it if missing when
+     * @a create_if_missing set to @c true.
+     *
+     * @param path Path to the database.
+     * @param create_if_missing Create database if missing.
+     * @param optimize_for_small_db Set to @c true if DB is very small (like
+     *        under 1GB) and don't want to spend lots of memory for memtables.
+     */
     static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
-        , bool create_if_missing, error * perr = nullptr);
+        , bool create_if_missing, bool optimize_for_small_db = true, error * perr = nullptr);
 };
 
 }}} // namespace debby::backend::rocksdb

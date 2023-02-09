@@ -13,9 +13,18 @@
 #include <limits>
 #include "pfs/debby/keyvalue_database.hpp"
 #include "pfs/debby/settings.hpp"
-#include "pfs/debby/backend/in_memory/map.hpp"
-#include "pfs/debby/backend/in_memory/unordered_map.hpp"
-#include "pfs/debby/backend/sqlite3/database.hpp"
+
+#if DEBBY__MAP_ENABLED
+#   include "pfs/debby/backend/in_memory/map.hpp"
+#endif
+
+#if DEBBY__UNORDERED_MAP_ENABLED
+#   include "pfs/debby/backend/in_memory/unordered_map.hpp"
+#endif
+
+#if DEBBY__SQLITE3_ENABLED
+#   include "pfs/debby/backend/sqlite3/database.hpp"
+#endif
 
 #if DEBBY__LIBMDBX_ENABLED
 #   include "pfs/debby/backend/libmdbx/database.hpp"
@@ -142,16 +151,10 @@ void check_persistance_storage (pfs::filesystem::path const & db_path)
         fs::remove_all(db_path);
 }
 
+#if DEBBY__MAP_ENABLED
 TEST_CASE("in-memory thread unsafe map set/get") {
     using database_t = debby::keyvalue_database<debby::backend::in_memory::map_st>;
     using settings_t = debby::settings<debby::backend::in_memory::map_st>;
-    auto db = database_t::make();
-    check_keyvalue_database(db);
-}
-
-TEST_CASE("in-memory thread unsafe unordered_map set/get") {
-    using database_t = debby::keyvalue_database<debby::backend::in_memory::unordered_map_st>;
-    using settings_t = debby::settings<debby::backend::in_memory::unordered_map_st>;
     auto db = database_t::make();
     check_keyvalue_database(db);
 }
@@ -162,6 +165,15 @@ TEST_CASE("in-memory thread safe map set/get") {
     auto db = database_t::make();
     check_keyvalue_database(db);
 }
+#endif
+
+#if DEBBY__UNORDERED_MAP_ENABLED
+TEST_CASE("in-memory thread unsafe unordered_map set/get") {
+    using database_t = debby::keyvalue_database<debby::backend::in_memory::unordered_map_st>;
+    using settings_t = debby::settings<debby::backend::in_memory::unordered_map_st>;
+    auto db = database_t::make();
+    check_keyvalue_database(db);
+}
 
 TEST_CASE("in-memory thread safe unordered_map set/get") {
     using database_t = debby::keyvalue_database<debby::backend::in_memory::unordered_map_mt>;
@@ -169,6 +181,7 @@ TEST_CASE("in-memory thread safe unordered_map set/get") {
     auto db = database_t::make();
     check_keyvalue_database(db);
 }
+#endif
 
 TEST_CASE("sqlite3 set/get") {
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3-kv.db");

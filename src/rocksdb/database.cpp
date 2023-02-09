@@ -35,8 +35,12 @@ static ::rocksdb::Options default_options ()
     ::rocksdb::Options options;
 
     // Optimize RocksDB. This is the easiest way to get RocksDB to perform well.
-    options.IncreaseParallelism();
-    options.OptimizeLevelStyleCompaction();
+    //options.IncreaseParallelism();
+    //options.OptimizeLevelStyleCompaction();
+
+    // Use this if your DB is very small (like under 1GB) and you don't want to
+    // spend lots of memory for memtables.
+    // options.OptimizeForSmallDb();
 
     // If true, the database will be created if it is missing.
     // Default: false
@@ -51,7 +55,7 @@ static ::rocksdb::Options default_options ()
 
     // If true, missing column families will be automatically created.
     // Default: false
-    options.create_missing_column_families = true;
+    //options.create_missing_column_families = true;
 
     return options;
 }
@@ -211,7 +215,8 @@ database::make_kv (pfs::filesystem::path const & path, options_type * opts, erro
 
     // Open DB.
     // `path` is the path to a directory containing multiple database files
-
+    //
+    // ATTENTION! ROCKSDB_LITE causes a segmentaion fault while open the database
     status = ::rocksdb::DB::Open(*opts, fs::utf8_encode(path), & rep.dbh);
 
     if (!status.ok()) {
@@ -236,10 +241,14 @@ database::make_kv (pfs::filesystem::path const & path, options_type * opts, erro
 
 database::rep_type
 database::make_kv (pfs::filesystem::path const & path, bool create_if_missing
-    , error * perr)
+    , bool optimize_for_small_db, error * perr)
 {
     auto opts = default_options();
     opts.create_if_missing = create_if_missing;
+
+    if (optimize_for_small_db)
+        opts.OptimizeForSmallDb();
+
     return make_kv(path, & opts, perr);
 }
 

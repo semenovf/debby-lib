@@ -8,7 +8,7 @@ Currently implementation is done for:
 * `sqlite3`
 * `RocksDB`
 * `libmdbx`
-* in-memory base on `std::map` and `std::unordered_map` (thread safe and unsafe)
+* in-memory based on `std::map` and `std::unordered_map` (thread safe and unsafe)
 
 The list can grow...
 
@@ -27,7 +27,7 @@ To support other dependencies need to pull corresponding submodules.
 If need to pull all dependencies just do
 
 ```sh
-$ git submodule update --init
+$ git submodule update --init --remote
 ```
 
 ### RocksDB
@@ -35,13 +35,13 @@ $ git submodule update --init
 Now supports the `6.x` version (`6.29.5` is the last known version as of February 2023)
 
 ```sh
-$ git submodule update --init -- 3rdparty/rocksdb
+$ git submodule update --init --remote -- 3rdparty/rocksdb
 ```
 
 ### libmdbx
 
 ```sh
-$ git submodule update --init -- 3rdparty/libmdbx
+$ git submodule update --init --remote -- 3rdparty/libmdbx
 ```
 
 ## Build library
@@ -58,6 +58,8 @@ $ cmake -G Ninja -DDEBBY__BUILD_TEST=ON \
     -DDEBBY__ENABLE_SQLITE3=ON \
     -DDEBBY__ENABLE_LIBMDBX=ON \
     -DDEBBY__ENABLE_ROCKSDB=ON \
+    -DDEBBY__ENABLE_MAP=ON \
+    -DDEBBY__ENABLE_UNORDERED_MAP=ON \
     ../debby-lib
 
 $ cmake --build .
