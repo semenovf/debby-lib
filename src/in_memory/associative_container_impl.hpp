@@ -10,22 +10,10 @@
 #include "pfs/memory.hpp"
 #include "pfs/debby/error.hpp"
 #include "pfs/debby/keyvalue_database.hpp"
-#include "pfs/debby/backend/in_memory/database.hpp"
+#include "pfs/debby/backend/in_memory/associative_container.hpp"
 #include "../kv_common.hpp"
 
 namespace debby {
-namespace backend {
-namespace in_memory {
-
-database::rep_type
-database::make_kv (error * /*perr*/)
-{
-    return rep_type{pfs::make_unique<std::mutex>(), native_type{}};
-}
-
-}} // namespace backend::libmdbx
-
-#define BACKEND backend::in_memory::database
 
 template <>
 keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
@@ -42,7 +30,7 @@ keyvalue_database<BACKEND>::~keyvalue_database () = default;
 template <>
 keyvalue_database<BACKEND>::operator bool () const noexcept
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     return true;
 }
 
@@ -50,7 +38,7 @@ template <>
 void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, std::intmax_t value
     , std::size_t /*size*/, error * /*perr*/)
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{value};
 }
 
@@ -58,7 +46,7 @@ template <>
 void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, double value
     , std::size_t /*size*/, error * /*perr*/)
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{value};
 }
 
@@ -66,7 +54,7 @@ template <>
 void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, float value
     , std::size_t /*size*/, error * /*perr*/)
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{value};
 }
 
@@ -74,7 +62,7 @@ template <>
 void keyvalue_database<BACKEND>::set_chars (key_type const & key, char const * data
     , std::size_t size, error * /*perr*/)
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{std::string(data, size)};
 }
 
@@ -86,7 +74,7 @@ void keyvalue_database<BACKEND>::set_blob (key_type const & key, char const * da
     blob.resize(size);
     std::memcpy(blob.data(), data, size);
 
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{std::move(blob)};
 }
 
@@ -97,7 +85,7 @@ template <>
 void
 keyvalue_database<BACKEND>::remove (key_type const & key, error * perr)
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     _rep.dbh.erase(key);
 }
 
@@ -109,7 +97,7 @@ template <>
 std::intmax_t
 keyvalue_database<BACKEND>::get_integer (key_type const & key, error * perr) const
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -141,7 +129,7 @@ keyvalue_database<BACKEND>::get_integer (key_type const & key, error * perr) con
 template <>
 float keyvalue_database<BACKEND>::get_float (key_type const & key, error * perr) const
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -173,7 +161,7 @@ float keyvalue_database<BACKEND>::get_float (key_type const & key, error * perr)
 template <>
 double keyvalue_database<BACKEND>::get_double (key_type const & key, error * perr) const
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -205,7 +193,7 @@ double keyvalue_database<BACKEND>::get_double (key_type const & key, error * per
 template <>
 std::string keyvalue_database<BACKEND>::get_string (key_type const & key, error * perr) const
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -235,7 +223,7 @@ std::string keyvalue_database<BACKEND>::get_string (key_type const & key, error 
 template <>
 blob_t keyvalue_database<BACKEND>::get_blob (key_type const & key, error * perr) const
 {
-    std::lock_guard<std::mutex> lock{ *_rep.mtx };
+    BACKEND::lock_guard{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -263,4 +251,3 @@ blob_t keyvalue_database<BACKEND>::get_blob (key_type const & key, error * perr)
 }
 
 } // namespace debby
-

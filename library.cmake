@@ -21,7 +21,8 @@ portable_target(ADD_SHARED ${PROJECT_NAME} ALIAS pfs::debby EXPORTS DEBBY__EXPOR
     BIND_STATIC ${PROJECT_NAME}-static STATIC_ALIAS pfs::debby::static STATIC_EXPORTS DEBBY__STATIC)
 
 portable_target(SOURCES ${PROJECT_NAME}
-    ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/database.cpp)
+    ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/map.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/unordered_map.cpp)
 
 if (DEBBY__ENABLE_SQLITE3)
     portable_target(SOURCES ${PROJECT_NAME}

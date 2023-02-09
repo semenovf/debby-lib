@@ -5,11 +5,12 @@ This is a lightweight wrapper around popular database/storage engines.
 
 Currently implementation is done for:
 
-* Sqlite3
-* RocksDB
-* libmdbx
+* `sqlite3`
+* `RocksDB`
+* `libmdbx`
+* in-memory base on `std::map` and `std::unordered_map` (thread safe and unsafe)
 
-The list will grow...
+The list can grow...
 
 ## Clone main repository
 
@@ -20,7 +21,7 @@ $ cd debby-lib
 
 ## Pull dependencies
 
-Only `Sqlite3` backend dependency now embeded into project source tree.
+Only `sqlite3` backend dependency now embeded into project source tree.
 To support other dependencies need to pull corresponding submodules.
 
 If need to pull all dependencies just do
