@@ -13,7 +13,7 @@ option(DEBBY__BUILD_SHARED "Enable build shared library" ON)
 option(DEBBY__BUILD_STATIC "Enable build static library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
-option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" ON)
+option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" OFF)
 option(DEBBY__ENABLE_MAP  "Enable `in-memory` map backend" ON)
 option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
 
