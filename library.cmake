@@ -31,24 +31,24 @@ if (DEBBY__BUILD_STATIC)
 endif()
 
 if (DEBBY__ENABLE_MAP)
-    list(APPEND _sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/map.cpp)
-    list(APPEND _definitions "DEBBY__MAP_ENABLED=1")
+    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/map.cpp)
+    list(APPEND _debby__definitions "DEBBY__MAP_ENABLED=1")
 endif()
 
 if (DEBBY__ENABLE_UNORDERED_MAP)
-    list(APPEND _sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/unordered_map.cpp)
-    list(APPEND _definitions "DEBBY__UNORDERED_MAP_ENABLED=1")
+    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/unordered_map.cpp)
+    list(APPEND _debby__definitions "DEBBY__UNORDERED_MAP_ENABLED=1")
 endif()
 
 if (DEBBY__ENABLE_SQLITE3)
-    list(APPEND _sources
+    list(APPEND _debby__sources
         ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp)
 
-    list(APPEND _definitions "DEBBY__SQLITE3_ENABLED=1")
+    list(APPEND _debby__definitions "DEBBY__SQLITE3_ENABLED=1")
 endif()
 
 if (NOT TARGET pfs::common)
@@ -68,8 +68,8 @@ if (DEBBY__ENABLE_ROCKSDB)
     portable_target(INCLUDE_PROJECT
         ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/RocksDB.cmake)
 
-    list(APPEND _sources ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
-    list(APPEND _definitions "DEBBY__ROCKSDB_ENABLED=1")
+    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
+    list(APPEND _debby__definitions "DEBBY__ROCKSDB_ENABLED=1")
 
     if (DEBBY__BUILD_SHARED)
         portable_target(LINK ${PROJECT_NAME} PRIVATE rocksdb)
@@ -92,8 +92,8 @@ if (DEBBY__ENABLE_LIBMDBX)
     portable_target(INCLUDE_PROJECT
         ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/libmdbx.cmake)
 
-    list(APPEND _sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/database.cpp)
-    list(APPEND _definitions "DEBBY__LIBMDBX_ENABLED=1")
+    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/database.cpp)
+    list(APPEND _debby__definitions "DEBBY__LIBMDBX_ENABLED=1")
 
     if (DEBBY__BUILD_SHARED)
         portable_target(LINK ${PROJECT_NAME} PRIVATE mdbx-static)
@@ -105,15 +105,15 @@ if (DEBBY__ENABLE_LIBMDBX)
 endif(DEBBY__ENABLE_LIBMDBX)
 
 if (DEBBY__BUILD_SHARED)
-    portable_target(SOURCES ${PROJECT_NAME} ${_sources})
-    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC ${_definitions})
+    portable_target(SOURCES ${PROJECT_NAME} ${_debby__sources})
+    portable_target(DEFINITIONS ${PROJECT_NAME} PUBLIC ${_debby__definitions})
     portable_target(INCLUDE_DIRS ${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
     portable_target(LINK ${PROJECT_NAME} PUBLIC pfs::common)
 endif()
 
 if (DEBBY__BUILD_STATIC)
-    portable_target(SOURCES ${STATIC_PROJECT_NAME} ${_sources})
-    portable_target(DEFINITIONS ${STATIC_PROJECT_NAME} PUBLIC ${_definitions})
+    portable_target(SOURCES ${STATIC_PROJECT_NAME} ${_debby__sources})
+    portable_target(DEFINITIONS ${STATIC_PROJECT_NAME} PUBLIC ${_debby__definitions})
     portable_target(INCLUDE_DIRS ${STATIC_PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
     portable_target(LINK ${STATIC_PROJECT_NAME} PUBLIC pfs::common)
 endif()
