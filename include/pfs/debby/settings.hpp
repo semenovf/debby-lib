@@ -97,6 +97,20 @@ public:
     {
         _db.remove(key, perr);
     }
+
+public:
+    template <typename ...Args>
+    static settings make (Args &&... args)
+    {
+        return settings {storage_type::make(std::forward<Args>(args)...)};
+    }
+
+    template <typename ...Args>
+    static std::unique_ptr<settings> make_unique (Args &&... args)
+    {
+        auto ptr = new settings {storage_type::make(std::forward<Args>(args)...)};
+        return std::unique_ptr<settings>(ptr);
+    }
 };
 
 } // namespace debby
