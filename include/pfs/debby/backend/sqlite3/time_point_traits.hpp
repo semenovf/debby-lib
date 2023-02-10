@@ -27,7 +27,7 @@ template <> struct affinity_traits<pfs::utc_time_point const &> : integral64_aff
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::local_time_point>::value, void>::type>
+       std::is_same<typename std::decay<NativeType>::type, pfs::local_time_point>::value, void>::type>
 {
     using storage_type = typename affinity_traits<pfs::local_time_point>::storage_type;
 
@@ -44,7 +44,7 @@ struct cast_traits<NativeType, typename std::enable_if<
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
-       std::is_same<pfs::remove_cvref_t<NativeType>, pfs::utc_time_point>::value, void>::type>
+       std::is_same<typename std::decay<NativeType>::type, pfs::utc_time_point>::value, void>::type>
 {
     using storage_type = typename affinity_traits<pfs::utc_time_point>::storage_type;
 
