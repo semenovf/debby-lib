@@ -30,7 +30,7 @@ struct database
     struct rep_type
     {
         MDBX_env * env {nullptr};
-        native_type dbh;
+        native_type dbh {0};
         pfs::filesystem::path path;
     };
 

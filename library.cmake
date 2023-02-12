@@ -9,7 +9,7 @@
 cmake_minimum_required (VERSION 3.11)
 project(debby LANGUAGES CXX C)
 
-option(DEBBY__BUILD_SHARED "Enable build shared library" ON)
+option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
 option(DEBBY__BUILD_STATIC "Enable build static library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)

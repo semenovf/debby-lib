@@ -33,7 +33,6 @@ private:
     rep_type _rep;
 
 private:
-    keyvalue_database () = delete;
     DEBBY__EXPORT keyvalue_database (rep_type && rep);
     keyvalue_database (keyvalue_database const & other) = delete;
     keyvalue_database & operator = (keyvalue_database const & other) = delete;
@@ -61,6 +60,7 @@ private:
     DEBBY__EXPORT blob_t get_blob (key_type const & key, error * perr = nullptr) const;
 
 public:
+    keyvalue_database () = default;
     DEBBY__EXPORT keyvalue_database (keyvalue_database && other);
     DEBBY__EXPORT ~keyvalue_database ();
 

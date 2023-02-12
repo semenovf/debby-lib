@@ -25,6 +25,8 @@ private:
     storage_type _db;
 
 public:
+    settings () = default;
+
     settings (storage_type && db)
         : _db(std::move(db))
     {}

@@ -368,18 +368,6 @@ database::make_kv (pfs::filesystem::path const & path
 #define BACKEND backend::libmdbx::database
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
-    : _rep(std::move(rep))
-{}
-
-template <>
-keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
-{
-    _rep = std::move(other._rep);
-    other._rep.dbh = 0;
-}
-
-template <>
 keyvalue_database<BACKEND>::~keyvalue_database ()
 {
     if (_rep.env) {
@@ -394,6 +382,19 @@ keyvalue_database<BACKEND>::~keyvalue_database ()
 
     _rep.path.clear();
 }
+
+template <>
+keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
+    : _rep(std::move(rep))
+{
+    rep.env = nullptr;
+    rep.dbh = 0;
+}
+
+template <>
+keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
+    : keyvalue_database(std::move(other._rep))
+{}
 
 template <>
 keyvalue_database<BACKEND>::operator bool () const noexcept
