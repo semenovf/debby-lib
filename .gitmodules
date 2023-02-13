@@ -7,7 +7,4 @@
 [submodule "3rdparty/rocksdb"]
 	path = 3rdparty/rocksdb
 	url = https://github.com/semenovf/rocksdb.git
-[submodule "3rdparty/libmdbx"]
-	path = 3rdparty/libmdbx
-	url = https://gitflic.ru/project/erthink/libmdbx.git
 
