@@ -29,6 +29,10 @@ if (DEBBY__BUILD_STRICT)
     set(CMAKE_CXX_EXTENSIONS OFF) # use -std=c++XX rather than -std=gnu++XX
 endif()
 
+if (DEBBY__BUILD_TESTS)
+    option(DEBBY__BUILD_SHARED "Enable build shared library" ON)
+endif()
+
 include(${CMAKE_CURRENT_LIST_DIR}/library.cmake)
 
 if (DEBBY__BUILD_TESTS AND EXISTS ${CMAKE_CURRENT_LIST_DIR}/tests)

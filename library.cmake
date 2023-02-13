@@ -13,7 +13,7 @@ option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
 option(DEBBY__BUILD_STATIC "Enable build static library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
-option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" OFF)
+option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" ON)
 option(DEBBY__ENABLE_MAP  "Enable `in-memory` map backend" ON)
 option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
 
@@ -81,16 +81,21 @@ if (DEBBY__ENABLE_ROCKSDB)
 endif(DEBBY__ENABLE_ROCKSDB)
 
 if (DEBBY__ENABLE_LIBMDBX)
-    if (NOT DEBBY__LIBMDBX_ROOT)
-        set(DEBBY__LIBMDBX_ROOT
-            "${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/libmdbx"
-            CACHE INTERNAL "")
-    endif()
+    set(MDBX_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Enable/disable build shared `libmdbx` library")
+    set(MDBX_BUILD_TOOLS OFF CACHE BOOL "Disable build `libmdbx` tools")
+    set(MDBX_BUILD_CXX OFF CACHE BOOL "Disable build `libmdbx` with C++ support")
+
+    add_subdirectory(${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/src/libmdbx/lib EXCLUDE_FROM_ALL)
+    #if (NOT DEBBY__LIBMDBX_ROOT)
+        #set(DEBBY__LIBMDBX_ROOT
+            #"${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/libmdbx"
+            #CACHE INTERNAL "")
+    #endif()
 
     _portable_target_status(${PROJECT_NAME} "libmdbx root: [${DEBBY__LIBMDBX_ROOT}]")
 
-    portable_target(INCLUDE_PROJECT
-        ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/libmdbx.cmake)
+    #portable_target(INCLUDE_PROJECT
+        #${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/libmdbx.cmake)
 
     list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/database.cpp)
     list(APPEND _debby__definitions "DEBBY__LIBMDBX_ENABLED=1")
