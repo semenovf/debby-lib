@@ -47,4 +47,10 @@ std::string error_category::message (int ev) const
     }
 };
 
+std::error_category const & get_error_category ()
+{
+    static error_category instance;
+    return instance;
+}
+
 } // namespace debby

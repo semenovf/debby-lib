@@ -38,11 +38,7 @@ public:
     virtual DEBBY__EXPORT std::string message (int ev) const override;
 };
 
-inline std::error_category const & get_error_category ()
-{
-    static error_category instance;
-    return instance;
-}
+DEBBY__EXPORT std::error_category const & get_error_category ();
 
 inline std::error_code make_error_code (errc e)
 {
