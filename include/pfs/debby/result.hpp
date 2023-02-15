@@ -80,7 +80,7 @@ private:
 
         if (!ptr) {
             throw error {
-                  make_error_code(errc::bad_value)
+                  errc::bad_value
                 , fmt::format("unsuitable data stored in column: {}", column)
             };
         }

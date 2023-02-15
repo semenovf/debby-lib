@@ -37,7 +37,8 @@ static result_status query (database::rep_type const * rep, std::string const & 
     int rc = sqlite3_exec(rep->dbh, sql.c_str(), nullptr, nullptr, nullptr);
 
     if (SQLITE_OK != rc) {
-        auto err = error{make_error_code(errc::sql_error)
+        auto err = error {
+              errc::sql_error
             , build_errstr(rc, rep->dbh)
             , sql
         };
@@ -77,15 +78,11 @@ database::make_r (fs::path const & path, bool create_if_missing)
     int rc = sqlite3_open_v2(path.c_str(), & rep.dbh, flags, default_vfs);
 #endif
 
-    std::error_code ec;
-
     if (rc != SQLITE_OK) {
         if (!rep.dbh) {
             // Unable to allocate memory for database handler.
             // Internal error code.
-            throw error {
-                make_error_code(errc::bad_alloc)
-            };
+            throw error { errc::bad_alloc };
         } else {
             sqlite3_close_v2(rep.dbh);
             rep.dbh = nullptr;
@@ -93,17 +90,15 @@ database::make_r (fs::path const & path, bool create_if_missing)
             bool is_special_file = path.empty()
                 || *path.c_str() == PFS__LITERAL_PATH(':');
 
+            errc e = errc::success;
+
             if (rc == SQLITE_CANTOPEN && !is_special_file) {
-                ec = make_error_code(errc::database_not_found);
+                e = errc::database_not_found;
             } else {
-                ec = make_error_code(errc::backend_error);
+                e = errc::backend_error;
             }
 
-            throw error {
-                  ec
-                , fs::utf8_encode(path)
-                , build_errstr(rc, rep.dbh)
-            };
+            throw error { e, fs::utf8_encode(path), build_errstr(rc, rep.dbh) };
         }
     } else {
         // NOTE what for this call ?
@@ -214,7 +209,7 @@ relational_database<BACKEND>::prepare (std::string const & sql, bool cache)
 
     if (SQLITE_OK != rc) {
         throw error {
-              make_error_code(errc::sql_error)
+              errc::sql_error
             , backend::sqlite3::build_errstr(rc, _rep.dbh)
             , sql
         };

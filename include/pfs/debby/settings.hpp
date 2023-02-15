@@ -77,6 +77,9 @@ public:
         error err;
         auto v = _db.template get<T>(key, & err);
 
+        if (!err)
+            return v;
+
         if (err.code() == make_error_code(errc::key_not_found)) {
             err = error {errc::success};
             set(key, default_value, & err);

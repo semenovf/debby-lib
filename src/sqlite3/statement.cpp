@@ -41,7 +41,7 @@ static void bind_helper_func (statement::rep_type * rep, int index
 
     if (SQLITE_OK != rc) {
         throw error {
-              make_error_code(errc::backend_error)
+              errc::backend_error
             , build_errstr(rc, rep->sth)
             , current_sql(rep->sth)
         };
@@ -58,7 +58,7 @@ static void bind_helper_func (statement::rep_type * rep
 
     if (index == 0) {
         throw error {
-              make_error_code(errc::invalid_argument)
+              errc::invalid_argument
             , std::string{"bad bind parameter name"}
             , placeholder
         };
@@ -68,7 +68,7 @@ static void bind_helper_func (statement::rep_type * rep
 
     if (SQLITE_OK != rc) {
         throw error {
-              make_error_code(errc::backend_error)
+              errc::backend_error
             , build_errstr(rc, rep->sth)
             , current_sql(rep->sth)
         };
@@ -372,7 +372,7 @@ statement<BACKEND>::exec ()
         case SQLITE_ERROR: {
             status = backend::sqlite3::result::FAILURE;
             throw error {
-                  make_error_code(errc::sql_error)
+                  errc::sql_error
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
                 , backend::sqlite3::current_sql(_rep.sth)
             };
@@ -384,7 +384,7 @@ statement<BACKEND>::exec ()
         default: {
             status = backend::sqlite3::result::FAILURE;
             throw error {
-                  make_error_code(errc::sql_error)
+                  errc::sql_error
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
                 , backend::sqlite3::current_sql(_rep.sth)
             };

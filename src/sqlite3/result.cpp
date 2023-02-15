@@ -151,7 +151,7 @@ result<BACKEND>::next ()
             _rep.state = backend::sqlite3::result::FAILURE;
 
             throw error {
-                  make_error_code(errc::sql_error)
+                  errc::sql_error
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
                 , backend::sqlite3::current_sql(_rep.sth)
             };
@@ -166,7 +166,7 @@ result<BACKEND>::next ()
             _rep.state = backend::sqlite3::result::FAILURE;
 
             throw error {
-                  make_error_code(errc::sql_error)
+                  errc::sql_error
                 , backend::sqlite3::build_errstr(rc, _rep.sth)
                 , backend::sqlite3::current_sql(_rep.sth)
             };
@@ -191,8 +191,8 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
     auto upper_limit = sqlite3_column_count(_rep.sth);
 
     if (column < 0 || column >= upper_limit) {
-        auto err = error{
-              make_error_code(errc::column_not_found)
+        auto err = error {
+              errc::column_not_found
             , fmt::format("bad column: {}, expected greater or equal to 0 and"
                 " less than {}", column, upper_limit)
         };
@@ -317,8 +317,8 @@ result<BACKEND>::fetch (std::string const & column_name, value_type & value) con
     if (pos != _rep.column_mapping.end())
         return fetch(pos->second, value);
 
-    auto err = error{
-          make_error_code(errc::column_not_found)
+    auto err = error {
+          errc::column_not_found
         , fmt::format("bad column name: {}", column_name)
     };
 

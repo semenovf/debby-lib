@@ -46,36 +46,21 @@ inline void pack_arithmetic (char buf[sizeof(fixed_packer<std::intmax_t>)]
         auto p = new (buf) fixed_packer<std::intmax_t>{};
         p->value = value;
     } else {
-        switch (size) {
-            case sizeof(char): {
-                auto p = new (buf) fixed_packer<char>{};
-                p->value = static_cast<char>(value);
-                break;
-            }
-
-            case sizeof(short): {
-                auto p = new (buf) fixed_packer<short>{};
-                p->value = static_cast<short>(value);
-                break;
-            }
-
-            case sizeof(int): {
-                auto p = new (buf) fixed_packer<int>{};
-                p->value = static_cast<int>(value);
-                break;
-            }
-
-            case sizeof(long int): {
-                auto p = new (buf) fixed_packer<long int>{};
-                p->value = static_cast<long int>(value);
-                break;
-            }
-
-            default: {
-                auto p = new (buf) fixed_packer<std::intmax_t>{};
-                p->value = value;
-                break;
-            }
+        if (size <= sizeof(char)) {
+            auto p = new (buf) fixed_packer<char>{};
+            p->value = static_cast<char>(value);
+        } else if (size <= sizeof(short)) {
+            auto p = new (buf) fixed_packer<short>{};
+            p->value = static_cast<short>(value);
+        } else if (size <= sizeof(int)) {
+            auto p = new (buf) fixed_packer<int>{};
+            p->value = static_cast<int>(value);
+        } else if (size <= sizeof(long int)) {
+            auto p = new (buf) fixed_packer<long int>{};
+            p->value = static_cast<long int>(value);
+        } else {
+            auto p = new (buf) fixed_packer<std::intmax_t>{};
+            p->value = value;
         }
     }
 }
@@ -87,34 +72,28 @@ inline std::pair<bool,std::intmax_t> get_integer (blob_t const & blob)
         std::memcpy(p.bytes, blob.data(), blob.size());
         return std::make_pair(true, static_cast<std::intmax_t>(p.value));
     } else {
-        switch (blob.size()) {
-            case sizeof(std::int8_t): {
-                fixed_packer<std::int8_t> p;
-                std::memcpy(p.bytes, blob.data(), blob.size());
-                return std::make_pair(true, static_cast<std::intmax_t>(p.value));
-            }
-
-            case sizeof(std::int16_t): {
-                fixed_packer<std::int16_t> p;
-                std::memcpy(p.bytes, blob.data(), blob.size());
-                return std::make_pair(true, static_cast<std::intmax_t>(p.value));
-            }
-
-            case sizeof(std::int32_t): {
-                fixed_packer<std::int32_t> p;
-                std::memcpy(p.bytes, blob.data(), blob.size());
-                return std::make_pair(true, static_cast<std::intmax_t>(p.value));
-            }
-
-            case sizeof(std::int64_t): {
-                fixed_packer<std::int64_t> p;
-                std::memcpy(p.bytes, blob.data(), blob.size());
-                return std::make_pair(true, static_cast<std::intmax_t>(p.value));
-            }
-
-            default:
-                // Error: unsuitable or corrupted data
-                break;
+        if (blob.size() <= sizeof(std::int8_t)) {
+            fixed_packer<std::int8_t> p;
+            std::memcpy(p.bytes, blob.data(), blob.size());
+            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
+        } else if (blob.size() <= sizeof(std::int16_t)) {
+            fixed_packer<std::int16_t> p;
+            std::memcpy(p.bytes, blob.data(), blob.size());
+            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
+        } else if (blob.size() <= sizeof(std::int32_t)) {
+            fixed_packer<std::int32_t> p;
+            std::memcpy(p.bytes, blob.data(), blob.size());
+            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
+        } else if (blob.size() <= sizeof(std::int64_t)) {
+            fixed_packer<std::int64_t> p;
+            std::memcpy(p.bytes, blob.data(), blob.size());
+            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
+        } else if (blob.size() <= sizeof(std::intmax_t)) {
+            fixed_packer<std::intmax_t> p;
+            std::memcpy(p.bytes, blob.data(), blob.size());
+            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
+        } else {
+            // Error: unsuitable or corrupted data
         }
     }
 

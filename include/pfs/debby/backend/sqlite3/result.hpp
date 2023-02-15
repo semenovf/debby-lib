@@ -60,7 +60,7 @@ struct assigner<float>
             auto ptr = get_if<double>(& v);
 
             if (ptr) {
-                target = to_native<double>(*ptr);
+                target = static_cast<float>(to_native<double>(*ptr));
             } else {
                 throw error { errc::bad_value, "unsuitable data requested" };
             }

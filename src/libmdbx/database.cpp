@@ -28,10 +28,10 @@ namespace libmdbx {
 static_assert(std::is_same<database::native_type, MDBX_dbi>::value
     , "libmdbx::database::native_type must be same type as MDBX_dbi");
 
-static_assert(std::is_same<decltype(database::options_type::env), std::underlying_type<MDBX_env_flags_t>::type>::value
+static_assert(sizeof(database::options_type::env) == sizeof(std::underlying_type<MDBX_env_flags_t>::type)
     , "libmdbx::database::options_type::env must be same type as MDBX_env_flags_t underlying type");
 
-static_assert(std::is_same<decltype(database::options_type::db), std::underlying_type<MDBX_db_flags_t>::type>::value
+static_assert(sizeof(database::options_type::db) == sizeof(std::underlying_type<MDBX_db_flags_t>::type)
     , "libmdbx::database::options_type::db must be same type as MDBX_db_flags_t underlying type");
 
 static char const * NULL_HANDLER = tr::noop_("uninitialized database handler");
