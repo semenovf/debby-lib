@@ -179,25 +179,22 @@ result<BACKEND>::next ()
         sqlite3_reset(_rep.sth);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// fetch
-////////////////////////////////////////////////////////////////////////////////
 template <>
-result_status
-result<BACKEND>::fetch (int column, value_type & value) const noexcept
+bool
+result<BACKEND>::fetch (int column, value_type & value, error & err) const noexcept
 {
     PFS__ASSERT(_rep.sth, NULL_HANDLER);
 
     auto upper_limit = sqlite3_column_count(_rep.sth);
 
     if (column < 0 || column >= upper_limit) {
-        auto err = error {
+        err = error {
               errc::column_not_found
             , fmt::format("bad column: {}, expected greater or equal to 0 and"
                 " less than {}", column, upper_limit)
         };
 
-        return err;
+        return false;
     }
 
     auto column_type = sqlite3_column_type(_rep.sth, column);
@@ -222,7 +219,8 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
             } else { // std::nullptr_t, std::intmax_t
                 value = static_cast<std::intmax_t>(n);
             }
-            return result_status{};
+
+            return true;
         }
 
         case SQLITE_FLOAT: {
@@ -247,14 +245,14 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
                 value = f;
             }
 
-            return result_status{};
+            return true;
         }
 
         case SQLITE_TEXT: {
             auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(_rep.sth, column));
             int size = sqlite3_column_bytes(_rep.sth, column);
             value = std::string(cstr, size);
-            return result_status{};
+            return true;
         }
 
         case SQLITE_BLOB: {
@@ -264,7 +262,7 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
             blob.resize(size);
             std::memcpy(blob.data(), data, size);
             value = std::move(blob);
-            return result_status{};
+            return true;
         }
 
         case SQLITE_NULL:
@@ -284,24 +282,22 @@ result<BACKEND>::fetch (int column, value_type & value) const noexcept
                 value = nullptr;
             }
 
-            return result_status{};
+            return true;
 
         default:
             // Unexpected column type, need to handle it.
-            PFS__ASSERT(false, "Unexpected column type");
+            PFS__TERMINATE(false, "Unexpected column type");
             break;
     }
 
     // Unreachable in ordinary situation
-    return result_status{};
+    return true;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// fetch
-////////////////////////////////////////////////////////////////////////////////
 template <>
-result_status
-result<BACKEND>::fetch (std::string const & column_name, value_type & value) const noexcept
+bool
+result<BACKEND>::fetch (std::string const & column_name, value_type & value
+    , error & err) const noexcept
 {
     PFS__ASSERT(_rep.sth, NULL_HANDLER);
 
@@ -315,14 +311,14 @@ result<BACKEND>::fetch (std::string const & column_name, value_type & value) con
     auto pos = _rep.column_mapping.find(column_name);
 
     if (pos != _rep.column_mapping.end())
-        return fetch(pos->second, value);
+        return fetch(pos->second, value, err);
 
-    auto err = error {
+    err = error {
           errc::column_not_found
         , fmt::format("bad column name: {}", column_name)
     };
 
-    return err;
+    return false;
 }
 
 } // namespace debby

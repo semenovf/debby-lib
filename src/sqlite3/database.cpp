@@ -30,27 +30,32 @@ char const * NULL_HANDLER = tr::noop_("uninitialized database handler");
 namespace backend {
 namespace sqlite3 {
 
-static result_status query (database::rep_type const * rep, std::string const & sql)
+static bool query (database::rep_type const * rep, std::string const & sql, error * perr)
 {
     PFS__ASSERT(rep->dbh, NULL_HANDLER);
 
     int rc = sqlite3_exec(rep->dbh, sql.c_str(), nullptr, nullptr, nullptr);
 
     if (SQLITE_OK != rc) {
-        auto err = error {
+        error err {
               errc::sql_error
             , build_errstr(rc, rep->dbh)
             , sql
         };
 
-        return err;
+        if (perr) {
+            *perr = std::move(err);
+            return false;
+        } else {
+            throw err;
+        }
     }
 
-    return result_status{};
+    return true;
 }
 
 database::rep_type
-database::make_r (fs::path const & path, bool create_if_missing)
+database::make_r (fs::path const & path, bool create_if_missing, error * perr)
 {
     rep_type rep;
     rep.dbh = nullptr;
@@ -98,7 +103,14 @@ database::make_r (fs::path const & path, bool create_if_missing)
                 e = errc::backend_error;
             }
 
-            throw error { e, fs::utf8_encode(path), build_errstr(rc, rep.dbh) };
+            error err { e, fs::utf8_encode(path), build_errstr(rc, rep.dbh) };
+
+            if (perr) {
+                *perr = std::move(err);
+                return rep_type{};
+            } else {
+                throw err;
+            }
         }
     } else {
         // NOTE what for this call ?
@@ -107,12 +119,19 @@ database::make_r (fs::path const & path, bool create_if_missing)
         // Enable extended result codes
         sqlite3_extended_result_codes(rep.dbh, 1);
 
-        auto res = query(& rep, "PRAGMA foreign_keys = ON");
+        error err;
+        auto success = query(& rep, "PRAGMA foreign_keys = ON", & err);
 
-        if (!res.ok()) {
+        if (!success) {
             sqlite3_close_v2(rep.dbh);
             rep.dbh = nullptr;
-            throw res;
+
+            if (perr) {
+                *perr = std::move(err);
+                return rep_type{};
+            } else {
+                throw err;
+            }
         }
     }
 
@@ -158,38 +177,35 @@ relational_database<BACKEND>::operator bool () const noexcept
 
 template <>
 void
-relational_database<BACKEND>::query (std::string const & sql)
+relational_database<BACKEND>::query (std::string const & sql, error * perr)
 {
-    auto res = backend::sqlite3::query(& _rep, sql);
-
-    if (!res.ok())
-        throw res;
+    backend::sqlite3::query(& _rep, sql, perr);
 }
 
 template <>
 void
-relational_database<BACKEND>::begin ()
+relational_database<BACKEND>::begin (error * perr)
 {
-    query("BEGIN TRANSACTION");
+    query("BEGIN TRANSACTION", perr);
 }
 
 template <>
 void
-relational_database<BACKEND>::commit ()
+relational_database<BACKEND>::commit (error * perr)
 {
-    query("COMMIT TRANSACTION");
+    query("COMMIT TRANSACTION", perr);
 }
 
 template <>
 void
-relational_database<BACKEND>::rollback ()
+relational_database<BACKEND>::rollback (error * perr)
 {
-    query("ROLLBACK TRANSACTION");
+    query("ROLLBACK TRANSACTION", perr);
 }
 
 template <>
 relational_database<BACKEND>::statement_type
-relational_database<BACKEND>::prepare (std::string const & sql, bool cache)
+relational_database<BACKEND>::prepare (std::string const & sql, bool cache, error * perr)
 {
     PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
@@ -208,11 +224,18 @@ relational_database<BACKEND>::prepare (std::string const & sql, bool cache)
         , static_cast<int>(sql.size()), & sth, nullptr);
 
     if (SQLITE_OK != rc) {
-        throw error {
+        error err {
               errc::sql_error
             , backend::sqlite3::build_errstr(rc, _rep.dbh)
             , sql
         };
+
+        if (perr) {
+            *perr = std::move(err);
+            return statement_type::make(nullptr, false);
+        } else {
+            throw err;
+        }
     }
 
     if (cache) {
@@ -225,7 +248,7 @@ relational_database<BACKEND>::prepare (std::string const & sql, bool cache)
 
 template <>
 std::size_t
-relational_database<BACKEND>::rows_count (std::string const & table_name)
+relational_database<BACKEND>::rows_count (std::string const & table_name, error * perr)
 {
     PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
@@ -233,7 +256,7 @@ relational_database<BACKEND>::rows_count (std::string const & table_name)
     std::string sql = fmt::format("SELECT COUNT(1) as count FROM `{}`"
         , table_name);
 
-    statement_type stmt = prepare(sql);
+    statement_type stmt = prepare(sql, perr);
 
     if (stmt) {
         auto res = stmt.exec();
@@ -256,14 +279,14 @@ relational_database<BACKEND>::rows_count (std::string const & table_name)
 
 template <>
 std::vector<std::string>
-relational_database<BACKEND>::tables (std::string const & pattern)
+relational_database<BACKEND>::tables (std::string const & pattern, error * perr)
 {
     PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
     std::string sql = std::string{"SELECT name FROM sqlite_master "
         "WHERE type='table' ORDER BY name"};
 
-    auto stmt = prepare(sql);
+    auto stmt = prepare(sql, perr);
     std::vector<std::string> list;
 
     if (stmt) {
@@ -294,23 +317,24 @@ relational_database<BACKEND>::tables (std::string const & pattern)
 }
 template <>
 void
-relational_database<BACKEND>::clear (std::string const & table)
+relational_database<BACKEND>::clear (std::string const & table, error * perr)
 {
-    query(fmt::format("DELETE FROM `{}`", table));
+    query(fmt::format("DELETE FROM `{}`", table), perr);
 }
 
 template <>
 void
-relational_database<BACKEND>::remove (std::vector<std::string> const & tables)
+relational_database<BACKEND>::remove (std::vector<std::string> const & tables
+    , error * perr)
 {
     PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
     if (tables.empty())
         return;
 
-    begin();
-
     try {
+        begin();
+
         query("PRAGMA foreign_keys = OFF");
 
         for (auto const & name: tables) {
@@ -322,26 +346,40 @@ relational_database<BACKEND>::remove (std::vector<std::string> const & tables)
         commit();
     } catch (error ex) {
         rollback();
-        throw;
+
+        if (perr)
+            *perr = ex;
+        else
+            throw;
     }
 }
 
 template <>
 void
-relational_database<BACKEND>::remove_all ()
+relational_database<BACKEND>::remove_all (error * perr)
 {
-    auto list = tables(std::string{});
-    remove(list);
+    error err;
+    auto list = tables(std::string{}, & err);
+
+    if (!err)
+        remove(list, & err);
+
+    if (err) {
+        if (perr)
+            *perr = std::move(err);
+        else
+            throw err;
+    }
 }
 
 template <>
 bool
-relational_database<BACKEND>::exists (std::string const & name)
+relational_database<BACKEND>::exists (std::string const & name, error * perr)
 {
     auto stmt = prepare(
         fmt::format("SELECT name FROM sqlite_master"
             " WHERE type='table' AND name='{}'"
-            , name));
+            , name), perr);
 
     if (stmt) {
         auto res = stmt.exec();
@@ -360,7 +398,7 @@ namespace backend {
 namespace sqlite3 {
 
 database::rep_type
-database::make_kv (pfs::filesystem::path const & path, bool create_if_missing)
+database::make_kv (pfs::filesystem::path const & path, bool create_if_missing, error * perr)
 {
     auto rep = make_r(path, create_if_missing);
 
@@ -368,12 +406,19 @@ database::make_kv (pfs::filesystem::path const & path, bool create_if_missing)
         " (`key` TEXT NOT NULL UNIQUE, `value` BLOB"
         " , PRIMARY KEY(`key`)) WITHOUT ROWID";
 
-    auto res = query(& rep, sql);
+    error err;
+    auto success = query(& rep, sql, & err);
 
-    if (!res.ok()) {
+    if (!success) {
         sqlite3_close_v2(rep.dbh);
         rep.dbh = nullptr;
-        throw res;
+
+        if (perr) {
+            *perr = std::move(err);
+            return rep_type{};
+        } else {
+            throw err;
+        }
     }
 
     return rep;
@@ -441,11 +486,11 @@ static bool get (database::rep_type const * rep
 /**
  * Removes value for @a key.
  */
-static bool remove (database::rep_type * rep, database::key_type const & key, error * /*perr*/)
+static bool remove (database::rep_type * rep, database::key_type const & key, error * perr)
 {
     PFS__ASSERT(rep->dbh, NULL_HANDLER);
     std::string sql = fmt::format("DELETE FROM `debby` WHERE `key` = '{}'", key);
-    return query(rep, sql);
+    return query(rep, sql, perr);
 }
 
 static bool put (database::rep_type * rep, database::key_type const & key

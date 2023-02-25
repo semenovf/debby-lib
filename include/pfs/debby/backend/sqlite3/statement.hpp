@@ -37,54 +37,56 @@ struct statement
     static DEBBY__EXPORT rep_type make (native_type sth, bool cached);
 
     template <typename T>
-    static void bind_helper (rep_type * rep, int index, T && value);
+    static bool bind_helper (rep_type * rep, int index, T && value, error * perr);
 
     template <typename T>
-    static void bind_helper (rep_type * rep, std::string const & placeholder, T && value);
+    static bool bind_helper (rep_type * rep, std::string const & placeholder
+        , T && value, error * perr);
 
     template <typename T>
-    static void bind (rep_type * rep, int index, T && value)
+    static bool bind (rep_type * rep, int index, T && value, error * perr)
     {
         auto v = to_storage(std::forward<T>(value));
         //bind_helper<T>(rep, index, std::move(v));
-        bind_helper(rep, index, std::move(v));
+        return bind_helper(rep, index, std::move(v), perr);
     }
 
     template <typename T>
-    static void bind (rep_type * rep, std::string const & placeholder, T && value)
+    static bool bind (rep_type * rep, std::string const & placeholder
+        , T && value, error * perr)
     {
         auto v = to_storage(std::forward<T>(value));
         //bind_helper<T>(rep, placeholder, std::move(v));
-        bind_helper(rep, placeholder, std::move(v));
+        return bind_helper(rep, placeholder, std::move(v), perr);
     }
 };
 
 #if _MSC_VER
-template <> DEBBY__EXPORT void statement::bind_helper<std::nullptr_t> (statement::rep_type * rep
-    , int index, std::nullptr_t && value);
-template <> DEBBY__EXPORT void statement::bind_helper<int> (statement::rep_type * rep
-    , int index, int && value);
-template <> DEBBY__EXPORT void statement::bind_helper<std::intmax_t> (statement::rep_type * rep
-    , int index, std::intmax_t && value);
-template <> DEBBY__EXPORT void statement::bind_helper<double> (statement::rep_type * rep
-    , int index, double && value);
-template <> DEBBY__EXPORT void statement::bind_helper<std::string> (statement::rep_type * rep
-    , int index, std::string && value);
-template <> DEBBY__EXPORT void statement::bind_helper<char const *> (statement::rep_type * rep
-    , int index, char const * && value);
+template <> DEBBY__EXPORT bool statement::bind_helper<std::nullptr_t> (statement::rep_type * rep
+    , int index, std::nullptr_t && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<int> (statement::rep_type * rep
+    , int index, int && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<std::intmax_t> (statement::rep_type * rep
+    , int index, std::intmax_t && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<double> (statement::rep_type * rep
+    , int index, double && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<std::string> (statement::rep_type * rep
+    , int index, std::string && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<char const *> (statement::rep_type * rep
+    , int index, char const * && value, error * perr);
 
-template <> DEBBY__EXPORT void statement::bind_helper<std::nullptr_t> (statement::rep_type * rep
-    , std::string const & placeholder, std::nullptr_t && value);
-template <> DEBBY__EXPORT void statement::bind_helper<int> (statement::rep_type * rep
-    , std::string const & placeholder, int && value);
-template <> DEBBY__EXPORT void statement::bind_helper<std::intmax_t> (statement::rep_type * rep
-    , std::string const & placeholder, std::intmax_t && value);
-template <> DEBBY__EXPORT void statement::bind_helper<double> (statement::rep_type * rep
-    , std::string const & placeholder, double && value);
-template <> DEBBY__EXPORT void statement::bind_helper<std::string> (statement::rep_type * rep
-    , std::string const & placeholder, std::string && value);
-template <> DEBBY__EXPORT void statement::bind_helper<char const *> (statement::rep_type * rep
-    , std::string const & placeholder, char const * && value);
+template <> DEBBY__EXPORT bool statement::bind_helper<std::nullptr_t> (statement::rep_type * rep
+    , std::string const & placeholder, std::nullptr_t && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<int> (statement::rep_type * rep
+    , std::string const & placeholder, int && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<std::intmax_t> (statement::rep_type * rep
+    , std::string const & placeholder, std::intmax_t && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<double> (statement::rep_type * rep
+    , std::string const & placeholder, double && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<std::string> (statement::rep_type * rep
+    , std::string const & placeholder, std::string && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<char const *> (statement::rep_type * rep
+    , std::string const & placeholder, char const * && value, error * perr);
 #endif
 
 }}} // namespace debby::backend::sqlite3

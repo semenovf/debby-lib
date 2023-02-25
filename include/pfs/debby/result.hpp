@@ -50,39 +50,54 @@ private:
     rep_type _rep;
 
 private:
-    result () = delete;
     DEBBY__EXPORT result (rep_type && rep);
+
+public:
+    result () = delete;
     result (result const & other) = delete;
     result & operator = (result const & other) = delete;
     result & operator = (result && other) = delete;
 
-public:
     DEBBY__EXPORT result (result && other);
     DEBBY__EXPORT ~result ();
 
 private:
-    DEBBY__EXPORT result_status fetch (int column, value_type & value) const noexcept;
-    DEBBY__EXPORT result_status fetch (std::string const & column_name, value_type & value) const noexcept;
+    DEBBY__EXPORT bool fetch (int column, value_type & value, error & perr) const noexcept;
+    DEBBY__EXPORT bool fetch (std::string const & column_name, value_type & value, error & perr) const noexcept;
 
     template <typename T, typename ColumntType>
     typename std::enable_if<!std::is_pointer<T>::value, T>::type
-    get_helper (ColumntType column)
+    get_helper (ColumntType column, error * perr = nullptr)
     {
         // Assign type to value
         value_type value = value_type::make_zero<T>();
 
-        auto res = fetch(column, value);
+        error err;
+        auto success = fetch(column, value, err);
 
-        if (!res.ok())
-            throw res;
+        if (!success) {
+            if (perr) {
+                *perr = std::move(err);
+                return T{};
+            } else {
+                throw err;
+            }
+        }
 
         auto ptr = get_if<T>(& value);
 
         if (!ptr) {
-            throw error {
+            error err {
                   errc::bad_value
                 , fmt::format("unsuitable data stored in column: {}", column)
             };
+
+            if (perr) {
+                *perr = std::move(err);
+                return T{};
+            } else {
+                throw err;
+            }
         }
 
         return static_cast<T>(*ptr);
@@ -90,14 +105,21 @@ private:
 
     template <typename T, typename ColumntType>
     typename std::enable_if<std::is_pointer<T>::value, T>::type
-    get_helper (ColumntType column)
+    get_helper (ColumntType column, error * perr = nullptr)
     {
         value_type value;
 
-        auto res = fetch(column, value);
+        error err;
+        auto success = fetch(column, value, err);
 
-        if (!res.ok())
-            throw res;
+        if (!success) {
+            if (perr) {
+                *perr = std::move(err);
+                return T{};
+            } else {
+                throw err;
+            }
+        }
 
         auto ptr = reinterpret_cast<T>(get_if<typename std::remove_pointer<T>::type>(& value));
         return ptr;
@@ -105,18 +127,24 @@ private:
 
     template <typename T, typename ColumntType>
     typename std::enable_if<!std::is_pointer<T>::value, T>::type
-    get_or_helper (ColumntType column, T const & default_value)
+    get_or_helper (ColumntType column, T const & default_value, error * perr = nullptr)
     {
         // Assign type to value
         value_type value = value_type::make_zero<T>();
 
-        auto res = fetch(column, value);
+        error err;
+        auto success = fetch(column, value, err);
 
-        if (!res.ok()) {
-            if (res.code().value() == static_cast<int>(errc::column_not_found))
+        if (!success) {
+            if (err.code().value() == static_cast<int>(errc::column_not_found))
                 return default_value;
 
-            throw res;
+            if (perr) {
+                *perr = std::move(err);
+                return T{};
+            } else {
+                throw err;
+            }
         }
 
         auto ptr = get_if<T>(& value);
@@ -129,18 +157,24 @@ private:
 
     template <typename T, typename ColumntType>
     typename std::enable_if<std::is_pointer<T>::value, T>::type
-    get_or_helper (ColumntType column, T const & default_value)
+    get_or_helper (ColumntType column, T const & default_value, error * perr = nullptr)
     {
         // Assign type to value
         value_type value = value_type::make_zero<typename std::remove_pointer<T>::type>();
 
-        auto res = fetch(column, value);
+        error err;
+        auto success = fetch(column, value, err);
 
-        if (!res.ok()) {
-            if (res.code().value() == static_cast<int>(errc::column_not_found))
+        if (!success) {
+            if (err.code().value() == static_cast<int>(errc::column_not_found))
                 return default_value;
 
-            throw res;
+            if (perr) {
+                *perr = std::move(err);
+                return T{};
+            } else {
+                throw err;
+            }
         }
 
         auto ptr = reinterpret_cast<T>(get_if<typename std::remove_pointer<T>::type>(& value));
@@ -180,33 +214,33 @@ public:
     /**
      */
     template <typename T>
-    T get (int column)
+    T get (int column, error * perr = nullptr)
     {
-        return get_helper<T, int>(column);
+        return get_helper<T, int>(column, perr);
     }
 
     /**
      */
     template <typename T>
-    T get (std::string const & column)
+    T get (std::string const & column, error * perr = nullptr)
     {
-        return get_helper<T, std::string const &>(column);
+        return get_helper<T, std::string const &>(column, perr);
     }
 
     /**
      */
     template <typename T>
-    T get_or (int column, T const & default_value)
+    T get_or (int column, T const & default_value, error * perr = nullptr)
     {
-        return get_or_helper<T, int>(column, default_value);
+        return get_or_helper<T, int>(column, default_value, perr);
     }
 
     /**
      */
     template <typename T>
-    T get_or (std::string const & column, T const & default_value)
+    T get_or (std::string const & column, T const & default_value, error * perr = nullptr)
     {
-        return get_or_helper<T, std::string const &>(column, default_value);
+        return get_or_helper<T, std::string const &>(column, default_value, perr);
     }
 
     /**
@@ -215,10 +249,11 @@ public:
     column_wrapper operator [] (std::string const & column_name)
     {
         value_type v;
-        auto res = fetch(column_name, v);
+        error err;
+        auto success = fetch(column_name, v, err);
 
-        if (!res.ok())
-            throw res;
+        if (!success)
+            throw err;
 
         return column_wrapper(std::move(v));
     }

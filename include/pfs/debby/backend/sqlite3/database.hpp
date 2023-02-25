@@ -60,10 +60,10 @@ struct database
      * @param create_if_missing If @c true create database if it missing.
      */
     static DEBBY__EXPORT rep_type make_r (pfs::filesystem::path const & path
-        , bool create_if_missing = true);
+        , bool create_if_missing = true, error * perr = nullptr);
 
     static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
-        , bool create_if_missing = true);
+        , bool create_if_missing = true, error * perr = nullptr);
 };
 
 }}} // namespace debby::backend::sqlite3

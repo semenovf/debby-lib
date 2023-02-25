@@ -69,14 +69,6 @@ public:
         , std::string const & description)
         : pfs::error(make_error_code(ec), description)
     {}
-
-    bool ok () const
-    {
-        return !*this;
-    }
 };
-
-// FIXME DEPRECATED
-using result_status = error;
 
 } // namespace debby

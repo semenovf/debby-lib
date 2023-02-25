@@ -33,13 +33,13 @@ private:
     rep_type _rep;
 
 private:
-    statement () = delete;
     DEBBY__EXPORT statement (rep_type && rep);
     statement (statement const & other) = delete;
     statement & operator = (statement const & other) = delete;
     statement & operator = (statement && other) = delete;
 
 public:
+    DEBBY__EXPORT statement () = delete;
     DEBBY__EXPORT statement (statement && other) noexcept;
     DEBBY__EXPORT ~statement ();
 
@@ -49,7 +49,7 @@ public:
     /**
      * Executes prepared statement
      */
-    DEBBY__EXPORT result_type exec ();
+    DEBBY__EXPORT result_type exec (error * perr = nullptr);
 
     /**
      */
@@ -58,23 +58,23 @@ public:
     /**
      */
     template <typename T>
-    void bind (int index, T && value)
+    bool bind (int index, T && value, error * perr = nullptr)
     {
-        Backend::template bind<T>(& _rep, index, std::forward<T>(value));
+        return Backend::template bind<T>(& _rep, index, std::forward<T>(value), perr);
     }
 
     /**
      */
     template <typename T>
-    void bind (std::string const & placeholder, T && value)
+    bool bind (std::string const & placeholder, T && value, error * perr = nullptr)
     {
-        Backend::template bind<T>(& _rep, placeholder, std::forward<T>(value));
+        return Backend::template bind<T>(& _rep, placeholder, std::forward<T>(value), perr);
     }
 
     /**
      */
-    DEBBY__EXPORT void bind (int index, std::string const & value
-        , transient_enum transient);
+    DEBBY__EXPORT bool bind (int index, std::string const & value
+        , transient_enum transient, error * perr = nullptr);
 
     /**
      * Set the @a placeholder to be bound to string @a value in the prepared
@@ -83,12 +83,14 @@ public:
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
-    DEBBY__EXPORT void bind (std::string const & placeholder
-        , std::string const & value, transient_enum transient);
+    DEBBY__EXPORT bool bind (std::string const & placeholder
+        , std::string const & value, transient_enum transient
+        , error * perr = nullptr);
 
     /**
      */
-    DEBBY__EXPORT void bind (int index, string_view value, transient_enum transient);
+    DEBBY__EXPORT bool bind (int index, string_view value
+        , transient_enum transient, error * perr = nullptr);
 
     /**
      * Set the @a placeholder to be bound to string @a value in the prepared
@@ -97,12 +99,13 @@ public:
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
-    DEBBY__EXPORT void bind (std::string const & placeholder, string_view value
-        , transient_enum transient);
+    DEBBY__EXPORT bool bind (std::string const & placeholder, string_view value
+        , transient_enum transient, error * perr = nullptr);
 
     /**
      */
-    DEBBY__EXPORT void bind (int index, char const * value, transient_enum transient);
+    DEBBY__EXPORT bool bind (int index, char const * value
+        , transient_enum transient, error * perr = nullptr);
 
     /**
      * Set the @a placeholder to be bound to C-string @a value with in the
@@ -111,40 +114,42 @@ public:
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
-    DEBBY__EXPORT void bind (std::string const & placeholder
-        , char const * value, transient_enum transient);
+    DEBBY__EXPORT bool bind (std::string const & placeholder
+        , char const * value, transient_enum transient, error * perr = nullptr);
 
     /**
      * Set the @a index to be bound to @a blob in the prepared statement.
      */
-    DEBBY__EXPORT void bind (int index, std::uint8_t const * blob, std::size_t len
-        , transient_enum transient);
+    DEBBY__EXPORT bool bind (int index, std::uint8_t const * blob, std::size_t len
+        , transient_enum transient, error * perr = nullptr);
 
     /**
      * Set the @a index to be bound to @a blob in the prepared statement.
      */
-    inline void bind (int index, char const * blob, std::size_t len
-        , transient_enum transient)
+    inline bool bind (int index, char const * blob, std::size_t len
+        , transient_enum transient, error * perr = nullptr)
     {
-        bind(index, reinterpret_cast<std::uint8_t const *>(blob), len, transient);
+        return bind(index, reinterpret_cast<std::uint8_t const *>(blob), len
+            , transient, perr);
     }
 
     /**
      * Set the @a index to be bound to @a blob in the prepared statement.
      */
-    inline void bind (int index, std::vector<std::uint8_t> blob
-        , transient_enum transient)
+    inline bool bind (int index, std::vector<std::uint8_t> blob
+        , transient_enum transient, error * perr = nullptr)
     {
-        bind(index, blob.data(), blob.size(), transient);
+        return bind(index, blob.data(), blob.size(), transient, perr);
     }
 
     /**
      * Set the @a index to be bound to @a blob in the prepared statement.
      */
-    inline void bind (int index, std::vector<char> const & blob
-        , transient_enum transient)
+    inline bool bind (int index, std::vector<char> const & blob
+        , transient_enum transient, error * perr = nullptr)
     {
-        bind(index, reinterpret_cast<std::uint8_t const *>(blob.data()), blob.size(), transient);
+        return bind(index, reinterpret_cast<std::uint8_t const *>(blob.data())
+            , blob.size(), transient, perr);
     }
 
     /**
@@ -154,27 +159,31 @@ public:
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
      */
-    DEBBY__EXPORT void bind (std::string const & placeholder
-        , std::uint8_t const * blob, std::size_t len, transient_enum transient);
+    DEBBY__EXPORT bool bind (std::string const & placeholder
+        , std::uint8_t const * blob, std::size_t len
+        , transient_enum transient, error * perr = nullptr);
 
-    inline void bind (std::string const & placeholder
-        , char const * blob, std::size_t len, transient_enum transient)
+    inline bool bind (std::string const & placeholder
+        , char const * blob, std::size_t len
+        , transient_enum transient, error * perr = nullptr)
     {
-        bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob)
-            , len, transient);
+        return bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob)
+            , len, transient, perr);
     }
 
-    inline void bind (std::string const & placeholder
-        , std::vector<std::uint8_t> const & blob, transient_enum transient)
+    inline bool bind (std::string const & placeholder
+        , std::vector<std::uint8_t> const & blob, transient_enum transient
+        , error * perr = nullptr)
     {
-        bind(placeholder, blob.data(), blob.size(), transient);
+        return bind(placeholder, blob.data(), blob.size(), transient, perr);
     }
 
-    inline void bind (std::string const & placeholder
-        , std::vector<char> const & blob, transient_enum transient)
+    inline bool bind (std::string const & placeholder
+        , std::vector<char> const & blob, transient_enum transient
+        , error * perr = nullptr)
     {
-        bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob.data())
-            , blob.size(), transient);
+        return bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob.data())
+            , blob.size(), transient, perr);
     }
 
 public:
