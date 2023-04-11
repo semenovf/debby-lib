@@ -89,7 +89,7 @@ struct unified_value: public basic_value_t
      * Construct unified_value from string_view.
      */
     unified_value (string_view x)
-        : basic_value_t(x.to_string())
+        : basic_value_t(pfs::to_string(x))
     {}
 
     /**
