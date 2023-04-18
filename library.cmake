@@ -12,6 +12,7 @@ project(debby LANGUAGES CXX C)
 option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
 option(DEBBY__BUILD_STATIC "Enable build static library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
+option(DEBBY__ENABLE_SQLITE_FTS5 "Enable support for `FTS5` in `Sqlite3` backend" OFF)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
 option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" ON)
 option(DEBBY__ENABLE_MAP  "Enable `in-memory` map backend" ON)
@@ -49,6 +50,17 @@ if (DEBBY__ENABLE_SQLITE3)
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp)
 
     list(APPEND _debby__definitions "DEBBY__SQLITE3_ENABLED=1")
+
+    # Enable full-text search (FTS) functionality in sqlite3
+    if (DEBBY__ENABLE_SQLITE_FTS5)
+        if (DEBBY__BUILD_SHARED)
+            portable_target(DEFINITIONS ${PROJECT_NAME} PRIVATE "SQLITE_ENABLE_FTS5=1")
+        endif()
+
+        if (DEBBY__BUILD_STATIC)
+            portable_target(DEFINITIONS ${STATIC_PROJECT_NAME} PRIVATE "SQLITE_ENABLE_FTS5=1")
+        endif()
+    endif()
 endif()
 
 if (NOT TARGET pfs::common)
