@@ -281,10 +281,10 @@ database::make_kv (pfs::filesystem::path const & path, options_type opts, error 
         opts = default_options();
 
     MDBX_txn * txn = nullptr;
-    auto rc = MDBX_SUCCESS;
+    int rc = MDBX_SUCCESS;
 
     do {
-        auto rc = mdbx_env_create(& rep.env);
+        rc = mdbx_env_create(& rep.env);
 
         if (rc != MDBX_SUCCESS)
             break;
