@@ -4,7 +4,7 @@
 // This file is part of `debby-lib`.
 //
 // Changelog:
-//      2023.02.06 Initial version.
+//      2023.07.13 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "pfs/debby/error.hpp"
@@ -12,25 +12,25 @@
 #include "pfs/filesystem.hpp"
 #include <string>
 
-struct MDBX_env;
+struct MDB_env;
 
 namespace debby {
 namespace backend {
-namespace libmdbx {
+namespace lmdb {
 
 struct database
 {
     using key_type     = std::string;
-    using native_type  = std::uint32_t; // Must be same type as MDBX_dbi
+    using native_type  = unsigned int; // Must be same type as MDB_dbi
 
     struct options_type {
-        std::uint32_t env; // See MDBX_env_flags_t
-        std::uint32_t db;  // See MDBX_db_flags_t
+        std::uint32_t env;
+        std::uint32_t db;
     };
 
     struct rep_type
     {
-        MDBX_env * env {nullptr};
+        MDB_env * env {nullptr};
         native_type dbh {0};
         pfs::filesystem::path path;
     };
@@ -50,4 +50,4 @@ struct database
         , bool create_if_missing, error * perr = nullptr);
 };
 
-}}} // namespace debby::backend::libmdbx
+}}} // namespace debby::backend::lmdb

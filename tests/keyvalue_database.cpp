@@ -30,6 +30,10 @@
 #   include "pfs/debby/backend/libmdbx/database.hpp"
 #endif
 
+#if DEBBY__LMDB_ENABLED
+#   include "pfs/debby/backend/lmdb/database.hpp"
+#endif
+
 #if DEBBY__ROCKSDB_ENABLED
 #   include "pfs/debby/backend/rocksdb/database.hpp"
 #endif
@@ -192,6 +196,13 @@ TEST_CASE("sqlite3 set/get") {
 TEST_CASE("libdbmx set/get") {
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-libmdbx-kv.db");
     check_persistance_storage<debby::backend::libmdbx::database>(db_path);
+}
+#endif
+
+#if DEBBY__LIBMDBX_ENABLED
+TEST_CASE("lmdb set/get") {
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-lmdb-kv.db");
+    check_persistance_storage<debby::backend::lmdb::database>(db_path);
 }
 #endif
 

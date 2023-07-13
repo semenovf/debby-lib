@@ -15,6 +15,7 @@ option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
 option(DEBBY__ENABLE_SQLITE_FTS5 "Enable support for `FTS5` in `Sqlite3` backend" OFF)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
 option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" ON)
+option(DEBBY__ENABLE_LMDB "Enable `LMDB` backend" ON)
 option(DEBBY__ENABLE_MAP  "Enable `in-memory` map backend" ON)
 option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
 
@@ -120,6 +121,13 @@ if (DEBBY__ENABLE_LIBMDBX)
         portable_target(LINK ${STATIC_PROJECT_NAME} PRIVATE mdbx-static)
     endif()
 endif(DEBBY__ENABLE_LIBMDBX)
+
+if (DEBBY__ENABLE_LMDB)
+    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/database.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/lib/mdb.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/lib/midl.c)
+    list(APPEND _debby__definitions "DEBBY__LMDB_ENABLED=1")
+endif(DEBBY__ENABLE_LMDB)
 
 if (DEBBY__BUILD_SHARED)
     portable_target(SOURCES ${PROJECT_NAME} ${_debby__sources})

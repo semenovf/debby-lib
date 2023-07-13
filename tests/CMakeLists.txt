@@ -18,9 +18,15 @@ list(APPEND TESTS
     cached_statement
     unified_value)
 
+if (TARGET pfs::debby)
+    set(_debby_lib pfs::debby)
+elseif(TARGET pfs::debby::static)
+    set(_debby_lib pfs::debby::static)
+endif()
+
 foreach (t ${TESTS})
     portable_target(ADD_TEST ${t}
         ENABLE_COVERAGE ${DEBBY__ENABLE_COVERAGE}
         SOURCES ${t}.cpp ${${t}_SOURCES}
-        LINK pfs::debby)
+        LINK ${_debby_lib})
 endforeach()
