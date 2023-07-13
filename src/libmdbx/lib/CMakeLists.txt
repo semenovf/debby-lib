@@ -1,5 +1,5 @@
 ##
-##  Copyright 2020-2022 Leonid Yuriev <leo@yuriev.ru>
+##  Copyright 2020-2023 Leonid Yuriev <leo@yuriev.ru>
 ##  and other libmdbx authors: please see AUTHORS file.
 ##  All rights reserved.
 ##
@@ -85,10 +85,10 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git" AND
   set(MDBX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src")
 elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/VERSION.txt" AND
     EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.c" AND
-    #EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.c++" AND
+    # EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx.c++" AND
     EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/config.h.in"
-    #AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/man1" AND
-    #EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_chk.c"
+    # EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/man1" AND
+    # EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/mdbx_chk.c"
     )
   set(MDBX_AMALGAMATED_SOURCE TRUE)
   set(MDBX_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
