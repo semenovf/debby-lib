@@ -66,14 +66,12 @@ endif()
 
 if (NOT TARGET pfs::common)
     portable_target(INCLUDE_PROJECT
-        ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/pfs/common/library.cmake)
+        ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/2ndparty/common/library.cmake)
 endif()
 
 if (DEBBY__ENABLE_ROCKSDB)
     if (NOT DEBBY__ROCKSDB_ROOT)
-        set(DEBBY__ROCKSDB_ROOT
-            "${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/rocksdb"
-            CACHE INTERNAL "")
+        set(DEBBY__ROCKSDB_ROOT "${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/rocksdb" CACHE INTERNAL "")
     endif()
 
     _portable_target_status(${PROJECT_NAME} "RocksDB root: [${DEBBY__ROCKSDB_ROOT}]")

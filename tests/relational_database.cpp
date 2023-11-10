@@ -39,8 +39,7 @@ void check (pfs::filesystem::path const & db_path)
 {
     using database_t = debby::relational_database<Backend>;
 
-    if (fs::exists(db_path) && fs::is_regular_file(db_path))
-        fs::remove(db_path);
+    database_t::wipe(db_path);
 
     auto db = database_t::make(db_path);
 
@@ -84,6 +83,8 @@ void check (pfs::filesystem::path const & db_path)
     REQUIRE_FALSE(db.exists("one"));
     REQUIRE_FALSE(db.exists("two"));
     REQUIRE_FALSE(db.exists("three"));
+
+    database_t::wipe(db_path);
 }
 
 #if DEBBY__SQLITE3_ENABLED

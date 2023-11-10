@@ -138,6 +138,21 @@ database::make_r (fs::path const & path, bool create_if_missing, error * perr)
     return rep;
 }
 
+bool database::wipe (fs::path const & path, error * perr)
+{
+    std::error_code ec;
+
+    if (fs::exists(path, ec) && fs::is_regular_file(path, ec))
+        fs::remove(path, ec);
+
+    if (ec) {
+        pfs::throw_or(perr, ec, tr::_("wipe Sqlite3 database"), fs::utf8_encode(path));
+        return false;
+    }
+
+    return true;
+}
+
 }} // namespace backend::sqlite3
 
 #define BACKEND backend::sqlite3::database

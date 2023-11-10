@@ -37,6 +37,11 @@ struct database_st
     };
 
     static DEBBY__EXPORT rep_type make_kv (error * perr = nullptr);
+
+    static bool wipe (error * /*perr*/ = nullptr)
+    {
+        return true;
+    }
 };
 
 // Thread safe backend
@@ -61,6 +66,11 @@ struct database_mt
     };
 
     static DEBBY__EXPORT rep_type make_kv (error * perr = nullptr);
+
+    static bool wipe (error * /*perr*/ = nullptr)
+    {
+        return true;
+    }
 };
 
 }}} // namespace debby::backend::in_memory

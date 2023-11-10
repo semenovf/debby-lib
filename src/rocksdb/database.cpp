@@ -252,6 +252,21 @@ database::make_kv (pfs::filesystem::path const & path, bool create_if_missing
     return make_kv(path, & opts, perr);
 }
 
+bool database::wipe (fs::path const & path, error * perr)
+{
+    std::error_code ec;
+
+    if (fs::exists(path, ec) && fs::is_directory(path, ec))
+        fs::remove_all(path, ec);
+
+    if (ec) {
+        pfs::throw_or(perr, ec, tr::_("wipe RocksDB database"), fs::utf8_encode(path));
+        return false;
+    }
+
+    return true;
+}
+
 }} // namespace backend::rocksdb
 
 #define BACKEND backend::rocksdb::database

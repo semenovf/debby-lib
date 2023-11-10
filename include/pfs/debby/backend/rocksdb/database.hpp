@@ -65,6 +65,8 @@ struct database
      */
     static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
         , bool create_if_missing, bool optimize_for_small_db = true, error * perr = nullptr);
+
+    static DEBBY__EXPORT bool wipe (pfs::filesystem::path const & path, error * perr = nullptr);
 };
 
 }}} // namespace debby::backend::rocksdb

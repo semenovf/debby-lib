@@ -140,8 +140,7 @@ void check_persistance_storage (pfs::filesystem::path const & db_path)
     using database_t = debby::keyvalue_database<Backend>;
     using settings_t = debby::settings<Backend>;
 
-    if (fs::exists(db_path))
-        fs::remove_all(db_path);
+    database_t::wipe(db_path);
 
     auto db = database_t::make(db_path, true);
     check_keyvalue_database(db);
@@ -151,8 +150,7 @@ void check_persistance_storage (pfs::filesystem::path const & db_path)
 
     // In Windows database must be closed/destructed before to avoid exception:
     // "The process cannot access the file because it is being used by another process"
-    if (fs::exists(db_path))
-        fs::remove_all(db_path);
+    database_t::wipe(db_path);
 }
 
 #if DEBBY__MAP_ENABLED

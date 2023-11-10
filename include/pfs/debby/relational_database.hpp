@@ -136,6 +136,17 @@ public:
         auto ptr = new relational_database {Backend::make_r(std::forward<Args>(args)...)};
         return std::unique_ptr<relational_database>(ptr);
     }
+
+    /**
+     * Wipes database (e.g. removes files associated with database if possible).
+     *
+     * @return @c true if removing was successful, @c false otherwise.
+     */
+    template <typename ...Args>
+    static bool wipe (Args &&... args)
+    {
+        return Backend::wipe(std::forward<Args>(args)...);
+    }
 };
 
 } // namespace debby

@@ -181,5 +181,7 @@ TEST_CASE("benchmark") {
     db.remove_all();
 
     do_benchmarks(& db, "noncached", "cached");
+
+    database_t::wipe(db_path);
 }
 

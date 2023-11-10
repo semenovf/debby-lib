@@ -208,6 +208,17 @@ public:
         auto ptr = new keyvalue_database {Backend::make_kv(std::forward<Args>(args)...)};
         return std::unique_ptr<keyvalue_database>(ptr);
     }
+
+    /**
+     * Wipes database (e.g. removes files associated with database if possible).
+     *
+     * @return @c true if removing was successful, @c false otherwise.
+     */
+    template <typename ...Args>
+    static bool wipe (Args &&... args)
+    {
+        return Backend::wipe(std::forward<Args>(args)...);
+    }
 };
 
 } // namespace debby

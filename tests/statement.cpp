@@ -245,6 +245,8 @@ void check (pfs::filesystem::path const & db_path)
             REQUIRE(result.is_done());
         }
     }
+
+    database_t::wipe(db_path);
 }
 
 #if DEBBY__SQLITE3_ENABLED

@@ -346,6 +346,32 @@ database::make_kv (pfs::filesystem::path const & path
     return make_kv(path, opts, perr);
 }
 
+bool database::wipe (fs::path const & path, error * perr)
+{
+    std::error_code ec1;
+    std::error_code ec2;
+
+    auto lck_path {path};
+    lck_path += PFS__LITERAL_PATH("-lock");
+
+    if (fs::exists(path, ec1) && fs::is_regular_file(path, ec1))
+        fs::remove(path, ec1);
+
+    if (fs::exists(lck_path, ec2) && fs::is_regular_file(lck_path, ec2))
+        fs::remove(lck_path, ec2);
+
+    if (ec1 || ec2) {
+        if (ec1)
+            pfs::throw_or(perr, ec1, tr::_("wipe LMDB database"), fs::utf8_encode(path));
+        else if (ec2)
+            pfs::throw_or(perr, ec2, tr::_("wipe LMDB database"), fs::utf8_encode(lck_path));
+
+        return false;
+    }
+
+    return true;
+}
+
 }} // namespace backend::lmdb
 
 #define BACKEND backend::lmdb::database
