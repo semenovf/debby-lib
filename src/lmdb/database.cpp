@@ -28,7 +28,7 @@ namespace lmdb {
 static_assert(std::is_same<database::native_type, MDB_dbi>::value
     , "lmdb::database::native_type must be same type as MDBX_dbi");
 
-static char const * NULL_HANDLER = tr::noop_("uninitialized database handler");
+static char const * NULL_HANDLER_TEXT = tr::noop_("uninitialized database handler");
 
 template <typename T>
 struct mv_data_caster;
@@ -62,7 +62,7 @@ static bool get (database::rep_type const * rep
     , database::key_type const & key, std::string * string_result
     , blob_t * blob_result, error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     MDB_txn * txn = nullptr;
     int rc = MDB_SUCCESS;
@@ -137,7 +137,7 @@ static bool get (database::rep_type const * rep
 static bool remove (database::rep_type * rep, database::key_type const & key
     , error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     MDB_txn * txn = nullptr;
     int rc = MDB_SUCCESS;
@@ -197,7 +197,7 @@ static bool remove (database::rep_type * rep, database::key_type const & key
 static bool put (database::rep_type * rep, database::key_type const & key
     , char const * data, std::size_t len, error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     // Attempt to write `null` data interpreted as delete operation for key
     if (!data)

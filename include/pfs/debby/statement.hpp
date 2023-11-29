@@ -11,6 +11,7 @@
 #pragma once
 #include "error.hpp"
 #include "exports.hpp"
+#include "pfs/c++support.hpp"
 #include "pfs/string_view.hpp"
 #include <string>
 #include <vector>
@@ -51,9 +52,9 @@ public:
      */
     DEBBY__EXPORT result_type exec (error * perr = nullptr);
 
-    /**
-     */
-    DEBBY__EXPORT int rows_affected () const;
+    // DEPRECATED
+    // PFS__DEPRECATED
+    // DEBBY__EXPORT int rows_affected () const;
 
     /**
      */

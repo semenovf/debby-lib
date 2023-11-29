@@ -4,9 +4,11 @@ LOG_FILE='download.log'
 GIT_DOWNLOADER="git clone"
 
 ROCKSDB_RELEASE=v6.29.5
+POSTGRESQL_RELEASE=REL_16_1
 
 # HTTPS
-HTTPS_SOURCES="--depth 1 -b ${ROCKSDB_RELEASE} --single-branch https://github.com/facebook/rocksdb.git rocksdb"
+HTTPS_SOURCES="--depth 1 -b ${ROCKSDB_RELEASE} --single-branch https://github.com/facebook/rocksdb.git rocksdb
+--depth 1 -b ${POSTGRESQL_RELEASE} --single-branch https://github.com/postgres/postgres.git postgres"
 
 DEFAULT_SOURCES=${HTTPS_SOURCES}
 DEFAULT_DOWNLOADER=${GIT_DOWNLOADER}

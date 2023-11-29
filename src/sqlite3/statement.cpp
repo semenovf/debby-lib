@@ -18,7 +18,7 @@
 
 namespace debby {
 
-static char const * NULL_HANDLER = "uninitialized statement handler";
+static char const * NULL_HANDLER_TEXT = "uninitialized statement handler";
 
 namespace backend {
 namespace sqlite3 {
@@ -35,7 +35,7 @@ static bool bind_helper_func (statement::rep_type * rep, int index
     , std::function<int (int /*index*/)> && sqlite3_binder_func
     , error * perr)
 {
-    PFS__ASSERT(rep->sth, NULL_HANDLER);
+    PFS__ASSERT(rep->sth, NULL_HANDLER_TEXT);
 
     // In sqlite index must be started from 1
     int rc = sqlite3_binder_func(index + 1);
@@ -63,7 +63,7 @@ static bool bind_helper_func (statement::rep_type * rep
     , std::function<int (int /*index*/)> && sqlite3_binder_func
     , error * perr)
 {
-    PFS__ASSERT(rep->sth, NULL_HANDLER);
+    PFS__ASSERT(rep->sth, NULL_HANDLER_TEXT);
 
     int index = sqlite3_bind_parameter_index(rep->sth, placeholder.c_str());
 
@@ -371,25 +371,26 @@ statement<BACKEND>::operator bool () const noexcept
     return _rep.sth != nullptr;
 }
 
-template <>
-int
-statement<BACKEND>::rows_affected () const
-{
-    PFS__ASSERT(_rep.sth, NULL_HANDLER);
-
-    auto dbh = sqlite3_db_handle(_rep.sth);
-
-    PFS__ASSERT(dbh, NULL_HANDLER);
-
-    //return sqlite3_changes64(_sth);
-    return sqlite3_changes(dbh);
-}
+// DEPRECATED
+// template <>
+// int
+// statement<BACKEND>::rows_affected () const
+// {
+//     PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
+//
+//     auto dbh = sqlite3_db_handle(_rep.sth);
+//
+//     PFS__ASSERT(dbh, NULL_HANDLER_TEXT);
+//
+//     //return sqlite3_changes64(_sth);
+//     return sqlite3_changes(dbh);
+// }
 
 template <>
 statement<BACKEND>::result_type
 statement<BACKEND>::exec (error * perr)
 {
-    PFS__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
 
     std::error_code ec;
     backend::sqlite3::result::status status {backend::sqlite3::result::INITIAL};

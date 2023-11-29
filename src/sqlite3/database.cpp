@@ -25,30 +25,20 @@ namespace fs = pfs::filesystem;
 namespace debby {
 
 int constexpr MAX_BUSY_TIMEOUT = 1000; // 1 second
-char const * NULL_HANDLER = tr::noop_("uninitialized database handler");
+static char const * NULL_HANDLER_TEXT = tr::noop_("uninitialized database handler");
 
 namespace backend {
 namespace sqlite3 {
 
 static bool query (database::rep_type const * rep, std::string const & sql, error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     int rc = sqlite3_exec(rep->dbh, sql.c_str(), nullptr, nullptr, nullptr);
 
     if (SQLITE_OK != rc) {
-        error err {
-              errc::sql_error
-            , build_errstr(rc, rep->dbh)
-            , sql
-        };
-
-        if (perr) {
-            *perr = std::move(err);
-            return false;
-        } else {
-            throw err;
-        }
+        pfs::throw_or(perr, error {errc::sql_error, build_errstr(rc, rep->dbh), sql});
+        return false;
     }
 
     return true;
@@ -87,7 +77,8 @@ database::make_r (fs::path const & path, bool create_if_missing, error * perr)
         if (!rep.dbh) {
             // Unable to allocate memory for database handler.
             // Internal error code.
-            throw error { errc::bad_alloc };
+            pfs::throw_or(perr, error {errc::bad_alloc});
+            return rep;
         } else {
             sqlite3_close_v2(rep.dbh);
             rep.dbh = nullptr;
@@ -103,14 +94,8 @@ database::make_r (fs::path const & path, bool create_if_missing, error * perr)
                 e = errc::backend_error;
             }
 
-            error err { e, fs::utf8_encode(path), build_errstr(rc, rep.dbh) };
-
-            if (perr) {
-                *perr = std::move(err);
-                return rep_type{};
-            } else {
-                throw err;
-            }
+            pfs::throw_or(perr, error { e, fs::utf8_encode(path), build_errstr(rc, rep.dbh) });
+            return rep;
         }
     } else {
         // NOTE what for this call ?
@@ -125,13 +110,8 @@ database::make_r (fs::path const & path, bool create_if_missing, error * perr)
         if (!success) {
             sqlite3_close_v2(rep.dbh);
             rep.dbh = nullptr;
-
-            if (perr) {
-                *perr = std::move(err);
-                return rep_type{};
-            } else {
-                throw err;
-            }
+            pfs::throw_or(perr, err);
+            return rep;
         }
     }
 
@@ -155,7 +135,7 @@ bool database::wipe (fs::path const & path, error * perr)
 
 }} // namespace backend::sqlite3
 
-#define BACKEND backend::sqlite3::database
+using BACKEND = backend::sqlite3::database;
 
 template <>
 relational_database<BACKEND>::relational_database (rep_type && rep)
@@ -222,7 +202,7 @@ template <>
 relational_database<BACKEND>::statement_type
 relational_database<BACKEND>::prepare (std::string const & sql, bool cache, error * perr)
 {
-    PFS__ASSERT(_rep.dbh, NULL_HANDLER);
+    PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
 
     auto pos = _rep.cache.find(sql);
 
@@ -265,13 +245,13 @@ template <>
 std::size_t
 relational_database<BACKEND>::rows_count (std::string const & table_name, error * perr)
 {
-    PFS__ASSERT(_rep.dbh, NULL_HANDLER);
+    PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
 
     std::size_t count = 0;
     std::string sql = fmt::format("SELECT COUNT(1) as count FROM `{}`"
         , table_name);
 
-    statement_type stmt = prepare(sql, perr);
+    statement_type stmt = prepare(sql, false, perr);
 
     if (stmt) {
         auto res = stmt.exec();
@@ -296,12 +276,12 @@ template <>
 std::vector<std::string>
 relational_database<BACKEND>::tables (std::string const & pattern, error * perr)
 {
-    PFS__ASSERT(_rep.dbh, NULL_HANDLER);
+    PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
 
     std::string sql = std::string{"SELECT name FROM sqlite_master "
         "WHERE type='table' ORDER BY name"};
 
-    auto stmt = prepare(sql, perr);
+    auto stmt = prepare(sql, false, perr);
     std::vector<std::string> list;
 
     if (stmt) {
@@ -342,7 +322,7 @@ void
 relational_database<BACKEND>::remove (std::vector<std::string> const & tables
     , error * perr)
 {
-    PFS__ASSERT(_rep.dbh, NULL_HANDLER);
+    PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
 
     if (tables.empty())
         return;
@@ -392,9 +372,7 @@ bool
 relational_database<BACKEND>::exists (std::string const & name, error * perr)
 {
     auto stmt = prepare(
-        fmt::format("SELECT name FROM sqlite_master"
-            " WHERE type='table' AND name='{}'"
-            , name), perr);
+        fmt::format("SELECT name FROM sqlite_master"" WHERE type='table' AND name='{}'", name), false, perr);
 
     if (stmt) {
         auto res = stmt.exec();
@@ -427,13 +405,8 @@ database::make_kv (pfs::filesystem::path const & path, bool create_if_missing, e
     if (!success) {
         sqlite3_close_v2(rep.dbh);
         rep.dbh = nullptr;
-
-        if (perr) {
-            *perr = std::move(err);
-            return rep_type{};
-        } else {
-            throw err;
-        }
+        pfs::throw_or(perr, std::move(err));
+        return rep;
     }
 
     return rep;
@@ -445,7 +418,7 @@ static bool get (database::rep_type const * rep
     , blob_t * blob_result
     , error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     error err;
     std::string sql = fmt::format("SELECT `value` FROM `debby` WHERE `key` = '{}'", key);
@@ -503,7 +476,7 @@ static bool get (database::rep_type const * rep
  */
 static bool remove (database::rep_type * rep, database::key_type const & key, error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
     std::string sql = fmt::format("DELETE FROM `debby` WHERE `key` = '{}'", key);
     return query(rep, sql, perr);
 }
@@ -511,7 +484,7 @@ static bool remove (database::rep_type * rep, database::key_type const & key, er
 static bool put (database::rep_type * rep, database::key_type const & key
     , char const * data, std::size_t len, error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     // Attempt to write `null` data interpreted as delete operation for key
     if (!data)

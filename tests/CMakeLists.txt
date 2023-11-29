@@ -11,12 +11,18 @@ project(debby-TESTS CXX C)
 
 list(APPEND TESTS
     keyvalue_database
+    psql_affinity
+    psql_cast_traits
     relational_database
     sqlite3_affinity
     sqlite3_cast_traits
     statement
     cached_statement
     unified_value)
+
+if (DEBBY__ENABLE_PSQL)
+    list(APPEND TESTS psql)
+endif()
 
 if (TARGET pfs::debby)
     set(_debby_lib pfs::debby)
