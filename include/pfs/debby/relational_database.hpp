@@ -117,6 +117,33 @@ public:
      */
     DEBBY__EXPORT bool exists (std::string const & name, error * perr = nullptr);
 
+    template <typename TransactionBody>
+    bool transaction (TransactionBody && func, error * perr = nullptr)
+    {
+        error err;
+        begin(& err);
+
+        if (err) {
+            pfs::throw_or(perr, err);
+            return false;
+        }
+
+        auto success = func(perr);
+
+        if (success) {
+            commit(& err);
+        } else {
+            rollback(& err);
+        }
+
+        if (err) {
+            pfs::throw_or(perr, err);
+            return false;
+        }
+
+        return success;
+    }
+
 public:
     /**
      * @throw debby::error on create/open data failure.
