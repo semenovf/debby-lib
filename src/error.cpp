@@ -40,8 +40,8 @@ std::string error_category::message (int ev) const
         case static_cast<int>(errc::sql_error):
             return std::string{"sql error"};
 
-        case static_cast<int>(errc::invalid_argument):
-            return std::string{"invalid argument"};
+        case static_cast<int>(errc::unsupported):
+            return std::string{"unsupported"};
 
         default: return std::string{"unknown debby error"};
     }

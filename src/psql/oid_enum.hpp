@@ -20,11 +20,12 @@ enum class oid_enum: unsigned int // See Oid definition
       boolean = 16 // #define BOOLOID 16
 // #define BYTEAOID 17
 // #define CHAROID 18
-    , name = 19// #define NAMEOID 19
-// #define INT8OID 20
-// #define INT2OID 21
+    , name = 19 // #define NAMEOID 19
+
+    , int16 = 21 // #define INT2OID 21
+    , int32 = 23 // #define INT4OID 23
+    , int64 = 20 // #define INT8OID 20
 // #define INT2VECTOROID 22
-// #define INT4OID 23
 // #define REGPROCOID 24
 // #define TEXTOID 25
 // #define OIDOID 26
@@ -46,8 +47,8 @@ enum class oid_enum: unsigned int // See Oid definition
 // #define BOXOID 603
 // #define POLYGONOID 604
 // #define LINEOID 628
-// #define FLOAT4OID 700
-// #define FLOAT8OID 701
+    , float32 = 700 // #define FLOAT4OID 700
+    , float64 = 701 // #define FLOAT8OID 701
 // #define UNKNOWNOID 705
 // #define CIRCLEOID 718
 // #define MONEYOID 790

@@ -20,62 +20,70 @@
 #   include "pfs/debby/backend/sqlite3/statement.hpp"
 #endif
 
+#if DEBBY__PSQL_ENABLED
+#   include "pfs/debby/backend/psql/database.hpp"
+#   include "pfs/debby/backend/psql/statement.hpp"
+#endif
+
 namespace fs = pfs::filesystem;
 
 namespace {
 std::string TABLE_NAME {"test"};
 
 std::string const CREATE_TABLE {
-    "CREATE TABLE IF NOT EXISTS `{}` ("
-        "`null` INTEGER"
-        ", `bool` INTEGER"
-        ", `int8` INTEGER"
-        ", `uint8` INTEGER"
-        ", `int16` INTEGER"
-        ", `uint16` INTEGER"
-        ", `int32` INTEGER"
-        ", `uint32` INTEGER"
-        ", `int64` INTEGER"
-        ", `uint64` INTEGER"
-        ", `float` REAL"
-        ", `double` REAL"
-        ", `text` TEXT"
-        ", `cstr` TEXT)"
+    "CREATE TABLE IF NOT EXISTS {} ("
+        "null_field INTEGER"
+        ", bool INTEGER"
+        ", int8 INTEGER"
+        ", uint8 INTEGER"
+        ", int16 INTEGER"
+        ", uint16 INTEGER"
+        ", int32 INTEGER"
+        ", uint32 INTEGER"
+        ", int64 INTEGER"
+        ", uint64 INTEGER"
+        ", float REAL"
+        ", double REAL"
+        ", text TEXT"
+        ", cstr TEXT)"
 };
 
-std::string const INSERT {
-    "INSERT INTO `{}` (`null`, `bool`, `int8`, `uint8`"
-        ", `int16`, `uint16`, `int32`, `uint32`"
-        ", `int64`, `uint64`, `float`, `double`"
-        ", `text`, `cstr`)"
+std::string const INSERT_SQLITE3 {
+    "INSERT INTO {} (null_field, bool, int8, uint8"
+        ", int16, uint16, int32, uint32"
+        ", int64, uint64, float, double"
+        ", text, cstr)"
     " VALUES (:null, :bool, :int8, :uint8"
         ", :int16, :uint16, :int32, :uint32"
         ", :int64, :uint64, :float, :double"
         ", :text, :cstr)"
 };
 
-std::string const SELECT_ALL {
-    "SELECT * FROM `{}`"
+std::string const INSERT_PSQL {
+    "INSERT INTO {} (null_field, bool, int8, uint8"
+        ", int16, uint16, int32, uint32"
+        ", int64, uint64, float, double"
+        ", text, cstr)"
+    " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)"
 };
 
-std::string const SELECT {
-    "SELECT * FROM `{}` WHERE `int8` = :int8"
+std::string const SELECT_ALL {
+    "SELECT * FROM {}"
+};
+
+std::string const SELECT_SQLITE3 {
+    "SELECT * FROM {} WHERE int8 = :int8"
+};
+
+std::string const SELECT_PSQL {
+    "SELECT * FROM {} WHERE int8 = $1"
 };
 
 } // namespace
 
-template <typename Backend>
-void check (pfs::filesystem::path const & db_path)
+template <typename RelationalDatabaseType>
+void check (RelationalDatabaseType & db)
 {
-    using database_t = debby::relational_database<Backend>;
-
-    if (fs::exists(db_path) && fs::is_regular_file(db_path))
-        fs::remove(db_path);
-
-    auto db = database_t::make(db_path);
-
-    REQUIRE(db);
-
     db.remove_all();
 
     {
@@ -124,7 +132,7 @@ void check (pfs::filesystem::path const & db_path)
         CHECK_EQ(result.column_name(-1), std::string{});
         CHECK_EQ(result.column_name(14), std::string{});
 
-        CHECK_EQ(result.column_name(0), std::string{"null"});
+        CHECK_EQ(result.column_name(0), std::string{"null_field"});
         CHECK_EQ(result.column_name(1), std::string{"bool"});
         CHECK_EQ(result.column_name(2), std::string{"int8"});
         CHECK_EQ(result.column_name(3), std::string{"uint8"});
@@ -145,12 +153,12 @@ void check (pfs::filesystem::path const & db_path)
             }
 
             {
-                // Column `null` is INTEGER but contains null value
-                REQUIRE_EQ(result.template get<int *>("null"), nullptr);
-                REQUIRE_EQ(result.template get<std::string *>("null"), nullptr);
+                // Column `null_field` is INTEGER but contains null value
+                REQUIRE_EQ(result.template get<int *>("null_field"), nullptr);
+                REQUIRE_EQ(result.template get<std::string *>("null_field"), nullptr);
             }
 
-            CHECK_EQ(result.template get<int>("null"), 0);
+            CHECK_EQ(result.template get<int>("null_field"), 0);
             CHECK_EQ(result.template get<bool>("bool"), true);
             CHECK_EQ(result.template get<std::int8_t>("int8"), std::numeric_limits<std::int8_t>::min());
             CHECK_EQ(result.template get<std::uint8_t>("uint8"), std::numeric_limits<std::uint8_t>::max());
@@ -207,14 +215,14 @@ void check (pfs::filesystem::path const & db_path)
             }
 
             {
-                // `null` value results throwing exception for `direct` variable
+                // `null_field` value results throwing exception for `direct` variable
                 int n;
-                REQUIRE_THROWS((result["null"] >> n));
+                REQUIRE_THROWS((result["null_field"] >> n));
 
                 pfs::optional<int> opt;
 
-                // `null` value results nullopt
-                result["null"] >> opt;
+                // `null_field` value results nullopt
+                result["null_field"] >> opt;
                 REQUIRE_FALSE(opt.has_value());
             }
 
@@ -229,29 +237,89 @@ void check (pfs::filesystem::path const & db_path)
         CHECK(result.is_done());
     }
 
-    {
-        for (int i = 0; i < 2; i++) {
-            auto stmt = db.prepare(fmt::format(SELECT, TABLE_NAME), true);
+}
 
-            REQUIRE(stmt);
+template <typename RelationalDatabaseType>
+void prepared_select (RelationalDatabaseType & db, std::string const & sql)
+{
+    for (int i = 0; i < 2; i++) {
+        auto stmt = db.prepare(fmt::format(sql, TABLE_NAME), true);
 
+        REQUIRE(stmt);
+
+        if (sql == SELECT_SQLITE3)
             stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
+        else if (sql == SELECT_PSQL)
+            stmt.bind(1, std::numeric_limits<std::int8_t>::min());
 
-            auto result = stmt.exec();
+        auto result = stmt.exec();
 
-            while (result.has_more())
-                result.next();
+        while (result.has_more())
+            result.next();
 
-            REQUIRE(result.is_done());
-        }
+        REQUIRE(result.is_done());
     }
-
-    database_t::wipe(db_path);
 }
 
 #if DEBBY__SQLITE3_ENABLED
-TEST_CASE("sqlite3 statement") {
+TEST_CASE("sqlite3") {
+    using database_t = debby::relational_database<debby::backend::sqlite3::database>;
+
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
-    check<debby::backend::sqlite3::database>(db_path);
+    database_t::wipe(db_path);
+
+    auto db = database_t::make(db_path);
+
+    REQUIRE(db);
+
+    check(db);
+    prepared_select(db, SELECT_SQLITE3);
+
+    database_t::wipe(db_path);
+}
+#endif
+
+#if DEBBY__PSQL_ENABLED
+TEST_CASE("PostgreSQL") {
+    using database_t = debby::relational_database<debby::backend::psql::database>;
+
+    std::map<std::string, std::string> conninfo = {
+          {"host", "localhost"}
+        , {"port", "5432"} // Default port
+        , {"user", "test"}
+        , {"password", "12345678"}
+        , {"dbname", "postgres"}
+    };
+
+    std::string db_name {"debby"};
+    debby::error err;
+    database_t::wipe(db_name, conninfo.cbegin(), conninfo.cend(), & err);
+
+    if (err) {
+        MESSAGE("\n"
+            "=======================================================================================\n"
+            "Perhaps it was not possible to connect to the database\n"
+            "For testing purposes, the following prerequisites must be met:\n"
+            "\t* PostgresSQL instance must be started on localhost on port 5432;\n"
+            "\t* `test` login must be available with roles ...;\n"
+            "\t* password for test login must be `12345678`.\n"
+            "\n"
+            "Below instructions can help to create `test` user/login\n"
+            "$ psql --host=localhost --port=5432 --user=postgres\n"
+            "postgres=# CREATE ROLE test WITH LOGIN NOSUPERUSER CREATEDB NOCREATEROLE NOINHERIT NOREPLICATION CONNECTION LIMIT -1 PASSWORD '12345678'\n"
+            "postgres=# \\q\n\n"
+            "Check connection:\n"
+            "$ psql --host=localhost --port=5432 --user=test --database=postgres\n"
+            "=======================================================================================\n");
+    }
+
+    auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
+
+    REQUIRE(db);
+
+    check(db);
+    prepared_select(db, SELECT_PSQL);
+
+    database_t::wipe(db_name, conninfo.cbegin(), conninfo.cend(), & err);
 }
 #endif

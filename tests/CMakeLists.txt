@@ -21,7 +21,7 @@ list(APPEND TESTS
     unified_value)
 
 if (DEBBY__ENABLE_PSQL)
-    list(APPEND TESTS psql)
+    # list(APPEND TESTS psql)
 endif()
 
 if (TARGET pfs::debby)

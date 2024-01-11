@@ -65,6 +65,8 @@ public:
     }
 
     /**
+     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
+     * is thrown or an error is returned in @a *perr.
      */
     template <typename T>
     bool bind (std::string const & placeholder, T && value, error * perr = nullptr)
@@ -83,6 +85,9 @@ public:
      *
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
+     *
+     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
+     * is thrown or an error is returned in @a *perr.
      */
     DEBBY__EXPORT bool bind (std::string const & placeholder
         , std::string const & value, transient_enum transient
@@ -99,6 +104,9 @@ public:
      *
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
+     *
+     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
+     * is thrown or an error is returned in @a *perr.
      */
     DEBBY__EXPORT bool bind (std::string const & placeholder, string_view value
         , transient_enum transient, error * perr = nullptr);
@@ -114,6 +122,9 @@ public:
      *
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
+     *
+     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
+     * is thrown or an error is returned in @a *perr.
      */
     DEBBY__EXPORT bool bind (std::string const & placeholder
         , char const * value, transient_enum transient, error * perr = nullptr);
@@ -159,19 +170,24 @@ public:
      *
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
+     *
+     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
+     * is thrown or an error is returned in @a *perr.
      */
-    DEBBY__EXPORT bool bind (std::string const & placeholder
-        , std::uint8_t const * blob, std::size_t len
-        , transient_enum transient, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (std::string const & placeholder, std::uint8_t const * blob
+        , std::size_t len, transient_enum transient, error * perr = nullptr);
 
-    inline bool bind (std::string const & placeholder
-        , char const * blob, std::size_t len
+    inline bool bind (std::string const & placeholder, char const * blob, std::size_t len
         , transient_enum transient, error * perr = nullptr)
     {
         return bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob)
             , len, transient, perr);
     }
 
+    /**
+     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
+     * is thrown or an error is returned in @a *perr.
+     */
     inline bool bind (std::string const & placeholder
         , std::vector<std::uint8_t> const & blob, transient_enum transient
         , error * perr = nullptr)
@@ -179,6 +195,10 @@ public:
         return bind(placeholder, blob.data(), blob.size(), transient, perr);
     }
 
+    /**
+     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
+     * is thrown or an error is returned in @a *perr.
+     */
     inline bool bind (std::string const & placeholder
         , std::vector<char> const & blob, transient_enum transient
         , error * perr = nullptr)

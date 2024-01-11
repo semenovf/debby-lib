@@ -186,8 +186,14 @@ result<BACKEND>::fetch (int column, value_type & value, error & err) const noexc
     using namespace backend::psql;
     auto column_type = static_cast<oid_enum>(PQftype(_rep.sth, column));
 
+    auto raw_data = reinterpret_cast<char const *>(PQgetvalue(_rep.sth, _rep.row_index, column));
+    int size = PQgetlength(_rep.sth, _rep.row_index, column);
+
     switch (column_type) {
         case oid_enum::boolean:
+        case oid_enum::int16:
+        case oid_enum::int32:
+        case oid_enum::int64: {
 //         case SQLITE_INTEGER: {
 //             sqlite3_int64 n = sqlite3_column_int64(_rep.sth, column);
 //
@@ -207,10 +213,10 @@ result<BACKEND>::fetch (int column, value_type & value, error & err) const noexc
 //             } else { // std::nullptr_t, std::intmax_t
 //                 value = static_cast<std::intmax_t>(n);
 //             }
-//
-//             return true;
-//         }
-//
+
+            return true;
+        }
+
 //         case SQLITE_FLOAT: {
 //             double f = sqlite3_column_double(_rep.sth, column);
 //
@@ -237,9 +243,7 @@ result<BACKEND>::fetch (int column, value_type & value, error & err) const noexc
 //         }
 //
         case oid_enum::name: {
-            auto cstr = reinterpret_cast<char const *>(PQgetvalue(_rep.sth, _rep.row_index, column));
-            int size = PQgetlength(_rep.sth, _rep.row_index, column);
-            value = std::string(cstr, size);
+            value = std::string(raw_data, size);
             return true;
         }
 

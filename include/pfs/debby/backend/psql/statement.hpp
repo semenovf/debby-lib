@@ -15,6 +15,7 @@
 #include "pfs/debby/result.hpp"
 #include "pfs/type_traits.hpp"
 #include <string>
+#include <vector>
 
 struct pg_conn;
 
@@ -31,33 +32,35 @@ struct statement
     {
         native_type dbh;
         std::string name;
+        std::vector<std::string> param_transient_values;
+        std::vector<char const *> param_values;
+        std::vector<int> param_lengths;
+        std::vector<int> param_formats;
     };
 
     static DEBBY__EXPORT rep_type make (native_type dbh, std::string const & name);
 
-    // template <typename T>
-    // static bool bind_helper (rep_type * rep, int index, T && value, error * perr);
-    //
-    // template <typename T>
-    // static bool bind_helper (rep_type * rep, std::string const & placeholder
-    //     , T && value, error * perr);
-    //
-    // template <typename T>
-    // static bool bind (rep_type * rep, int index, T && value, error * perr)
-    // {
-    //     auto v = to_storage(std::forward<T>(value));
-    //     //bind_helper<T>(rep, index, std::move(v));
-    //     return bind_helper(rep, index, std::move(v), perr);
-    // }
-    //
-    // template <typename T>
-    // static bool bind (rep_type * rep, std::string const & placeholder
-    //     , T && value, error * perr)
-    // {
-    //     auto v = to_storage(std::forward<T>(value));
-    //     //bind_helper<T>(rep, placeholder, std::move(v));
-    //     return bind_helper(rep, placeholder, std::move(v), perr);
-    // }
+    template <typename T>
+    static bool bind_helper (rep_type * rep, int index, T && value, error * perr);
+
+    template <typename T>
+    static bool bind_helper (rep_type * rep, std::string const & placeholder
+        , T && value, error * perr);
+
+    template <typename T>
+    static bool bind (rep_type * rep, int index, T && value, error * perr)
+    {
+        auto v = to_storage(std::forward<T>(value));
+        return bind_helper(rep, index, std::move(v), perr);
+    }
+
+    template <typename T>
+    static bool bind (rep_type * rep, std::string const & placeholder
+        , T && value, error * perr)
+    {
+        auto v = to_storage(std::forward<T>(value));
+        return bind_helper(rep, placeholder, std::move(v), perr);
+    }
 };
 
 // #if _MSC_VER
