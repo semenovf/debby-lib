@@ -268,7 +268,7 @@ relational_database<BACKEND>::rows_count (std::string const & table_name, error 
     PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
     std::size_t count = 0;
-    std::string sql = fmt::format("SELECT COUNT(1) as count FROM `{}`"
+    std::string sql = fmt::format("SELECT COUNT(1) as count FROM \"{}\""
         , table_name);
 
     statement_type stmt = prepare(sql, perr);
@@ -298,8 +298,8 @@ relational_database<BACKEND>::tables (std::string const & pattern, error * perr)
 {
     PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
-    std::string sql = std::string{"SELECT name FROM sqlite_master "
-        "WHERE type='table' ORDER BY name"};
+    std::string sql = std::string{"SELECT name FROM sqlite_master"
+        " WHERE type='table' ORDER BY name"};
 
     auto stmt = prepare(sql, perr);
     std::vector<std::string> list;
@@ -334,13 +334,12 @@ template <>
 void
 relational_database<BACKEND>::clear (std::string const & table, error * perr)
 {
-    query(fmt::format("DELETE FROM `{}`", table), perr);
+    query(fmt::format("DELETE FROM \"{}\"", table), perr);
 }
 
 template <>
 void
-relational_database<BACKEND>::remove (std::vector<std::string> const & tables
-    , error * perr)
+relational_database<BACKEND>::remove (std::vector<std::string> const & tables, error * perr)
 {
     PFS__ASSERT(_rep.dbh, NULL_HANDLER);
 
@@ -350,16 +349,16 @@ relational_database<BACKEND>::remove (std::vector<std::string> const & tables
     try {
         begin();
 
-        query("PRAGMA foreign_keys = OFF");
+        query("PRAGMA foreign_keys=OFF");
 
         for (auto const & name: tables) {
-            auto sql = fmt::format("DROP TABLE IF EXISTS `{}`", name);
+            auto sql = fmt::format("DROP TABLE IF EXISTS \"{}\"", name);
             query(sql);
         }
 
-        query("PRAGMA foreign_keys = ON");
+        query("PRAGMA foreign_keys=ON");
         commit();
-    } catch (error ex) {
+    } catch (error const & ex) {
         rollback();
 
         if (perr)
@@ -417,9 +416,9 @@ database::make_kv (pfs::filesystem::path const & path, bool create_if_missing, e
 {
     auto rep = make_r(path, create_if_missing);
 
-    std::string sql = "CREATE TABLE IF NOT EXISTS `debby`"
-        " (`key` TEXT NOT NULL UNIQUE, `value` BLOB"
-        " , PRIMARY KEY(`key`)) WITHOUT ROWID";
+    std::string sql = "CREATE TABLE IF NOT EXISTS debby"
+        " (key TEXT NOT NULL UNIQUE, value BLOB"
+        " , PRIMARY KEY(key)) WITHOUT ROWID";
 
     error err;
     auto success = query(& rep, sql, & err);
@@ -448,7 +447,7 @@ static bool get (database::rep_type const * rep
     PFS__ASSERT(rep->dbh, NULL_HANDLER);
 
     error err;
-    std::string sql = fmt::format("SELECT `value` FROM `debby` WHERE `key` = '{}'", key);
+    std::string sql = fmt::format("SELECT value FROM debby WHERE key = '{}'", key);
     sqlite3_stmt * stmt = nullptr;
 
     do {
@@ -504,7 +503,7 @@ static bool get (database::rep_type const * rep
 static bool remove (database::rep_type * rep, database::key_type const & key, error * perr)
 {
     PFS__ASSERT(rep->dbh, NULL_HANDLER);
-    std::string sql = fmt::format("DELETE FROM `debby` WHERE `key` = '{}'", key);
+    std::string sql = fmt::format("DELETE FROM debby WHERE key = '{}'", key);
     return query(rep, sql, perr);
 }
 
@@ -518,7 +517,7 @@ static bool put (database::rep_type * rep, database::key_type const & key
         return remove(rep, key, perr);
 
     error err;
-    std::string sql {"INSERT OR REPLACE INTO `debby` (`key`, `value`) VALUES (?, ?)"};
+    std::string sql {"INSERT OR REPLACE INTO debby (key, value) VALUES (?, ?)"};
     sqlite3_stmt * stmt = nullptr;
 
     do {
