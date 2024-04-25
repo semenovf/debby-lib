@@ -56,6 +56,12 @@ struct blob_affinity_traits
     static std::string name () { return "BLOB"; }
 };
 
+struct blob2_affinity_traits
+{
+    using storage_type = std::vector<char>;
+    static std::string name () { return "BLOB"; }
+};
+
 template <typename NativeType, typename Constraints = void>
 struct affinity_traits;
 
@@ -114,6 +120,13 @@ template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
     std::is_same<typename std::decay<NativeType>::type, std::vector<std::uint8_t>>::value, void>::type>
     : blob_affinity_traits
+{};
+
+// Affinity traits for blobs
+template <typename NativeType>
+struct affinity_traits<NativeType, typename std::enable_if<
+    std::is_same<typename std::decay<NativeType>::type, std::vector<char>>::value, void>::type>
+    : blob2_affinity_traits
 {};
 
 // Affinity traits for enumerations

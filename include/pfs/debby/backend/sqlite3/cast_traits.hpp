@@ -86,6 +86,23 @@ struct cast_traits<NativeType, typename std::enable_if<
 
 template <typename NativeType>
 struct cast_traits<NativeType, typename std::enable_if<
+       std::is_same<typename std::decay<NativeType>::type, std::vector<char>>::value, void>::type>
+{
+    using storage_type = typename affinity_traits<NativeType>::storage_type;
+
+    static storage_type to_storage (NativeType const & value)
+    {
+        return value;
+    }
+
+    static NativeType to_native (storage_type const & value)
+    {
+        return value;
+    }
+};
+
+template <typename NativeType>
+struct cast_traits<NativeType, typename std::enable_if<
        std::is_enum<typename std::decay<NativeType>::type>::value, void>::type>
 {
     using storage_type = typename affinity_traits<NativeType>::storage_type;
