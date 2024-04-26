@@ -128,7 +128,7 @@ public:
             return false;
         }
 
-        auto success = func(perr);
+        bool success = func(/*perr*/);
 
         if (success) {
             commit(& err);
