@@ -258,10 +258,19 @@ result<BACKEND>::fetch (int column, value_type & value, error & err) const noexc
         case SQLITE_BLOB: {
             char const * data = static_cast<char const *>(sqlite3_column_blob(_rep.sth, column));
             int size = sqlite3_column_bytes(_rep.sth, column);
-            blob_t blob;
-            blob.resize(size);
-            std::memcpy(blob.data(), data, size);
-            value = std::move(blob);
+
+            if (pfs::holds_alternative<blob_t>(value)) {
+                blob_t blob;
+                blob.resize(size);
+                std::memcpy(blob.data(), data, size);
+                value = std::move(blob);
+            } else {
+                blob2_t blob;
+                blob.resize(size);
+                std::memcpy(blob.data(), data, size);
+                value = std::move(blob);
+            }
+
             return true;
         }
 
