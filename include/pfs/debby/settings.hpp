@@ -7,6 +7,7 @@
 //      2023.02.08 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "pfs/optional.hpp"
 #include "pfs/string_view.hpp"
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/keyvalue_database.hpp"
@@ -48,6 +49,13 @@ public:
     set (key_type const & key, T value, error * perr = nullptr)
     {
         _db.template set<T>(key, value, perr);
+    }
+
+    template <typename T>
+    void set (key_type const & key, pfs::optional<T> const & opt_value, error * perr = nullptr)
+    {
+        if (opt_value)
+            this->set(key, *opt_value, perr);
     }
 
     void set (key_type const & key, std::string const & value, error * perr = nullptr)
