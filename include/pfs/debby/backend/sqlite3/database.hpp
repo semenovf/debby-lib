@@ -13,7 +13,9 @@
 #include "statement.hpp"
 #include "pfs/debby/exports.hpp"
 #include "pfs/debby/statement.hpp"
-#include "pfs/filesystem.hpp"
+#include <pfs/filesystem.hpp>
+#include <pfs/optional.hpp>
+#include <cstdint>
 #include <unordered_map>
 
 struct sqlite3;
@@ -36,6 +38,29 @@ struct database
     {
         native_type dbh;
         cache_type  cache; // Prepared statements cache
+    };
+
+    // https://www.sqlite.org/pragma.html#pragma_journal_mode
+    enum journal_mode_enum { JM_DELETE, JM_TRUNCATE, JM_PERSIST, JM_MEMORY, JM_WAL, JM_OFF };
+
+    // https://www.sqlite.org/pragma.html#pragma_synchronous
+    enum synchronous_enum { SYN_OFF, SYN_NORMAL, SYN_FULL, SYN_EXTRA };
+
+    // https://www.sqlite.org/pragma.html#pragma_temp_store
+    enum temp_store_enum { TS_DEFAULT, TS_FILE, TS_MEMORY };
+
+    enum presets_enum
+    {
+          DEFAULT_PRESET
+        , CONCURRENCY_PRESET
+    };
+
+    struct make_options
+    {
+        pfs::optional<journal_mode_enum> pragma_journal_mode;
+        pfs::optional<synchronous_enum> pragma_synchronous;
+        pfs::optional<temp_store_enum> pragma_temp_store;
+        pfs::optional<std::size_t> pragma_mmap_size;
     };
 
     /**
@@ -61,6 +86,12 @@ struct database
      */
     static DEBBY__EXPORT rep_type make_r (pfs::filesystem::path const & path
         , bool create_if_missing = true, error * perr = nullptr);
+
+    static DEBBY__EXPORT rep_type make_r (pfs::filesystem::path const & path
+        , bool create_if_missing, make_options && opts, error * perr = nullptr);
+
+    static DEBBY__EXPORT rep_type make_r (pfs::filesystem::path const & path
+        , bool create_if_missing, presets_enum preset, error * perr = nullptr);
 
     static DEBBY__EXPORT rep_type make_kv (pfs::filesystem::path const & path
         , bool create_if_missing = true, error * perr = nullptr);

@@ -9,8 +9,6 @@
 //      2022.03.12 Refactored.
 //      2023.02.07 Applied new API.
 ////////////////////////////////////////////////////////////////////////////////
-#include "pfs/filesystem.hpp"
-#include "pfs/i18n.hpp"
 #include "pfs/debby/error.hpp"
 #include "pfs/debby/keyvalue_database.hpp"
 #include "pfs/debby/relational_database.hpp"
@@ -18,6 +16,9 @@
 #include "../kv_common.hpp"
 #include "sqlite3.h"
 #include "utils.hpp"
+#include <pfs/bits/compiler.h>
+#include <pfs/filesystem.hpp>
+#include <pfs/i18n.hpp>
 #include <regex>
 
 namespace fs = pfs::filesystem;
@@ -57,6 +58,37 @@ static bool query (database::rep_type const * rep, std::string const & sql, erro
 database::rep_type
 database::make_r (fs::path const & path, bool create_if_missing, error * perr)
 {
+    return make_r(path, create_if_missing, make_options{}, perr);
+}
+
+database::rep_type
+database::make_r (pfs::filesystem::path const & path, bool create_if_missing
+    , presets_enum preset, error * perr)
+{
+    switch (preset) {
+        // See https://phiresky.github.io/blog/2020/sqlite-performance-tuning/
+        case database::CONCURRENCY_PRESET: {
+            make_options opts;
+            opts.pragma_journal_mode = JM_WAL;
+            opts.pragma_synchronous = SYN_NORMAL;
+            opts.pragma_temp_store = TS_MEMORY;
+            opts.pragma_mmap_size = 30000000000UL;
+
+            return make_r(path, create_if_missing, std::move(opts), perr);
+        }
+
+        case database::DEFAULT_PRESET:
+        default:
+            break;
+    }
+
+    return make_r(path, create_if_missing, make_options{}, perr);
+}
+
+database::rep_type
+database::make_r (pfs::filesystem::path const & path, bool create_if_missing
+    , make_options && opts, error * perr)
+{
     rep_type rep;
     rep.dbh = nullptr;
 
@@ -76,7 +108,7 @@ database::make_r (fs::path const & path, bool create_if_missing, error * perr)
 
     PFS__ASSERT(sqlite3_enable_shared_cache(0) == SQLITE_OK, "");
 
-#if PFS_COMPILER_MSVC
+#if PFS__COMPILER_MSVC
     auto utf8_path = pfs::filesystem::utf8_encode(path);
     int rc = sqlite3_open_v2(utf8_path.c_str(), & rep.dbh, flags, default_vfs);
 #else
@@ -103,14 +135,8 @@ database::make_r (fs::path const & path, bool create_if_missing, error * perr)
                 e = errc::backend_error;
             }
 
-            error err { e, fs::utf8_encode(path), build_errstr(rc, rep.dbh) };
-
-            if (perr) {
-                *perr = std::move(err);
-                return rep_type{};
-            } else {
-                throw err;
-            }
+            pfs::throw_or(perr, error { e, fs::utf8_encode(path), build_errstr(rc, rep.dbh) });
+            return rep_type{};
         }
     } else {
         // NOTE what for this call ?
@@ -119,18 +145,78 @@ database::make_r (fs::path const & path, bool create_if_missing, error * perr)
         // Enable extended result codes
         sqlite3_extended_result_codes(rep.dbh, 1);
 
-        error err;
-        auto success = query(& rep, "PRAGMA foreign_keys = ON", & err);
+        std::vector<std::string> pragmas;
 
-        if (!success) {
-            sqlite3_close_v2(rep.dbh);
-            rep.dbh = nullptr;
+        if (opts.pragma_journal_mode) {
+            switch (*opts.pragma_journal_mode) {
+                case JM_DELETE:
+                    pragmas.emplace_back("pragma journal_mode = DELETE");
+                    break;
+                case JM_TRUNCATE:
+                    pragmas.emplace_back("pragma journal_mode = TRUNCATE");
+                    break;
+                case JM_PERSIST:
+                    pragmas.emplace_back("pragma journal_mode = PERSIST");
+                    break;
+                case JM_MEMORY:
+                    pragmas.emplace_back("pragma journal_mode = MEMORY");
+                    break;
+                case JM_WAL:
+                    pragmas.emplace_back("pragma journal_mode = WAL");
+                    break;
+                case JM_OFF:
+                    pragmas.emplace_back("pragma journal_mode = OFF");
+                    break;
+            }
+        }
 
-            if (perr) {
-                *perr = std::move(err);
+        if (opts.pragma_synchronous) {
+            switch (*opts.pragma_synchronous) {
+                case SYN_OFF:
+                    pragmas.emplace_back("pragma synchronous = OFF");
+                    break;
+                case SYN_NORMAL:
+                    pragmas.emplace_back("pragma synchronous = NORMAL");
+                    break;
+                case SYN_FULL:
+                    pragmas.emplace_back("pragma synchronous = FULL");
+                    break;
+                case SYN_EXTRA:
+                    pragmas.emplace_back("pragma synchronous = OFF");
+                    break;
+            }
+        }
+
+
+        if (opts.pragma_temp_store) {
+            switch (*opts.pragma_temp_store) {
+                case TS_DEFAULT:
+                    pragmas.emplace_back("pragma temp_store = DEFAULT");
+                    break;
+                case TS_FILE:
+                    pragmas.emplace_back("pragma temp_store = FILE");
+                    break;
+                case TS_MEMORY:
+                    pragmas.emplace_back("pragma temp_store = MEMORY");
+                    break;
+            }
+        }
+
+        if (opts.pragma_mmap_size)
+            pragmas.emplace_back(fmt::format("pragma mmap_size = {}", *opts.pragma_mmap_size));
+
+        pragmas.emplace_back("PRAGMA foreign_keys = ON");
+
+        for (auto const & pragma: pragmas) {
+            error err;
+            auto success = query(& rep, pragma, & err);
+
+            if (!success) {
+                sqlite3_close_v2(rep.dbh);
+                rep.dbh = nullptr;
+
+                pfs::throw_or(perr, std::move(err));
                 return rep_type{};
-            } else {
-                throw err;
             }
         }
     }
