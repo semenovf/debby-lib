@@ -295,7 +295,7 @@ void
 relational_database<BACKEND>::commit (error * perr)
 {
     query("COMMIT TRANSACTION", perr);
-    sqlite3_wal_checkpoint_v2(_rep.dbh, nullptr, SQLITE_CHECKPOINT_FULL, nullptr, nullptr);
+    //sqlite3_wal_checkpoint_v2(_rep.dbh, nullptr, SQLITE_CHECKPOINT_FULL, nullptr, nullptr);
 }
 
 template <>
