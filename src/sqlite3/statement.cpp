@@ -41,16 +41,11 @@ static bool bind_helper_func (statement::rep_type * rep, int index
     int rc = sqlite3_binder_func(index + 1);
 
     if (SQLITE_OK != rc) {
-        error err {
+        pfs::throw_or(perr, error {
               errc::backend_error
             , build_errstr(rc, rep->sth)
             , current_sql(rep->sth)
-        };
-
-        if (perr)
-            *perr = std::move(err);
-        else
-            throw err;
+        });
 
         return false;
     }
@@ -68,16 +63,11 @@ static bool bind_helper_func (statement::rep_type * rep
     int index = sqlite3_bind_parameter_index(rep->sth, placeholder.c_str());
 
     if (index == 0) {
-        error err {
+        pfs::throw_or(perr, error {
               errc::invalid_argument
             , std::string{"bad bind parameter name"}
             , placeholder
-        };
-
-        if (perr)
-            *perr = std::move(err);
-        else
-            throw err;
+        });
 
         return false;
     }
@@ -85,16 +75,11 @@ static bool bind_helper_func (statement::rep_type * rep
     int rc = sqlite3_binder_func(index);
 
     if (SQLITE_OK != rc) {
-        error err {
+        pfs::throw_or(perr, error {
               errc::backend_error
             , build_errstr(rc, rep->sth)
             , current_sql(rep->sth)
-        };
-
-        if (perr)
-            *perr = std::move(err);
-        else
-            throw err;
+        });
 
         return false;
     }
@@ -327,6 +312,32 @@ statement::bind_helper (statement::rep_type * rep
         return sqlite3_bind_text(rep->sth, index, value
             , static_cast<int>(std::strlen(value))
             , SQLITE_TRANSIENT);
+    }, perr);
+}
+
+template <>
+bool
+statement::bind_helper (statement::rep_type * rep, int index, std::vector<char> && value
+    , error * perr)
+{
+    auto data = value.data();
+    auto len = value.size();
+
+    return backend::sqlite3::bind_helper_func(rep, index, [rep, data, len] (int index) {
+        return sqlite3_bind_blob(rep->sth, index, data, static_cast<int>(len), SQLITE_TRANSIENT);
+    }, perr);
+}
+
+template <>
+bool
+statement::bind_helper (statement::rep_type * rep
+    , std::string const & placeholder, std::vector<char> && value, error * perr)
+{
+    auto data = value.data();
+    auto len = value.size();
+
+    return backend::sqlite3::bind_helper_func(rep, placeholder, [rep, data, len] (int index) {
+        return sqlite3_bind_blob(rep->sth, index, data, static_cast<int>(len), SQLITE_TRANSIENT);
     }, perr);
 }
 

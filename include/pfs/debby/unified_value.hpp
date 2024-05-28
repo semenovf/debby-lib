@@ -16,8 +16,7 @@
 
 namespace debby {
 
-using blob_t  = std::vector<std::uint8_t>;
-using blob2_t = std::vector<char>;
+using blob_t = std::vector<char>;
 using basic_value_t = pfs::variant<
       std::nullptr_t
     , bool
@@ -25,7 +24,6 @@ using basic_value_t = pfs::variant<
     , float
     , double
     , blob_t        // bytes sequence
-    , blob2_t       // bytes sequence
     , std::string>; // utf-8 encoded string
 
 struct unified_value: public basic_value_t
@@ -101,13 +99,6 @@ struct unified_value: public basic_value_t
         : basic_value_t(x)
     {}
 
-    /**
-     * Construct unified_value from blob.
-     */
-    unified_value (blob2_t const & x)
-        : basic_value_t(x)
-    {}
-
     template <typename T>
     static typename std::enable_if<std::is_same<std::nullptr_t,T>::value, unified_value>::type
     make_zero ()
@@ -156,13 +147,6 @@ struct unified_value: public basic_value_t
     make_zero()
     {
         return unified_value{blob_t{}};
-    }
-
-    template <typename T>
-    static typename std::enable_if<std::is_same<typename std::decay<T>::type, blob2_t>::value, unified_value>::type
-    make_zero()
-    {
-        return unified_value{blob2_t{}};
     }
 };
 
@@ -214,13 +198,6 @@ inline typename std::enable_if<std::is_same<typename std::decay<T>::type, blob_t
 get_if (unified_value * u)
 {
     return pfs::get_if<blob_t>(u);
-}
-
-template <typename T>
-inline typename std::enable_if<std::is_same<typename std::decay<T>::type, blob2_t>::value, T>::type *
-get_if (unified_value * u)
-{
-    return pfs::get_if<blob2_t>(u);
 }
 
 } // namespace debby

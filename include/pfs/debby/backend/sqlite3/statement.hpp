@@ -74,6 +74,8 @@ template <> DEBBY__EXPORT bool statement::bind_helper<std::string> (statement::r
     , int index, std::string && value, error * perr);
 template <> DEBBY__EXPORT bool statement::bind_helper<char const *> (statement::rep_type * rep
     , int index, char const * && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<std::vector<char>> (statement::rep_type * rep
+    , int index, std::vector<char> && value, error * perr);
 
 template <> DEBBY__EXPORT bool statement::bind_helper<std::nullptr_t> (statement::rep_type * rep
     , std::string const & placeholder, std::nullptr_t && value, error * perr);
@@ -87,6 +89,8 @@ template <> DEBBY__EXPORT bool statement::bind_helper<std::string> (statement::r
     , std::string const & placeholder, std::string && value, error * perr);
 template <> DEBBY__EXPORT bool statement::bind_helper<char const *> (statement::rep_type * rep
     , std::string const & placeholder, char const * && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<std::vector<char>> (statement::rep_type * rep
+    , std::string const & placeholder, std::vector<char> && value, error * perr);
 #endif
 
 }}} // namespace debby::backend::sqlite3

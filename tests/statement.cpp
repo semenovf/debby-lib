@@ -40,18 +40,19 @@ std::string const CREATE_TABLE {
         ", `float` REAL"
         ", `double` REAL"
         ", `text` TEXT"
-        ", `cstr` TEXT)"
+        ", `cstr` TEXT"
+        ", `blob` BLOB)"
 };
 
 std::string const INSERT {
     "INSERT INTO `{}` (`null`, `bool`, `int8`, `uint8`"
         ", `int16`, `uint16`, `int32`, `uint32`"
         ", `int64`, `uint64`, `float`, `double`"
-        ", `text`, `cstr`)"
+        ", `text`, `cstr`, `blob`)"
     " VALUES (:null, :bool, :int8, :uint8"
         ", :int16, :uint16, :int32, :uint32"
         ", :int64, :uint64, :float, :double"
-        ", :text, :cstr)"
+        ", :text, :cstr, :blob)"
 };
 
 std::string const SELECT_ALL {
@@ -105,6 +106,7 @@ void check (pfs::filesystem::path const & db_path)
         stmt.bind(":double", static_cast<double>(3.14159));
         stmt.bind(":text", std::string{"Hello"});
         stmt.bind(":cstr", "World");
+        stmt.bind(":blob", std::vector<char>{'a', 'b', 'c'});
 
         auto result = stmt.exec();
         REQUIRE(result.is_done());
@@ -119,10 +121,10 @@ void check (pfs::filesystem::path const & db_path)
         REQUIRE(result.has_more());
         REQUIRE_FALSE(result.is_done());
 
-        CHECK_EQ(result.column_count(), 14);
+        CHECK_EQ(result.column_count(), 15);
 
         CHECK_EQ(result.column_name(-1), std::string{});
-        CHECK_EQ(result.column_name(14), std::string{});
+        CHECK_EQ(result.column_name(15), std::string{});
 
         CHECK_EQ(result.column_name(0), std::string{"null"});
         CHECK_EQ(result.column_name(1), std::string{"bool"});
@@ -138,6 +140,7 @@ void check (pfs::filesystem::path const & db_path)
         CHECK_EQ(result.column_name(11), std::string{"double"});
         CHECK_EQ(result.column_name(12), std::string{"text"});
         CHECK_EQ(result.column_name(13), std::string{"cstr"});
+        CHECK_EQ(result.column_name(14), std::string{"blob"});
 
         while (result.has_more()) {
             {
@@ -163,6 +166,7 @@ void check (pfs::filesystem::path const & db_path)
             CHECK(std::abs(result.template get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
             CHECK(std::abs(result.template get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
             CHECK_EQ(result.template get<std::string>("text"), std::string{"Hello"});
+            CHECK_EQ(result.template get<std::vector<char>>("blob"), std::vector<char>{'a', 'b', 'c'});
 
             {
                 bool b;
@@ -204,6 +208,12 @@ void check (pfs::filesystem::path const & db_path)
                 std::string s;
                 result["text"] >> s;
                 CHECK(s == "Hello");
+            }
+
+            {
+                std::vector<char> b;
+                result["blob"] >> b;
+                CHECK(b == std::vector<char>{'a', 'b', 'c'});
             }
 
             {
