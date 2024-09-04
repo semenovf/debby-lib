@@ -391,7 +391,7 @@ bool database::wipe (fs::path const & path, error * perr)
 
 }} // namespace backend::libmdbx
 
-#define BACKEND backend::libmdbx::database
+using BACKEND = backend::libmdbx::database;
 
 template <>
 keyvalue_database<BACKEND>::~keyvalue_database ()
@@ -410,7 +410,7 @@ keyvalue_database<BACKEND>::~keyvalue_database ()
 }
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
+keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep) noexcept
     : _rep(std::move(rep))
 {
     rep.env = nullptr;
@@ -418,7 +418,7 @@ keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
 }
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
+keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other) noexcept
     : keyvalue_database(std::move(other._rep))
 {}
 

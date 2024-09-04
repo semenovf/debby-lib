@@ -645,12 +645,12 @@ static bool put (database::rep_type * rep, database::key_type const & key
 }} // namespace backend::sqlite3
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
+keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep) noexcept
     : _rep(std::move(rep))
 {}
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
+keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other) noexcept
 {
     _rep = std::move(other._rep);
     other._rep.dbh = nullptr;

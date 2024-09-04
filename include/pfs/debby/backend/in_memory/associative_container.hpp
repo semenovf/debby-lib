@@ -60,7 +60,7 @@ struct database_mt
         native_type dbh;
 
         rep_type () = default;
-        rep_type (rep_type && other)
+        rep_type (rep_type && other) noexcept
             : mtx() // no need to move mutex
             , dbh(std::move(other.dbh)) {}
     };

@@ -73,189 +73,193 @@ void check (pfs::filesystem::path const & db_path)
     if (fs::exists(db_path) && fs::is_regular_file(db_path))
         fs::remove(db_path);
 
-    auto db = database_t::make(db_path);
-
-    REQUIRE(db);
-
-    db.remove_all();
-
     {
-        auto stmt = db.prepare(fmt::format(CREATE_TABLE, TABLE_NAME));
+        auto db = database_t::make(db_path);
 
-        REQUIRE(stmt);
-        auto result = stmt.exec();
-        REQUIRE(result.is_done());
-    }
+        REQUIRE(db);
 
-    {
-        auto stmt = db.prepare(fmt::format(INSERT, TABLE_NAME));
+        db.remove_all();
 
-        REQUIRE(stmt);
+        {
+            auto stmt = db.prepare(fmt::format(CREATE_TABLE, TABLE_NAME));
 
-        stmt.bind(":null", nullptr);
-        stmt.bind(":bool", true);
-        stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
-        stmt.bind(":uint8", std::numeric_limits<std::uint8_t>::max());
-        stmt.bind(":int16", std::numeric_limits<std::int16_t>::min());
-        stmt.bind(":uint16", std::numeric_limits<std::uint16_t>::max());
-        stmt.bind(":int32", std::numeric_limits<std::int32_t>::min());
-        stmt.bind(":uint32", std::numeric_limits<std::uint32_t>::max());
-        stmt.bind(":int64", std::numeric_limits<std::int64_t>::min());
-        stmt.bind(":uint64", std::numeric_limits<std::uint64_t>::max());
-        stmt.bind(":float", static_cast<float>(3.14159));
-        stmt.bind(":double", static_cast<double>(3.14159));
-        stmt.bind(":text", std::string{"Hello"});
-        stmt.bind(":cstr", "World");
-        stmt.bind(":blob", std::vector<char>{'a', 'b', 'c'});
-
-        auto result = stmt.exec();
-        REQUIRE(result.is_done());
-    }
-
-    {
-        auto stmt = db.prepare(fmt::format(SELECT_ALL, TABLE_NAME));
-
-        REQUIRE(stmt);
-
-        auto result = stmt.exec();
-        REQUIRE(result.has_more());
-        REQUIRE_FALSE(result.is_done());
-
-        CHECK_EQ(result.column_count(), 15);
-
-        CHECK_EQ(result.column_name(-1), std::string{});
-        CHECK_EQ(result.column_name(15), std::string{});
-
-        CHECK_EQ(result.column_name(0), std::string{"null"});
-        CHECK_EQ(result.column_name(1), std::string{"bool"});
-        CHECK_EQ(result.column_name(2), std::string{"int8"});
-        CHECK_EQ(result.column_name(3), std::string{"uint8"});
-        CHECK_EQ(result.column_name(4), std::string{"int16"});
-        CHECK_EQ(result.column_name(5), std::string{"uint16"});
-        CHECK_EQ(result.column_name(6), std::string{"int32"});
-        CHECK_EQ(result.column_name(7), std::string{"uint32"});
-        CHECK_EQ(result.column_name(8), std::string{"int64"});
-        CHECK_EQ(result.column_name(9), std::string{"uint64"});
-        CHECK_EQ(result.column_name(10), std::string{"float"});
-        CHECK_EQ(result.column_name(11), std::string{"double"});
-        CHECK_EQ(result.column_name(12), std::string{"text"});
-        CHECK_EQ(result.column_name(13), std::string{"cstr"});
-        CHECK_EQ(result.column_name(14), std::string{"blob"});
-
-        while (result.has_more()) {
-            {
-                REQUIRE_EQ(result.template get_or<int>("unknown", -42), -42);
-            }
-
-            {
-                // Column `null` is INTEGER but contains null value
-                REQUIRE_EQ(result.template get<int *>("null"), nullptr);
-                REQUIRE_EQ(result.template get<std::string *>("null"), nullptr);
-            }
-
-            CHECK_EQ(result.template get<int>("null"), 0);
-            CHECK_EQ(result.template get<bool>("bool"), true);
-            CHECK_EQ(result.template get<std::int8_t>("int8"), std::numeric_limits<std::int8_t>::min());
-            CHECK_EQ(result.template get<std::uint8_t>("uint8"), std::numeric_limits<std::uint8_t>::max());
-            CHECK_EQ(result.template get<std::int16_t>("int16"), std::numeric_limits<std::int16_t>::min());
-            CHECK_EQ(result.template get<std::uint16_t>("uint16"), std::numeric_limits<std::uint16_t>::max());
-            CHECK_EQ(result.template get<std::int32_t>("int32"), std::numeric_limits<std::int32_t>::min());
-            CHECK_EQ(result.template get<std::uint32_t>("uint32"), std::numeric_limits<std::uint32_t>::max());
-            CHECK_EQ(result.template get<std::int64_t>("int64"), std::numeric_limits<std::int64_t>::min());
-            CHECK_EQ(result.template get<std::uint64_t>("uint64"), std::numeric_limits<std::uint64_t>::max());
-            CHECK(std::abs(result.template get<float>("float") - static_cast<float>(3.14159)) < float{0.001});
-            CHECK(std::abs(result.template get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
-            CHECK_EQ(result.template get<std::string>("text"), std::string{"Hello"});
-            CHECK_EQ(result.template get<std::vector<char>>("blob"), std::vector<char>{'a', 'b', 'c'});
-
-            {
-                bool b;
-                result["bool"] >> b;
-                CHECK_EQ(b, true);
-            }
-
-            {
-                std::int8_t i8;
-                result["int8"] >> i8;
-                CHECK(i8 == std::numeric_limits<std::int8_t>::min());
-            }
-
-            {
-                std::int64_t i64;
-                result["int64"] >> i64;
-                CHECK(i64 == std::numeric_limits<std::int64_t>::min());
-            }
-
-            {
-                std::uint64_t u64;
-                result["uint64"] >> u64;
-                CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
-            }
-
-            {
-                float f;
-                result["float"] >> f;
-                CHECK(std::abs(f - static_cast<float>(3.14159)) < float{0.001});
-            }
-
-            {
-                double f;
-                result["double"] >> f;
-                CHECK(std::abs(f - static_cast<double>(3.14159)) < double{0.001});
-            }
-
-            {
-                std::string s;
-                result["text"] >> s;
-                CHECK(s == "Hello");
-            }
-
-            {
-                std::vector<char> b;
-                result["blob"] >> b;
-                CHECK(b == std::vector<char>{'a', 'b', 'c'});
-            }
-
-            {
-                // `null` value results throwing exception for `direct` variable
-                int n;
-                REQUIRE_THROWS((result["null"] >> n));
-
-                pfs::optional<int> opt;
-
-                // `null` value results nullopt
-                result["null"] >> opt;
-                REQUIRE_FALSE(opt.has_value());
-            }
-
-            {
-                // Unknown column results throwing exception
-                REQUIRE_THROWS((result["unknown"]));
-            }
-
-            result.next();
+            REQUIRE(stmt);
+            auto result = stmt.exec();
+            REQUIRE(result.is_done());
         }
 
-        CHECK(result.is_done());
-    }
-
-    {
-        for (int i = 0; i < 2; i++) {
-            auto stmt = db.prepare(fmt::format(SELECT, TABLE_NAME), true);
+        {
+            auto stmt = db.prepare(fmt::format(INSERT, TABLE_NAME));
 
             REQUIRE(stmt);
 
+            stmt.bind(":null", nullptr);
+            stmt.bind(":bool", true);
             stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
+            stmt.bind(":uint8", std::numeric_limits<std::uint8_t>::max());
+            stmt.bind(":int16", std::numeric_limits<std::int16_t>::min());
+            stmt.bind(":uint16", std::numeric_limits<std::uint16_t>::max());
+            stmt.bind(":int32", std::numeric_limits<std::int32_t>::min());
+            stmt.bind(":uint32", std::numeric_limits<std::uint32_t>::max());
+            stmt.bind(":int64", std::numeric_limits<std::int64_t>::min());
+            stmt.bind(":uint64", std::numeric_limits<std::uint64_t>::max());
+            stmt.bind(":float", static_cast<float>(3.14159));
+            stmt.bind(":double", static_cast<double>(3.14159));
+            stmt.bind(":text", std::string{ "Hello" });
+            stmt.bind(":cstr", "World");
+            stmt.bind(":blob", std::vector<char>{'a', 'b', 'c'});
 
             auto result = stmt.exec();
-
-            while (result.has_more())
-                result.next();
-
             REQUIRE(result.is_done());
+        }
+
+        {
+            auto stmt = db.prepare(fmt::format(SELECT_ALL, TABLE_NAME));
+
+            REQUIRE(stmt);
+
+            auto result = stmt.exec();
+            REQUIRE(result.has_more());
+            REQUIRE_FALSE(result.is_done());
+
+            CHECK_EQ(result.column_count(), 15);
+
+            CHECK_EQ(result.column_name(-1), std::string{});
+            CHECK_EQ(result.column_name(15), std::string{});
+
+            CHECK_EQ(result.column_name(0), std::string{ "null" });
+            CHECK_EQ(result.column_name(1), std::string{ "bool" });
+            CHECK_EQ(result.column_name(2), std::string{ "int8" });
+            CHECK_EQ(result.column_name(3), std::string{ "uint8" });
+            CHECK_EQ(result.column_name(4), std::string{ "int16" });
+            CHECK_EQ(result.column_name(5), std::string{ "uint16" });
+            CHECK_EQ(result.column_name(6), std::string{ "int32" });
+            CHECK_EQ(result.column_name(7), std::string{ "uint32" });
+            CHECK_EQ(result.column_name(8), std::string{ "int64" });
+            CHECK_EQ(result.column_name(9), std::string{ "uint64" });
+            CHECK_EQ(result.column_name(10), std::string{ "float" });
+            CHECK_EQ(result.column_name(11), std::string{ "double" });
+            CHECK_EQ(result.column_name(12), std::string{ "text" });
+            CHECK_EQ(result.column_name(13), std::string{ "cstr" });
+            CHECK_EQ(result.column_name(14), std::string{ "blob" });
+
+            while (result.has_more()) {
+                {
+                    REQUIRE_EQ(result.template get_or<int>("unknown", -42), -42);
+                }
+
+                {
+                    // Column `null` is INTEGER but contains null value
+                    REQUIRE_EQ(result.template get<int*>("null"), nullptr);
+                    REQUIRE_EQ(result.template get<std::string*>("null"), nullptr);
+                }
+
+                CHECK_EQ(result.template get<int>("null"), 0);
+                CHECK_EQ(result.template get<bool>("bool"), true);
+                CHECK_EQ(result.template get<std::int8_t>("int8"), std::numeric_limits<std::int8_t>::min());
+                CHECK_EQ(result.template get<std::uint8_t>("uint8"), std::numeric_limits<std::uint8_t>::max());
+                CHECK_EQ(result.template get<std::int16_t>("int16"), std::numeric_limits<std::int16_t>::min());
+                CHECK_EQ(result.template get<std::uint16_t>("uint16"), std::numeric_limits<std::uint16_t>::max());
+                CHECK_EQ(result.template get<std::int32_t>("int32"), std::numeric_limits<std::int32_t>::min());
+                CHECK_EQ(result.template get<std::uint32_t>("uint32"), std::numeric_limits<std::uint32_t>::max());
+                CHECK_EQ(result.template get<std::int64_t>("int64"), std::numeric_limits<std::int64_t>::min());
+                CHECK_EQ(result.template get<std::uint64_t>("uint64"), std::numeric_limits<std::uint64_t>::max());
+                CHECK(std::abs(result.template get<float>("float") - static_cast<float>(3.14159)) < float{ 0.001 });
+                CHECK(std::abs(result.template get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
+                CHECK_EQ(result.template get<std::string>("text"), std::string{ "Hello" });
+                CHECK_EQ(result.template get<std::vector<char>>("blob"), std::vector<char>{'a', 'b', 'c'});
+
+                {
+                    bool b;
+                    result["bool"] >> b;
+                    CHECK_EQ(b, true);
+                }
+
+                {
+                    std::int8_t i8;
+                    result["int8"] >> i8;
+                    CHECK(i8 == std::numeric_limits<std::int8_t>::min());
+                }
+
+                {
+                    std::int64_t i64;
+                    result["int64"] >> i64;
+                    CHECK(i64 == std::numeric_limits<std::int64_t>::min());
+                }
+
+                {
+                    std::uint64_t u64;
+                    result["uint64"] >> u64;
+                    CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
+                }
+
+                {
+                    float f;
+                    result["float"] >> f;
+                    CHECK(std::abs(f - static_cast<float>(3.14159)) < float{ 0.001 });
+                }
+
+                {
+                    double f;
+                    result["double"] >> f;
+                    CHECK(std::abs(f - static_cast<double>(3.14159)) < double{ 0.001 });
+                }
+
+                {
+                    std::string s;
+                    result["text"] >> s;
+                    CHECK(s == "Hello");
+                }
+
+                {
+                    std::vector<char> b;
+                    result["blob"] >> b;
+                    CHECK(b == std::vector<char>{'a', 'b', 'c'});
+                }
+
+                {
+                    // `null` value results throwing exception for `direct` variable
+                    int n;
+                    REQUIRE_THROWS((result["null"] >> n));
+
+                    pfs::optional<int> opt;
+
+                    // `null` value results nullopt
+                    result["null"] >> opt;
+                    REQUIRE_FALSE(opt.has_value());
+                }
+
+                {
+                    // Unknown column results throwing exception
+                    REQUIRE_THROWS((result["unknown"]));
+                }
+
+                result.next();
+            }
+
+            CHECK(result.is_done());
+        }
+
+        {
+            for (int i = 0; i < 2; i++) {
+                auto stmt = db.prepare(fmt::format(SELECT, TABLE_NAME), true);
+
+                REQUIRE(stmt);
+
+                stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
+
+                auto result = stmt.exec();
+
+                while (result.has_more())
+                    result.next();
+
+                REQUIRE(result.is_done());
+            }
         }
     }
 
+    // In Windows database must be closed/destructed before to avoid exception:
+    // "The process cannot access the file because it is being used by another process"
     database_t::wipe(db_path);
 }
 

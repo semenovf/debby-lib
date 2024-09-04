@@ -41,49 +41,53 @@ void check (pfs::filesystem::path const & db_path)
 
     database_t::wipe(db_path);
 
-    auto db = database_t::make(db_path);
-
-    REQUIRE(db);
-
-    db.remove_all();
-    REQUIRE_FALSE(db.exists("one"));
-    REQUIRE_FALSE(db.exists("two"));
-    REQUIRE_FALSE(db.exists("three"));
-    REQUIRE_FALSE(db.exists("four"));
-
-    db.query(CREATE_TABLE_ONE);
-    db.query(CREATE_TABLE_TWO);
-    db.query(CREATE_TABLE_THREE);
-
-    REQUIRE(db.exists("one"));
-    REQUIRE(db.exists("two"));
-    REQUIRE(db.exists("three"));
-    REQUIRE_FALSE(db.exists("four"));
-
     {
-        auto tables = db.tables();
-        CHECK_NE(std::find(tables.begin(), tables.end(), "one"), std::end(tables));
-        CHECK_NE(std::find(tables.begin(), tables.end(), "two"), std::end(tables));
-        CHECK_NE(std::find(tables.begin(), tables.end(), "three"), std::end(tables));
-        CHECK_EQ(std::find(tables.begin(), tables.end(), "four"), std::end(tables));
+        auto db = database_t::make(db_path);
+
+        REQUIRE(db);
+
+        db.remove_all();
+        REQUIRE_FALSE(db.exists("one"));
+        REQUIRE_FALSE(db.exists("two"));
+        REQUIRE_FALSE(db.exists("three"));
+        REQUIRE_FALSE(db.exists("four"));
+
+        db.query(CREATE_TABLE_ONE);
+        db.query(CREATE_TABLE_TWO);
+        db.query(CREATE_TABLE_THREE);
+
+        REQUIRE(db.exists("one"));
+        REQUIRE(db.exists("two"));
+        REQUIRE(db.exists("three"));
+        REQUIRE_FALSE(db.exists("four"));
+
+        {
+            auto tables = db.tables();
+            CHECK_NE(std::find(tables.begin(), tables.end(), "one"), std::end(tables));
+            CHECK_NE(std::find(tables.begin(), tables.end(), "two"), std::end(tables));
+            CHECK_NE(std::find(tables.begin(), tables.end(), "three"), std::end(tables));
+            CHECK_EQ(std::find(tables.begin(), tables.end(), "four"), std::end(tables));
+        }
+
+        {
+            auto tables = db.tables("^t.*");
+            CHECK_EQ(std::find(tables.begin(), tables.end(), "one"), std::end(tables));
+            CHECK_NE(std::find(tables.begin(), tables.end(), "two"), std::end(tables));
+            CHECK_NE(std::find(tables.begin(), tables.end(), "three"), std::end(tables));
+            CHECK_EQ(std::find(tables.begin(), tables.end(), "ten"), std::end(tables));
+        }
+
+        db.remove("two");
+        REQUIRE_FALSE(db.exists("two"));
+
+        db.remove_all();
+        REQUIRE_FALSE(db.exists("one"));
+        REQUIRE_FALSE(db.exists("two"));
+        REQUIRE_FALSE(db.exists("three"));
     }
 
-    {
-        auto tables = db.tables("^t.*");
-        CHECK_EQ(std::find(tables.begin(), tables.end(), "one"), std::end(tables));
-        CHECK_NE(std::find(tables.begin(), tables.end(), "two"), std::end(tables));
-        CHECK_NE(std::find(tables.begin(), tables.end(), "three"), std::end(tables));
-        CHECK_EQ(std::find(tables.begin(), tables.end(), "ten"), std::end(tables));
-    }
-
-    db.remove("two");
-    REQUIRE_FALSE(db.exists("two"));
-
-    db.remove_all();
-    REQUIRE_FALSE(db.exists("one"));
-    REQUIRE_FALSE(db.exists("two"));
-    REQUIRE_FALSE(db.exists("three"));
-
+    // In Windows database must be closed/destructed before to avoid exception:
+    // "The process cannot access the file because it is being used by another process"
     database_t::wipe(db_path);
 }
 

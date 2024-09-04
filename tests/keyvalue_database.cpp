@@ -142,11 +142,14 @@ void check_persistance_storage (pfs::filesystem::path const & db_path)
 
     database_t::wipe(db_path);
 
-    auto db = database_t::make(db_path, true);
-    check_keyvalue_database(db);
+    // Create and destruct database
+    {
+        auto db = database_t::make(db_path, true);
+        check_keyvalue_database(db);
 
-    settings_t settings {std::move(db)};
-    check_settings(settings);
+        settings_t settings{ std::move(db) };
+        check_settings(settings);
+    }
 
     // In Windows database must be closed/destructed before to avoid exception:
     // "The process cannot access the file because it is being used by another process"

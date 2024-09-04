@@ -272,12 +272,12 @@ bool database::wipe (fs::path const & path, error * perr)
 #define BACKEND backend::rocksdb::database
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
+keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep) noexcept
     : _rep(std::move(rep))
 {}
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
+keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other) noexcept
 {
     _rep = std::move(other._rep);
     other._rep.dbh = nullptr;

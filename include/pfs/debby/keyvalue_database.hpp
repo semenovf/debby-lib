@@ -33,7 +33,7 @@ private:
     rep_type _rep;
 
 private:
-    DEBBY__EXPORT keyvalue_database (rep_type && rep);
+    DEBBY__EXPORT keyvalue_database (rep_type && rep) noexcept;
     keyvalue_database (keyvalue_database const & other) = delete;
     keyvalue_database & operator = (keyvalue_database const & other) = delete;
     keyvalue_database & operator = (keyvalue_database && other) = delete;
@@ -61,7 +61,7 @@ private:
 
 public:
     keyvalue_database () = default;
-    DEBBY__EXPORT keyvalue_database (keyvalue_database && other);
+    DEBBY__EXPORT keyvalue_database (keyvalue_database && other) noexcept;
     DEBBY__EXPORT ~keyvalue_database ();
 
 public:

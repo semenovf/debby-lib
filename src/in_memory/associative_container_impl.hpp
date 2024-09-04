@@ -16,21 +16,21 @@
 namespace debby {
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
+keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep) noexcept
     : _rep(std::move(rep))
 {}
 
 template <>
-keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other) = default;
+keyvalue_database<BACKEND>::keyvalue_database(keyvalue_database&& other) noexcept
+{}
 
 template <>
-keyvalue_database<BACKEND>::~keyvalue_database () = default;
-
+keyvalue_database<BACKEND>::~keyvalue_database() {}
 
 template <>
 keyvalue_database<BACKEND>::operator bool () const noexcept
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     return true;
 }
 
@@ -38,7 +38,7 @@ template <>
 void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, std::intmax_t value
     , std::size_t /*size*/, error * /*perr*/)
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{value};
 }
 
@@ -46,7 +46,7 @@ template <>
 void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, double value
     , std::size_t /*size*/, error * /*perr*/)
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{value};
 }
 
@@ -54,7 +54,7 @@ template <>
 void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, float value
     , std::size_t /*size*/, error * /*perr*/)
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{value};
 }
 
@@ -62,7 +62,7 @@ template <>
 void keyvalue_database<BACKEND>::set_chars (key_type const & key, char const * data
     , std::size_t size, error * /*perr*/)
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{std::string(data, size)};
 }
 
@@ -74,7 +74,7 @@ void keyvalue_database<BACKEND>::set_blob (key_type const & key, char const * da
     blob.resize(size);
     std::memcpy(blob.data(), data, size);
 
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     _rep.dbh[key] = BACKEND::value_type{std::move(blob)};
 }
 
@@ -85,7 +85,7 @@ template <>
 void
 keyvalue_database<BACKEND>::remove (key_type const & key, error * perr)
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     _rep.dbh.erase(key);
 }
 
@@ -97,7 +97,7 @@ template <>
 std::intmax_t
 keyvalue_database<BACKEND>::get_integer (key_type const & key, error * perr) const
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -129,7 +129,7 @@ keyvalue_database<BACKEND>::get_integer (key_type const & key, error * perr) con
 template <>
 float keyvalue_database<BACKEND>::get_float (key_type const & key, error * perr) const
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -161,7 +161,7 @@ float keyvalue_database<BACKEND>::get_float (key_type const & key, error * perr)
 template <>
 double keyvalue_database<BACKEND>::get_double (key_type const & key, error * perr) const
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -193,7 +193,7 @@ double keyvalue_database<BACKEND>::get_double (key_type const & key, error * per
 template <>
 std::string keyvalue_database<BACKEND>::get_string (key_type const & key, error * perr) const
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;
@@ -223,7 +223,7 @@ std::string keyvalue_database<BACKEND>::get_string (key_type const & key, error 
 template <>
 blob_t keyvalue_database<BACKEND>::get_blob (key_type const & key, error * perr) const
 {
-    BACKEND::lock_guard{_rep.mtx};
+    BACKEND::lock_guard locker{_rep.mtx};
     auto pos = _rep.dbh.find(key);
 
     errc e = errc::success;

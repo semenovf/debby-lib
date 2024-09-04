@@ -175,13 +175,18 @@ TEST_CASE("benchmark") {
 
     auto db_path = fs::temp_directory_path() / "benchmark.db";
 
-    auto db  = database_t::make(db_path);
+    // Create and destruct database
+    {
+        auto db = database_t::make(db_path);
 
-    REQUIRE(db);
-    db.remove_all();
+        REQUIRE(db);
+        db.remove_all();
 
-    do_benchmarks(& db, "noncached", "cached");
+        do_benchmarks(&db, "noncached", "cached");
+    }
 
+    // In Windows database must be closed/destructed before to avoid exception:
+    // "The process cannot access the file because it is being used by another process"
     database_t::wipe(db_path);
 }
 

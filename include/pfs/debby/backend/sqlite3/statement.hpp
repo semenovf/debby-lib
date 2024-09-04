@@ -37,10 +37,10 @@ struct statement
     static DEBBY__EXPORT rep_type make (native_type sth, bool cached);
 
     template <typename T>
-    static bool bind_helper (rep_type * rep, int index, T && value, error * perr);
+    static DEBBY__EXPORT bool bind_helper (rep_type * rep, int index, T && value, error * perr);
 
     template <typename T>
-    static bool bind_helper (rep_type * rep, std::string const & placeholder
+    static bool DEBBY__EXPORT bind_helper (rep_type * rep, std::string const & placeholder
         , T && value, error * perr);
 
     template <typename T>
@@ -68,6 +68,8 @@ template <> DEBBY__EXPORT bool statement::bind_helper<int> (statement::rep_type 
     , int index, int && value, error * perr);
 template <> DEBBY__EXPORT bool statement::bind_helper<std::intmax_t> (statement::rep_type * rep
     , int index, std::intmax_t && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<float> (statement::rep_type * rep
+    , int index, float && value, error * perr);
 template <> DEBBY__EXPORT bool statement::bind_helper<double> (statement::rep_type * rep
     , int index, double && value, error * perr);
 template <> DEBBY__EXPORT bool statement::bind_helper<std::string> (statement::rep_type * rep
@@ -83,6 +85,8 @@ template <> DEBBY__EXPORT bool statement::bind_helper<int> (statement::rep_type 
     , std::string const & placeholder, int && value, error * perr);
 template <> DEBBY__EXPORT bool statement::bind_helper<std::intmax_t> (statement::rep_type * rep
     , std::string const & placeholder, std::intmax_t && value, error * perr);
+template <> DEBBY__EXPORT bool statement::bind_helper<float>(statement::rep_type * rep
+    , std::string const & placeholder, float && value, error * perr);
 template <> DEBBY__EXPORT bool statement::bind_helper<double> (statement::rep_type * rep
     , std::string const & placeholder, double && value, error * perr);
 template <> DEBBY__EXPORT bool statement::bind_helper<std::string> (statement::rep_type * rep
