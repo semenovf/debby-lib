@@ -63,32 +63,4 @@ struct statement
     }
 };
 
-// #if _MSC_VER
-// template <> DEBBY__EXPORT bool statement::bind_helper<std::nullptr_t> (statement::rep_type * rep
-//     , int index, std::nullptr_t && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<int> (statement::rep_type * rep
-//     , int index, int && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<std::intmax_t> (statement::rep_type * rep
-//     , int index, std::intmax_t && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<double> (statement::rep_type * rep
-//     , int index, double && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<std::string> (statement::rep_type * rep
-//     , int index, std::string && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<char const *> (statement::rep_type * rep
-//     , int index, char const * && value, error * perr);
-//
-// template <> DEBBY__EXPORT bool statement::bind_helper<std::nullptr_t> (statement::rep_type * rep
-//     , std::string const & placeholder, std::nullptr_t && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<int> (statement::rep_type * rep
-//     , std::string const & placeholder, int && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<std::intmax_t> (statement::rep_type * rep
-//     , std::string const & placeholder, std::intmax_t && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<double> (statement::rep_type * rep
-//     , std::string const & placeholder, double && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<std::string> (statement::rep_type * rep
-//     , std::string const & placeholder, std::string && value, error * perr);
-// template <> DEBBY__EXPORT bool statement::bind_helper<char const *> (statement::rep_type * rep
-//     , std::string const & placeholder, char const * && value, error * perr);
-// #endif
-
 }}} // namespace debby::backend::psql

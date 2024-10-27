@@ -31,6 +31,9 @@ inline std::string build_errstr (PGconn * dbh)
     // the same across operations on the PGconn structure.
     std::string r(PQerrorMessage(dbh));
 
+    if (r.back() == '\n')
+        r.pop_back();
+
     return r;
 }
 

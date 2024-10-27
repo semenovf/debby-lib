@@ -27,7 +27,7 @@ enum class oid_enum: unsigned int // See Oid definition
     , int64 = 20 // #define INT8OID 20
 // #define INT2VECTOROID 22
 // #define REGPROCOID 24
-// #define TEXTOID 25
+    , text = 25 // #define TEXTOID 25
 // #define OIDOID 26
 // #define TIDOID 27
 // #define XIDOID 28

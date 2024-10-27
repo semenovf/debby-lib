@@ -20,6 +20,12 @@ namespace psql {
 
 // The preferred storage class for a column is called its "affinity".
 
+struct boolean_affinity_traits
+{
+    using storage_type = bool;
+    static std::string name () { return "BOOLEAN"; }
+};
+
 struct integral16_affinity_traits
 {
     using storage_type = std::int16_t;
@@ -65,10 +71,17 @@ struct blob_affinity_traits
 template <typename NativeType, typename Constraints = void>
 struct affinity_traits;
 
+template <typename NativeType>
+struct affinity_traits<NativeType, typename std::enable_if<
+    std::is_same<typename std::decay<NativeType>::type, bool>::value, void>::type>
+    : boolean_affinity_traits
+{};
+
 // Affinity traits for integers
 template <typename NativeType>
 struct affinity_traits<NativeType, typename std::enable_if<
        std::is_integral<typename std::decay<NativeType>::type>::value
+       && !std::is_same<typename std::decay<NativeType>::type, bool>::value
        && sizeof(NativeType) <= 2, void>::type>
     : integral16_affinity_traits
 {};

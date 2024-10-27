@@ -1,11 +1,12 @@
 ################################################################################
-# Copyright (c) 2021,2022 Vladislav Trifochkin
+# Copyright (c) 2021-2024 Vladislav Trifochkin
 #
 # This file is part of `debby-lib`.
 #
 # Changelog:
-#      2021.11.24 Initial version.
-#      2021.12.10 Refactored for using portable_target `ADD_TEST`.
+#       2021.11.24 Initial version.
+#       2021.12.10 Refactored for using portable_target `ADD_TEST`.
+#       2024.10.27 Removed `portable_target` dependency.
 ################################################################################
 project(debby-TESTS CXX C)
 
@@ -20,19 +21,13 @@ list(APPEND TESTS
     cached_statement
     unified_value)
 
-if (DEBBY__ENABLE_PSQL)
-    # list(APPEND TESTS psql)
-endif()
+foreach (target ${TESTS})
+    add_executable(${target} ${target}.cpp)
+    target_link_libraries(${target} PRIVATE pfs::debby)
+    add_test(NAME ${target} COMMAND ${target})
 
-if (TARGET pfs::debby)
-    set(_debby_lib pfs::debby)
-elseif(TARGET pfs::debby::static)
-    set(_debby_lib pfs::debby::static)
-endif()
-
-foreach (t ${TESTS})
-    portable_target(ADD_TEST ${t}
-        ENABLE_COVERAGE ${DEBBY__ENABLE_COVERAGE}
-        SOURCES ${t}.cpp ${${t}_SOURCES}
-        LINK ${_debby_lib})
+    if (PFS__ENABLE_COVERAGE)
+        target_compile_options(${target} PRIVATE -g -O0 --coverage)
+        target_link_libraries(${target} PRIVATE -g -O0 --coverage)
+    endif()
 endforeach()

@@ -14,6 +14,7 @@
 #include "pfs/debby/backend/psql/result.hpp"
 #include "pfs/debby/backend/psql/statement.hpp"
 #include <algorithm>
+#include <cstdio>
 
 extern "C" {
 #include <libpq-fe.h>
@@ -53,10 +54,7 @@ statement::rep_type statement::make (native_type dbh, std::string const & name)
     return rep;
 }
 
-template <>
-bool
-statement::bind_helper (statement::rep_type * /*rep*/, std::string const & /*placeholder*/
-    , bool && /*value*/, error * perr)
+static bool bind_helper_unsupported (error * perr)
 {
     pfs::throw_or(perr, error {errc::unsupported, "binding with placeholder is not supported"});
     return false;
@@ -64,17 +62,13 @@ statement::bind_helper (statement::rep_type * /*rep*/, std::string const & /*pla
 
 template <>
 bool
-statement::bind_helper (statement::rep_type * rep, int index, bool && value, error * perr)
+statement::bind_helper (statement::rep_type * /*rep*/, std::string const & /*placeholder*/
+    , bool && /*value*/, error * perr)
 {
-    ensure_capacity(rep, index);
-    rep->param_transient_values[index] = value ? "\x1" : "\x0";
-    rep->param_values[index] = rep->param_transient_values[index].c_str();
-    rep->param_lengths[index] = sizeof(bool);
-    rep->param_formats[index] = 1;
-    return true;
+    return bind_helper_unsupported(perr);
 }
 
-#define BIND_INDEX_INT_DEF(T)                                                        \
+#define BIND_INDEX_INT_BINARY_DEF(T)                                                 \
 template <>                                                                          \
 bool                                                                                 \
 statement::bind_helper (statement::rep_type * rep                                    \
@@ -84,11 +78,25 @@ statement::bind_helper (statement::rep_type * rep                               
     auto transient_value = pfs::to_network_order(value);                             \
     rep->param_transient_values[index]                                               \
         = std::string(reinterpret_cast<char const *>(& transient_value), sizeof(T)); \
-    rep->param_values[index] = rep->param_transient_values[index].c_str();           \
     rep->param_lengths[index] = sizeof(T);                                           \
     rep->param_formats[index] = 1;                                                   \
     return true;                                                                     \
 }
+
+#define BIND_INDEX_INT_TEXT_DEF(T)                                                   \
+template <>                                                                          \
+bool                                                                                 \
+statement::bind_helper (statement::rep_type * rep                                    \
+    , int index, T && value, error * /*perr*/)                                       \
+{                                                                                    \
+    ensure_capacity(rep, index);                                                     \
+    rep->param_transient_values[index] = std::to_string(value);                      \
+    rep->param_lengths[index] = rep->param_transient_values[index].size();           \
+    rep->param_formats[index] = 0;                                                   \
+    return true;                                                                     \
+}
+
+#define BIND_INDEX_INT_DEF(T) BIND_INDEX_INT_TEXT_DEF(T)
 
 #define BIND_PLACEHOLDER_INT_DEF(T)                                      \
     template <>                                                          \
@@ -96,7 +104,7 @@ statement::bind_helper (statement::rep_type * rep                               
     statement::bind_helper (statement::rep_type * rep                    \
         , std::string const & placeholder, T && /*value*/, error * perr) \
     {                                                                    \
-        return bind_helper(rep, placeholder, bool{false}, perr);         \
+        return bind_helper_unsupported(perr);                            \
     }
 
 BIND_INDEX_INT_DEF(char)
@@ -132,7 +140,6 @@ statement::bind_helper (statement::rep_type * rep, int index, float && value, er
 {
     ensure_capacity(rep, index);
     rep->param_transient_values[index] = std::to_string(value);
-    rep->param_values[index] = rep->param_transient_values[index].c_str();
     rep->param_lengths[index] = rep->param_transient_values[index].size();
     rep->param_formats[index] = 0;
     return true;
@@ -143,7 +150,7 @@ bool
 statement::bind_helper (statement::rep_type * rep, std::string const & placeholder
     , float && value, error * perr)
 {
-    return bind_helper(rep, placeholder, std::move(value), perr);
+    return bind_helper_unsupported(perr);
 }
 
 template <>
@@ -152,7 +159,6 @@ statement::bind_helper (statement::rep_type * rep, int index, double && value, e
 {
     ensure_capacity(rep, index);
     rep->param_transient_values[index] = std::to_string(value);
-    rep->param_values[index] = rep->param_transient_values[index].c_str();
     rep->param_lengths[index] = rep->param_transient_values[index].size();
     rep->param_formats[index] = 0;
     return true;
@@ -163,7 +169,7 @@ bool
 statement::bind_helper (statement::rep_type * rep, std::string const & placeholder
     , double && value, error * perr)
 {
-    return bind_helper(rep, placeholder, std::move(value), perr);
+    return bind_helper_unsupported(perr);
 }
 
 template <>
@@ -182,7 +188,7 @@ bool
 statement::bind_helper (statement::rep_type * rep, std::string const & placeholder
     , std::nullptr_t &&, error * perr)
 {
-    return bind_helper(rep, placeholder, nullptr, perr);
+    return bind_helper_unsupported(perr);
 }
 
 template <>
@@ -191,7 +197,6 @@ statement::bind_helper (statement::rep_type * rep, int index, std::string && val
 {
     ensure_capacity(rep, index);
     rep->param_transient_values[index] = std::move(value);
-    rep->param_values[index] = rep->param_transient_values[index].c_str();
     rep->param_lengths[index] = rep->param_transient_values[index].size();
     rep->param_formats[index] = 0;
     return true;
@@ -202,7 +207,7 @@ bool
 statement::bind_helper (statement::rep_type * rep, std::string const & placeholder
     , std::string && value, error * perr)
 {
-    return bind_helper(rep, placeholder, std::move(value), perr);
+    return bind_helper_unsupported(perr);
 }
 
 template <>
@@ -217,7 +222,14 @@ bool
 statement::bind_helper (statement::rep_type * rep, std::string const & placeholder
     , char const * && value, error * perr)
 {
-    return bind_helper(rep, placeholder, std::string(value), perr);
+    return bind_helper_unsupported(perr);
+}
+
+template <>
+bool
+statement::bind_helper (statement::rep_type * rep, int index, bool && value, error * perr)
+{
+    return bind_helper(rep, index, std::string(value ? "1" : "0"), perr);
 }
 
 }} // namespace backend::psql
@@ -260,6 +272,13 @@ statement<BACKEND>::exec (error * perr)
 
     int result_in_binary_format = 1;
 
+    for (int i = 0; i < _rep.param_transient_values.size(); i++) {
+        if (_rep.param_lengths[i] > 0)
+            _rep.param_values[i] = _rep.param_transient_values[i].c_str();
+        else
+            _rep.param_values[i] = nullptr;
+    }
+
     auto sth = PQexecPrepared(_rep.dbh, _rep.name.c_str()
         , _rep.param_values.size()
         , _rep.param_values.data()
@@ -293,130 +312,5 @@ statement<BACKEND>::exec (error * perr)
 
     return result_type::make(sth);
 }
-
-// template <>
-// bool
-// statement<BACKEND>::bind (int index, std::string const & value
-//     , transient_enum transient, error * perr)
-// {
-//     auto str = value.c_str();
-//     auto len = value.size();
-//
-//     return backend::sqlite3::bind_helper_func(& _rep, index, [this, str, len, transient] (int index) {
-//         return sqlite3_bind_text(_rep.sth, index, str
-//             , static_cast<int>(len)
-//             , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//     }, perr);
-// }
-//
-// template <>
-// bool
-// statement<BACKEND>::bind (std::string const & placeholder
-//     , std::string const & value, transient_enum transient, error * perr)
-// {
-//     auto str = value.c_str();
-//     auto len = value.size();
-//
-//     return backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, str, len, transient] (int index) {
-//         return sqlite3_bind_text(_rep.sth, index, str
-//             , static_cast<int>(len)
-//             , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//     }, perr);
-// }
-//
-// template <>
-// bool
-// statement<BACKEND>::bind (int index, string_view value, transient_enum transient
-//     , error * perr)
-// {
-//     auto str = value.data();
-//     auto len = value.size();
-//
-//     return backend::sqlite3::bind_helper_func(& _rep, index, [this, str, len, transient] (int index) {
-//         return sqlite3_bind_text(_rep.sth, index, str
-//             , static_cast<int>(len)
-//             , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//     }, perr);
-// }
-//
-// template <>
-// bool
-// statement<BACKEND>::bind (std::string const & placeholder, string_view value
-//     , transient_enum transient, error * perr)
-// {
-//     auto str = value.data();
-//     auto len = value.size();
-//
-//     return backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, str, len, transient] (int index) {
-//         return sqlite3_bind_text(_rep.sth, index, str
-//             , static_cast<int>(len)
-//             , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//     }, perr);
-// }
-//
-// template <>
-// bool
-// statement<BACKEND>::bind (int index, char const * value
-//     , transient_enum transient, error * perr)
-// {
-//     return backend::sqlite3::bind_helper_func(& _rep, index, [this, value, transient] (int index) {
-//         return sqlite3_bind_text(_rep.sth, index, value
-//             , static_cast<int>(std::strlen(value))
-//             , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//     }, perr);
-// }
-//
-// template <>
-// bool
-// statement<BACKEND>::bind (std::string const & placeholder
-//     , char const * value, transient_enum transient, error * perr)
-// {
-//     return backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, transient] (int index) {
-//         return sqlite3_bind_text(_rep.sth, index, value
-//             , static_cast<int>(std::strlen(value))
-//             , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//     }, perr);
-// }
-//
-// template <>
-// bool
-// statement<BACKEND>::bind (std::string const & placeholder
-//     , std::uint8_t const * value, std::size_t len, transient_enum transient
-//     , error * perr)
-// {
-//     if (len > (std::numeric_limits<int>::max)()) {
-//         return backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, len, transient] (int index) {
-//             return sqlite3_bind_blob64(_rep.sth, index, value
-//                 , static_cast<sqlite3_int64>(len)
-//                 , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//         }, perr);
-//     } else {
-//         return backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, len, transient] (int index) {
-//             return sqlite3_bind_blob(_rep.sth, index, value
-//                 , static_cast<int>(len)
-//                 , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//         }, perr);
-//     }
-// }
-//
-// template <>
-// bool
-// statement<BACKEND>::bind (int index, std::uint8_t const * value, std::size_t len
-//     , transient_enum transient, error * perr)
-// {
-//     if (len > (std::numeric_limits<int>::max)()) {
-//         return backend::sqlite3::bind_helper_func(& _rep, index, [this, value, len, transient] (int index) {
-//             return sqlite3_bind_blob64(_rep.sth, index, value
-//                 , static_cast<sqlite3_int64>(len)
-//                 , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//         }, perr);
-//     } else {
-//         return backend::sqlite3::bind_helper_func(& _rep, index, [this, value, len, transient] (int index) {
-//             return sqlite3_bind_blob(_rep.sth, index, value
-//                 , static_cast<int>(len)
-//                 , transient == transient_enum::yes ? SQLITE_TRANSIENT : SQLITE_STATIC);
-//         }, perr);
-//     }
-// }
 
 } // namespace debby

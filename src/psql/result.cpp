@@ -6,13 +6,13 @@
 // Changelog:
 //      2023.11.25 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
-// #include "utils.hpp"
 #include "oid_enum.hpp"
-#include "pfs/assert.hpp"
-#include "pfs/i18n.hpp"
-#include "pfs/integer.hpp"
-#include "pfs/debby/result.hpp"
-#include "pfs/debby/backend/psql/result.hpp"
+#include <pfs/assert.hpp>
+#include <pfs/endian.hpp>
+#include <pfs/i18n.hpp>
+#include <pfs/integer.hpp>
+#include <pfs/debby/result.hpp>
+#include <pfs/debby/backend/psql/result.hpp>
 #include <cstring>
 
 extern "C" {
@@ -154,7 +154,7 @@ result<BACKEND>::fetch (int column, value_type & value, error & err) const noexc
     if (column < 0 || column >= upper_limit) {
         err = error {
               errc::column_not_found
-            , fmt::format("bad column: {}, expected greater or equal to 0 and"
+            , tr::f_("bad column: {}, expected greater or equal to 0 and"
                 " less than {}", column, upper_limit)
         };
 
@@ -189,80 +189,171 @@ result<BACKEND>::fetch (int column, value_type & value, error & err) const noexc
     auto raw_data = reinterpret_cast<char const *>(PQgetvalue(_rep.sth, _rep.row_index, column));
     int size = PQgetlength(_rep.sth, _rep.row_index, column);
 
-    switch (column_type) {
-        case oid_enum::boolean:
-        case oid_enum::int16:
-        case oid_enum::int32:
-        case oid_enum::int64: {
-//         case SQLITE_INTEGER: {
-//             sqlite3_int64 n = sqlite3_column_int64(_rep.sth, column);
-//
-//             if (pfs::holds_alternative<bool>(value)) {
-//                 value = static_cast<bool>(n);
-//             } else if (pfs::holds_alternative<double>(value)) {
-//                 value = static_cast<double>(n);
-//             } else if (pfs::holds_alternative<float>(value)) {
-//                 value = static_cast<float>(n);
-//             } else if (pfs::holds_alternative<blob_t>(value)) {
-//                 blob_t blob(sizeof(sqlite3_int64));
-//                 std::memcpy(blob.data(), &n, sizeof(n));
-//                 value = std::move(blob);
-//             } else if (pfs::holds_alternative<std::string>(value)) {
-//                 std::string s = std::to_string(n);
-//                 value = std::move(s);
-//             } else { // std::nullptr_t, std::intmax_t
-//                 value = static_cast<std::intmax_t>(n);
-//             }
-
-            return true;
-        }
-
-//         case SQLITE_FLOAT: {
-//             double f = sqlite3_column_double(_rep.sth, column);
-//
-//             if (pfs::holds_alternative<double>(value)) {
-//                 value = f;
-//             } else if (pfs::holds_alternative<float>(value)) {
-//                 value = static_cast<float>(f);
-//             } else if (pfs::holds_alternative<bool>(value)) {
-//                 value = static_cast<bool>(f);
-//             } else if (pfs::holds_alternative<std::intmax_t>(value)) {
-//                 value = static_cast<std::intmax_t>(f);
-//             } else if (pfs::holds_alternative<blob_t>(value)) {
-//                 blob_t blob(sizeof(double));
-//                 std::memcpy(blob.data(), & f, sizeof(f));
-//                 value = std::move(blob);
-//             } else if (pfs::holds_alternative<std::string>(value)) {
-//                 std::string s = std::to_string(f);
-//                 value = std::move(s);
-//             } else { // std::nullptr_t
-//                 value = f;
-//             }
-//
-//             return true;
-//         }
-//
-        case oid_enum::name: {
-            value = std::string(raw_data, size);
-            return true;
-        }
-
-//         case SQLITE_BLOB: {
-//             char const * data = static_cast<char const *>(sqlite3_column_blob(_rep.sth, column));
-//             int size = sqlite3_column_bytes(_rep.sth, column);
-//             blob_t blob;
-//             blob.resize(size);
-//             std::memcpy(blob.data(), data, size);
-//             value = std::move(blob);
-//             return true;
-//         }
-//         default:
-//             // Unexpected column type, need to handle it.
-//             PFS__TERMINATE(false, "Unexpected column type");
-//             break;
+    if (pfs::holds_alternative<blob_t>(value)) {
+        blob_t blob(size);
+        std::memcpy(blob.data(), raw_data, size);
+        value = std::move(blob);
+        return true;
     }
 
-    // Unreachable in ordinary situation
+    switch (column_type) {
+        case oid_enum::boolean: {
+            bool b = false;
+
+            if (size > 0)
+                b = raw_data[0] == '\x0' ? false : true;
+
+            if (pfs::holds_alternative<std::intmax_t>(value)) {
+                value = static_cast<std::intmax_t>(b);
+            } else if (pfs::holds_alternative<double>(value)) {
+                value = static_cast<double>(b);
+            } else if (pfs::holds_alternative<float>(value)) {
+                value = static_cast<float>(b);
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                std::string s = std::to_string(b);
+                value = std::move(s);
+            } else { // std::nullptr_t, bool
+                value = b;
+            }
+
+            break;
+        }
+
+        case oid_enum::int16: {
+            std::int16_t n = 0;
+            PFS__TERMINATE(size == sizeof(n), "");
+
+            if (size > 0) {
+                std::memcpy(& n, raw_data, size);
+                n = pfs::to_native_order(n);
+            }
+
+            if (pfs::holds_alternative<bool>(value)) {
+                value = static_cast<bool>(n);
+            } else if (pfs::holds_alternative<double>(value)) {
+                value = static_cast<double>(n);
+            } else if (pfs::holds_alternative<float>(value)) {
+                value = static_cast<float>(n);
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                std::string s = std::to_string(n);
+                value = std::move(s);
+            } else { // std::nullptr_t, bool
+                value = static_cast<std::intmax_t>(n);
+            }
+
+            break;
+        }
+
+        case oid_enum::int32: {
+            std::int32_t n = 0;
+            PFS__TERMINATE(size == sizeof(n), "");
+
+            if (size > 0) {
+                std::memcpy(& n, raw_data, size);
+                n = pfs::to_native_order(n);
+            }
+
+            if (pfs::holds_alternative<bool>(value)) {
+                value = static_cast<bool>(n);
+            } else if (pfs::holds_alternative<double>(value)) {
+                value = static_cast<double>(n);
+            } else if (pfs::holds_alternative<float>(value)) {
+                value = static_cast<float>(n);
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                std::string s = std::to_string(n);
+                value = std::move(s);
+            } else { // std::nullptr_t, bool
+                value = static_cast<std::intmax_t>(n);
+            }
+
+            break;
+        }
+
+        case oid_enum::int64: {
+            std::int64_t n = 0;
+            PFS__TERMINATE(size == sizeof(n), "");
+
+            if (size > 0) {
+                std::memcpy(& n, raw_data, size);
+                n = pfs::to_native_order(n);
+            }
+
+            if (pfs::holds_alternative<bool>(value)) {
+                value = static_cast<bool>(n);
+            } else if (pfs::holds_alternative<double>(value)) {
+                value = static_cast<double>(n);
+            } else if (pfs::holds_alternative<float>(value)) {
+                value = static_cast<float>(n);
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                std::string s = std::to_string(n);
+                value = std::move(s);
+            } else { // std::nullptr_t, bool
+                value = static_cast<std::intmax_t>(n);
+            }
+
+            break;
+        }
+
+        case oid_enum::float32: {
+            PFS__TERMINATE(size == 4, "");
+
+            union {float f; std::int32_t d;} u;
+            u.d = *reinterpret_cast<std::int32_t const *>(raw_data);
+            u.d = pfs::to_native_order(u.d);
+            float f = u.f;
+
+            if (pfs::holds_alternative<bool>(value)) {
+                value = static_cast<bool>(f);
+            } else if (pfs::holds_alternative<std::intmax_t>(value)) {
+                value = static_cast<std::intmax_t>(f);
+            } else if (pfs::holds_alternative<double>(value)) {
+                value = static_cast<double>(f);
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                std::string s = std::to_string(f);
+                value = std::move(s);
+            } else { // std::nullptr_t, float
+                value = f;
+            }
+
+            break;
+        }
+
+        case oid_enum::float64: {
+            PFS__TERMINATE(size == 8, "");
+
+            union {double f; std::int64_t d;} u;
+            u.d = *reinterpret_cast<std::int64_t const *>(raw_data);
+            u.d = pfs::to_native_order(u.d);
+            double f = u.f;
+
+            if (pfs::holds_alternative<bool>(value)) {
+                value = static_cast<bool>(f);
+            } else if (pfs::holds_alternative<std::intmax_t>(value)) {
+                value = static_cast<std::intmax_t>(f);
+            } else if (pfs::holds_alternative<float>(value)) {
+                value = static_cast<float>(f);
+            } else if (pfs::holds_alternative<std::string>(value)) {
+                std::string s = std::to_string(f);
+                value = std::move(s);
+            } else { // std::nullptr_t, double
+                value = f;
+            }
+
+            break;
+        }
+
+        case oid_enum::name:
+        case oid_enum::text: {
+            value = std::string(raw_data, size);
+            break;
+        }
+
+        default:
+            // Unexpected column type, need to handle it.
+            PFS__TERMINATE(false, "Unexpected column type");
+            break;
+    }
+
     return true;
 }
 
@@ -273,24 +364,29 @@ result<BACKEND>::fetch (std::string const & column_name, value_type & value
 {
     PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
 
-//     if (_rep.column_mapping.empty()) {
-//         auto count = sqlite3_column_count(_rep.sth);
-//
-//         for (int i = 0; i < count; i++)
-//             _rep.column_mapping.insert({std::string{sqlite3_column_name(_rep.sth, i)}, i});
-//     }
-//
-//     auto pos = _rep.column_mapping.find(column_name);
-//
-//     if (pos != _rep.column_mapping.end())
-//         return fetch(pos->second, value, err);
-//
-//     err = error {
-//           errc::column_not_found
-//         , fmt::format("bad column name: {}", column_name)
-//     };
+    int column = -1;
 
-    return false;
+    auto upper_limit = PQnfields(_rep.sth);
+
+    for (int i = 0; i < upper_limit; i++) {
+        auto name = PQfname(_rep.sth, i);
+
+        if (column_name == name) {
+            column = i;
+            break;
+        }
+    }
+
+    if (column < 0) {
+        err = error {
+              errc::column_not_found
+            , tr::f_("bad column name: {}", column_name)
+        };
+
+        return false;
+    }
+
+    return fetch(column, value, err);
 }
 
 } // namespace debby

@@ -16,6 +16,19 @@
 
 using namespace debby::backend::psql;
 
+void test_boolean_type ()
+{
+    CHECK(std::is_same<bool, typename affinity_traits<bool>::storage_type>::value);
+    CHECK(std::is_same<bool, typename affinity_traits<bool &>::storage_type>::value);
+    CHECK(std::is_same<bool, typename affinity_traits<bool const>::storage_type>::value);
+    CHECK(std::is_same<bool, typename affinity_traits<bool const &>::storage_type>::value);
+
+    CHECK(affinity_traits<bool>::name() == "BOOLEAN");
+    CHECK(affinity_traits<bool &>::name() == "BOOLEAN");
+    CHECK(affinity_traits<bool const>::name() == "BOOLEAN");
+    CHECK(affinity_traits<bool const &>::name() == "BOOLEAN");
+}
+
 template <typename IntegralT>
 void test_integral16_type ()
 {
@@ -94,7 +107,7 @@ void test_string_type ()
 }
 
 TEST_CASE("postgresql affinity") {
-    test_integral16_type<bool>();
+    test_boolean_type();
     test_integral16_type<char>();
     test_integral16_type<std::int8_t>();
     test_integral16_type<std::uint8_t>();
