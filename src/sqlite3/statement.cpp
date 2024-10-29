@@ -431,8 +431,7 @@ statement<BACKEND>::exec (error * perr)
 
 template <>
 bool
-statement<BACKEND>::bind (int index, std::string const & value
-    , transient_enum transient, error * perr)
+statement<BACKEND>::bind (int index, std::string const & value, transient_enum transient, error * perr)
 {
     auto str = value.c_str();
     auto len = value.size();
@@ -446,8 +445,8 @@ statement<BACKEND>::bind (int index, std::string const & value
 
 template <>
 bool
-statement<BACKEND>::bind (std::string const & placeholder
-    , std::string const & value, transient_enum transient, error * perr)
+statement<BACKEND>::bind (std::string const & placeholder, std::string const & value
+    , transient_enum transient, error * perr)
 {
     auto str = value.c_str();
     auto len = value.size();
@@ -461,8 +460,7 @@ statement<BACKEND>::bind (std::string const & placeholder
 
 template <>
 bool
-statement<BACKEND>::bind (int index, string_view value, transient_enum transient
-    , error * perr)
+statement<BACKEND>::bind (int index, string_view value, transient_enum transient, error * perr)
 {
     auto str = value.data();
     auto len = value.size();
@@ -491,8 +489,7 @@ statement<BACKEND>::bind (std::string const & placeholder, string_view value
 
 template <>
 bool
-statement<BACKEND>::bind (int index, char const * value
-    , transient_enum transient, error * perr)
+statement<BACKEND>::bind (int index, char const * value, transient_enum transient, error * perr)
 {
     return backend::sqlite3::bind_helper_func(& _rep, index, [this, value, transient] (int index) {
         return sqlite3_bind_text(_rep.sth, index, value
@@ -503,8 +500,8 @@ statement<BACKEND>::bind (int index, char const * value
 
 template <>
 bool
-statement<BACKEND>::bind (std::string const & placeholder
-    , char const * value, transient_enum transient, error * perr)
+statement<BACKEND>::bind (std::string const & placeholder, char const * value
+    , transient_enum transient, error * perr)
 {
     return backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, transient] (int index) {
         return sqlite3_bind_text(_rep.sth, index, value
@@ -515,9 +512,8 @@ statement<BACKEND>::bind (std::string const & placeholder
 
 template <>
 bool
-statement<BACKEND>::bind (std::string const & placeholder
-    , std::uint8_t const * value, std::size_t len, transient_enum transient
-    , error * perr)
+statement<BACKEND>::bind (std::string const & placeholder, std::uint8_t const * value
+    , std::size_t len, transient_enum transient, error * perr)
 {
     if (len > (std::numeric_limits<int>::max)()) {
         return backend::sqlite3::bind_helper_func(& _rep, placeholder, [this, value, len, transient] (int index) {

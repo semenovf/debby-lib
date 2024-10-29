@@ -23,6 +23,7 @@
 #if DEBBY__PSQL_ENABLED
 #   include "pfs/debby/backend/psql/database.hpp"
 #   include "pfs/debby/backend/psql/statement.hpp"
+#   include "psql_support.hpp"
 #endif
 
 namespace fs = pfs::filesystem;
@@ -278,7 +279,6 @@ void prepared_select (RelationalDatabaseType & db, std::string const & sql)
     }
 }
 
-#if __FIXME__
 #if DEBBY__SQLITE3_ENABLED
 TEST_CASE("sqlite3") {
     using database_t = debby::relational_database<debby::backend::sqlite3::database>;
@@ -312,49 +312,21 @@ TEST_CASE("sqlite3") {
 
 }
 #endif
-#endif
 
 #if DEBBY__PSQL_ENABLED
 TEST_CASE("PostgreSQL") {
     using database_t = debby::relational_database<debby::backend::psql::database>;
 
-    std::map<std::string, std::string> conninfo = {
-          {"host", "localhost"}
-        , {"port", "5432"} // Default port
-        , {"user", "test"}
-        , {"password", "12345678"}
-        , {"dbname", "postgres"}
-    };
-
-    std::string db_name {"debby"};
-    debby::error err;
-    database_t::wipe(db_name, conninfo.cbegin(), conninfo.cend(), & err);
-
-    if (err) {
-        MESSAGE("\n"
-            "=======================================================================================\n"
-            "Perhaps it was not possible to connect to the database\n"
-            "For testing purposes, the following prerequisites must be met:\n"
-            "\t* PostgresSQL instance must be started on localhost on port 5432;\n"
-            "\t* `test` login must be available with roles ...;\n"
-            "\t* password for test login must be `12345678`.\n"
-            "\n"
-            "Below instructions can help to create `test` user/login\n"
-            "$ psql --host=localhost --port=5432 --user=postgres\n"
-            "postgres=# CREATE ROLE test WITH LOGIN NOSUPERUSER CREATEDB NOCREATEROLE NOINHERIT NOREPLICATION CONNECTION LIMIT -1 PASSWORD '12345678'\n"
-            "postgres=# \\q\n\n"
-            "Check connection:\n"
-            "$ psql --host=localhost --port=5432 --user=test --database=postgres\n"
-            "=======================================================================================\n");
-    }
-
+    auto conninfo = psql_conninfo();
     auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
+
+    if (!db) {
+        MESSAGE(preconditions_notice());
+    }
 
     REQUIRE(db);
 
     check(db, INSERT_PSQL, false);
     prepared_select(db, SELECT_PSQL);
-
-    database_t::wipe(db_name, conninfo.cbegin(), conninfo.cend(), & err);
 }
 #endif

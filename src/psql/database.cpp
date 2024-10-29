@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2023 Vladislav Trifochkin
+// Copyright (c) 2023,2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -7,6 +7,7 @@
 //      2023.11.25 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #include "pfs/i18n.hpp"
+#include "pfs/fmt.hpp"
 #include "pfs/debby/error.hpp"
 #include "pfs/debby/keyvalue_database.hpp"
 #include "pfs/debby/relational_database.hpp"
@@ -222,7 +223,7 @@ relational_database<BACKEND>::prepare (std::string const & sql, bool cache, erro
                 return statement_type::make(_rep.dbh, sql);
         } else {
             pfs::throw_or(perr, error {
-                    errc::backend_error
+                  errc::backend_error
                 , tr::f_("check prepared statement existence failure: {}: {}"
                     , sql, backend::psql::build_errstr(_rep.dbh))
             });
@@ -358,11 +359,7 @@ relational_database<BACKEND>::remove (std::vector<std::string> const & tables, e
         commit();
     } catch (error ex) {
         rollback();
-
-        if (perr)
-            *perr = ex;
-        else
-            throw;
+        pfs::throw_or(perr, std::move(ex));
     }
 }
 
@@ -403,112 +400,42 @@ relational_database<BACKEND>::exists (std::string const & name, error * perr)
 namespace backend {
 namespace psql {
 
-database::rep_type
-database::make_kv (std::string const & conninfo, error * perr)
-{
-    error err;
-    auto rep = make_r(conninfo, & err);
-
-    if (err) {
-        pfs::throw_or(perr, err);
-        return rep;
-    }
-
-    // FIXME
-//     std::string sql = "CREATE TABLE IF NOT EXISTS `debby`"
-//         " (`key` TEXT NOT NULL UNIQUE, `value` BLOB"
-//         " , PRIMARY KEY(`key`)) WITHOUT ROWID";
+// database::rep_type
+// database::make_kv (std::string const & table_name, std::string const & conninfo, error * perr)
+// {
+//     return make_kv(table_name, conninfo, nullptr, perr);
+// }
 //
+// database::rep_type
+// database::make_kv (std::string const & table_name, std::string const & conninfo
+//     , notice_processor_type proc, error * perr)
+// {
 //     error err;
+//     auto rep = proc != nullptr
+//         ? make_r(conninfo, proc, & err)
+//         : make_r(conninfo, & err);
+//
+//     if (err) {
+//         pfs::throw_or(perr, std::move(err));
+//         return rep;
+//     }
+//
+//     std::string sql = fmt::format("CREATE TABLE IF NOT EXISTS \"{}\""
+//         " (key TEXT NOT NULL UNIQUE, value BLOB PRIMARY KEY(key))", table_name);
+//
 //     auto success = query(& rep, sql, & err);
 //
 //     if (!success) {
-//         sqlite3_close_v2(rep.dbh);
+//         if (rep.dbh)
+//             PQfinish(rep.dbh);
+//
 //         rep.dbh = nullptr;
-//
-//         if (perr) {
-//             *perr = std::move(err);
-//             return rep_type{};
-//         } else {
-//             throw err;
-//         }
-//     }
-
-    return rep;
-}
-
-database::rep_type
-database::make_kv (std::string const & conninfo, notice_processor_type proc, error * perr)
-{
-    error err;
-    auto rep = make_r(conninfo, proc, & err);
-
-    if (err) {
-        pfs::throw_or(perr, std::move(err));
-        return rep;
-    }
-
-    return rep;
-}
-
-// FIXME
-// static bool get (database::rep_type const * rep
-//     , database::key_type const & key
-//     , std::string * string_result
-//     , blob_t * blob_result
-//     , error * perr)
-// {
-//     PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
-//
-//     error err;
-//     std::string sql = fmt::format("SELECT `value` FROM `debby` WHERE `key` = '{}'", key);
-//     sqlite3_stmt * stmt = nullptr;
-//
-//     do {
-//         auto rc = sqlite3_prepare_v2(rep->dbh, sql.c_str(), static_cast<int>(sql.size())
-//             , & stmt, nullptr);
-//
-//         if (rc != SQLITE_OK) {
-//             err = error {
-//                     errc::sql_error
-//                   , tr::f_("read failure for key: {}", build_errstr(rc, rep->dbh))
-//                   , sql
-//             };
-//             break;
-//         }
-//
-//         rc = sqlite3_step(stmt);
-//
-//         if (rc != SQLITE_ROW) {
-//             err = error { errc::key_not_found, tr::f_("key not found: '{}'", key) };
-//             break;
-//         }
-//
-//         if (string_result) {
-//             auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(stmt, 0));
-//             int size = sqlite3_column_bytes(stmt, 0);
-//             *string_result = std::string(cstr, size);
-//         } else if (blob_result) {
-//             auto data = reinterpret_cast<char const *>(sqlite3_column_blob(stmt, 0));
-//             int size = sqlite3_column_bytes(stmt, 0);
-//             blob_result->resize(size);
-//             std::memcpy(blob_result->data(), data, size);
-//         }
-//     } while (false);
-//
-//     if (stmt)
-//         sqlite3_finalize(stmt);
-//
-//     if (err) {
-//         if (perr) {
-//             *perr = err;
-//             return false;
-//         } else {
-//             throw err;
-//         }
+//         pfs::throw_or(perr, std::move(err));
 //     }
 //
-//     return true;
+//     rep.kv_table_name = table_name;
+//
+//     return rep;
 // }
 //
 // /**
@@ -517,243 +444,37 @@ database::make_kv (std::string const & conninfo, notice_processor_type proc, err
 // static bool remove (database::rep_type * rep, database::key_type const & key, error * perr)
 // {
 //     PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
-//     std::string sql = fmt::format("DELETE FROM `debby` WHERE `key` = '{}'", key);
+//     std::string sql = fmt::format("DELETE FROM '{}' WHERE key = '{}'", key);
 //     return query(rep, sql, perr);
-// }
-//
-// static bool put (database::rep_type * rep, database::key_type const & key
-//     , char const * data, std::size_t len, error * perr)
-// {
-//     PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
-//
-//     // Attempt to write `null` data interpreted as delete operation for key
-//     if (!data)
-//         return remove(rep, key, perr);
-//
-//     error err;
-//     std::string sql {"INSERT OR REPLACE INTO `debby` (`key`, `value`) VALUES (?, ?)"};
-//     sqlite3_stmt * stmt = nullptr;
-//
-//     do {
-//         auto rc = sqlite3_prepare_v2(rep->dbh, sql.c_str(), static_cast<int>(sql.size())
-//             , & stmt, nullptr);
-//
-//         if (rc != SQLITE_OK) {
-//             err = error { errc::sql_error, build_errstr(rc, rep->dbh), sql };
-//             break;
-//         }
-//
-//         sqlite3_bind_text(stmt, 1, key.c_str(), static_cast<int>(key.size()), SQLITE_STATIC);
-//         sqlite3_bind_blob(stmt, 2, data, static_cast<int>(len), SQLITE_STATIC);
-//
-//         rc = sqlite3_step(stmt);
-//
-//         if (rc != SQLITE_DONE) {
-//             err = error { errc::sql_error, build_errstr(rc, stmt), current_sql(stmt) };
-//             break;
-//         }
-//     } while (false);
-//
-//     if (stmt)
-//         sqlite3_finalize(stmt);
-//
-//     if (err) {
-//         if (perr) {
-//             *perr = err;
-//             return false;
-//         } else {
-//             throw err;
-//         }
-//     }
-//
-//     return true;
 // }
 
 }} // namespace backend::psql
 
-template <>
-keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
-    : _rep(std::move(rep))
-{}
-
-template <>
-keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
-{
-    _rep = std::move(other._rep);
-    other._rep.dbh = nullptr;
-}
-
-template <>
-keyvalue_database<BACKEND>::~keyvalue_database ()
-{
-    if (_rep.dbh)
-        PQfinish(_rep.dbh);
-
-    _rep.dbh = nullptr;
-}
-
-template <>
-keyvalue_database<BACKEND>::operator bool () const noexcept
-{
-    return _rep.dbh != nullptr;
-}
-
-template <>
-void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key
-    , std::intmax_t value, std::size_t size, error * perr)
-{
-    // FIXME
-//     char buf[sizeof(std::intmax_t)];
-//     backend::pack_arithmetic(buf, value, size);
-//     backend::sqlite3::put(& _rep, key, buf, size, perr);
-}
-
-template <>
-void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, double value
-    , std::size_t size, error * perr)
-{
-    // FIXME
-//     backend::fixed_packer<double> p;
-//     p.value = value;
-//     backend::sqlite3::put(& _rep, key, p.bytes, size, perr);
-}
-
-template <>
-void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, float value
-    , std::size_t size, error * perr)
-{
-    // FIXME
-//     backend::fixed_packer<float> p;
-//     p.value = value;
-//     backend::sqlite3::put(& _rep, key, p.bytes, size, perr);
-}
-
-template <>
-void keyvalue_database<BACKEND>::set_chars (key_type const & key, char const * data
-    , std::size_t size, error * perr)
-{
-    // FIXME
-//     backend::sqlite3::put(& _rep, key, data, size, perr);
-}
-
-template <>
-void keyvalue_database<BACKEND>::set_blob (key_type const & key, char const * data
-    , std::size_t size, error * perr)
-{
-    // FIXME
-//     backend::sqlite3::put(& _rep, key, data, size, perr);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// keyvalue_database::remove
-////////////////////////////////////////////////////////////////////////////////
-template <>
-void
-keyvalue_database<BACKEND>::remove (key_type const & key, error * perr)
-{
-    // FIXME
-//     backend::sqlite3::remove(& _rep, key, perr);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// keyvalue_database::get
-////////////////////////////////////////////////////////////////////////////////
-
-template <>
-std::intmax_t
-keyvalue_database<BACKEND>::get_integer (key_type const & key, error * perr) const
-{
-    // FIXME
-//     error err;
-//     blob_t blob;
-//     backend::sqlite3::get(& _rep, key, nullptr, & blob, & err);
+// template <>
+// keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
+//     : _rep(std::move(rep))
+// {}
 //
-//     if (!err) {
-//         auto res = backend::get_integer(blob);
+// template <>
+// keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
+// {
+//     _rep = std::move(other._rep);
+//     other._rep.dbh = nullptr;
+// }
 //
-//         if (res.first)
-//             return res.second;
-//     }
+// template <>
+// keyvalue_database<BACKEND>::~keyvalue_database ()
+// {
+//     if (_rep.dbh)
+//         PQfinish(_rep.dbh);
 //
-//     if (!err)
-//         err = backend::make_unsuitable_error(key);
+//     _rep.dbh = nullptr;
+// }
 //
-//     if (perr)
-//         *perr = err;
-//     else
-//         throw err;
-
-    return std::intmax_t{0};
-}
-
-template <>
-float keyvalue_database<BACKEND>::get_float (key_type const & key, error * perr) const
-{
-        // FIXME
-//     error err;
-//     blob_t blob;
-//     backend::sqlite3::get(& _rep, key, nullptr, & blob, & err);
-//
-//     if (!err) {
-//         auto res = backend::get_float(blob);
-//
-//         if (res.first)
-//             return res.second;
-//     }
-//
-//     if (!err)
-//         err = backend::make_unsuitable_error(key);
-//
-//     if (perr)
-//         *perr = err;
-//     else
-//         throw err;
-
-    return float{0};
-}
-
-template <>
-double keyvalue_database<BACKEND>::get_double (key_type const & key, error * perr) const
-{
-        // FIXME
-//     error err;
-//     blob_t blob;
-//     backend::sqlite3::get(& _rep, key, nullptr, & blob, & err);
-//
-//     if (!err) {
-//         auto res = backend::get_double(blob);
-//
-//         if (res.first)
-//             return res.second;
-//     }
-//
-//     if (!err)
-//         err = backend::make_unsuitable_error(key);
-//
-//     if (perr)
-//         *perr = err;
-//     else
-//         throw err;
-
-    return double{0};
-}
-
-template <>
-std::string keyvalue_database<BACKEND>:: get_string (key_type const & key, error * perr) const
-{
-    std::string s;
-    // FIXME
-//     backend::sqlite3::get(& _rep, key, & s, nullptr, perr);
-    return s;
-}
-
-template <>
-blob_t keyvalue_database<BACKEND>::get_blob (key_type const & key, error * perr) const
-{
-    blob_t blob;
-        // FIXME
-//     backend::sqlite3::get(& _rep, key, nullptr, & blob, perr);
-    return blob;
-}
+// template <>
+// keyvalue_database<BACKEND>::operator bool () const noexcept
+// {
+//     return _rep.dbh != nullptr;
+// }
 
 } // namespace debby

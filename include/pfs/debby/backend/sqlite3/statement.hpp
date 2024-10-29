@@ -51,8 +51,7 @@ struct statement
     }
 
     template <typename T>
-    static bool bind (rep_type * rep, std::string const & placeholder
-        , T && value, error * perr)
+    static bool bind (rep_type * rep, std::string const & placeholder, T && value, error * perr)
     {
         auto v = to_storage(std::forward<T>(value));
         return bind_helper(rep, placeholder, std::move(v), perr);

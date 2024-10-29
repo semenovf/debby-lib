@@ -24,12 +24,13 @@ struct database
     using statement_type = debby::statement<debby::backend::psql::statement>;
     using notice_processor_type = void (*) (void * arg, char const * message);
 
-    // Key-Value database traits
-    using key_type = std::string;
+    // // Key-Value database traits
+    // using key_type = std::string;
 
     struct rep_type
     {
         native_type dbh;
+        // std::string kv_table_name; // table name for key-value storage
     };
 
     /**
@@ -84,30 +85,6 @@ struct database
     }
 
     /**
-     * Connect to the database specified by connection parameters @a conninfo as a key-value storage.
-     *
-     * @param conninfo Connection parameters. Can be empty to use all default parameters, or it can
-     *        contain one or more parameter settings separated by whitespace, or it can contain a URI.
-     */
-    static DEBBY__EXPORT rep_type make_kv (std::string const & conninfo, error * perr = nullptr);
-    static DEBBY__EXPORT rep_type make_kv (std::string const & conninfo, notice_processor_type proc
-        , error * perr = nullptr);
-
-    template <typename ForwardIt>
-    static rep_type make_kv (ForwardIt first, ForwardIt last, error * perr = nullptr)
-    {
-        auto conninfo = make_conninfo_helper(first, last);
-        return make_kv(conninfo, perr);
-    }
-
-    template <typename ForwardIt>
-    static rep_type make_kv (ForwardIt first, ForwardIt last, notice_processor_type proc, error * perr = nullptr)
-    {
-        auto conninfo = make_conninfo_helper(first, last);
-        return make_kv(conninfo, proc, perr);
-    }
-
-    /**
      * Drops specified database.
      */
     static DEBBY__EXPORT bool wipe (std::string const & db_name, std::string const & conninfo
@@ -122,6 +99,30 @@ struct database
         auto conninfo = make_conninfo_helper(first, last);
         return wipe(db_name, conninfo, perr);
     }
+
+    // /**
+    //  * Connect to the database specified by connection parameters @a conninfo as a key-value storage.
+    //  *
+    //  * @param conninfo Connection parameters. Can be empty to use all default parameters, or it can
+    //  *        contain one or more parameter settings separated by whitespace, or it can contain a URI.
+    //  */
+    // static DEBBY__EXPORT rep_type make_kv (std::string const & table_name, std::string const & conninfo, error * perr = nullptr);
+    // static DEBBY__EXPORT rep_type make_kv (std::string const & table_name, std::string const & conninfo, notice_processor_type proc
+    //     , error * perr = nullptr);
+    //
+    // template <typename ForwardIt>
+    // static rep_type make_kv (std::string const & table_name, ForwardIt first, ForwardIt last, error * perr = nullptr)
+    // {
+    //     auto conninfo = make_conninfo_helper(first, last);
+    //     return make_kv(table_name, conninfo, perr);
+    // }
+    //
+    // template <typename ForwardIt>
+    // static rep_type make_kv (std::string const & table_name, ForwardIt first, ForwardIt last, notice_processor_type proc, error * perr = nullptr)
+    // {
+    //     auto conninfo = make_conninfo_helper(first, last);
+    //     return make_kv(table_name, conninfo, proc, perr);
+    // }
 };
 
 }}} // namespace debby::backend::psql

@@ -78,6 +78,7 @@ statement::bind_helper (statement::rep_type * rep                               
     auto transient_value = pfs::to_network_order(value);                             \
     rep->param_transient_values[index]                                               \
         = std::string(reinterpret_cast<char const *>(& transient_value), sizeof(T)); \
+    rep->param_values[index] = nullptr;                                              \
     rep->param_lengths[index] = sizeof(T);                                           \
     rep->param_formats[index] = 1;                                                   \
     return true;                                                                     \
@@ -91,6 +92,7 @@ statement::bind_helper (statement::rep_type * rep                               
 {                                                                                    \
     ensure_capacity(rep, index);                                                     \
     rep->param_transient_values[index] = std::to_string(value);                      \
+    rep->param_values[index] = nullptr;                                              \
     rep->param_lengths[index] = rep->param_transient_values[index].size();           \
     rep->param_formats[index] = 0;                                                   \
     return true;                                                                     \
@@ -140,6 +142,7 @@ statement::bind_helper (statement::rep_type * rep, int index, float && value, er
 {
     ensure_capacity(rep, index);
     rep->param_transient_values[index] = std::to_string(value);
+    rep->param_values[index] = nullptr; // nullptr -> expected transient value
     rep->param_lengths[index] = rep->param_transient_values[index].size();
     rep->param_formats[index] = 0;
     return true;
@@ -159,6 +162,7 @@ statement::bind_helper (statement::rep_type * rep, int index, double && value, e
 {
     ensure_capacity(rep, index);
     rep->param_transient_values[index] = std::to_string(value);
+    rep->param_values[index] = nullptr; // nullptr -> expected transient value
     rep->param_lengths[index] = rep->param_transient_values[index].size();
     rep->param_formats[index] = 0;
     return true;
@@ -197,6 +201,7 @@ statement::bind_helper (statement::rep_type * rep, int index, std::string && val
 {
     ensure_capacity(rep, index);
     rep->param_transient_values[index] = std::move(value);
+    rep->param_values[index] = nullptr; // nullptr -> expected transient value
     rep->param_lengths[index] = rep->param_transient_values[index].size();
     rep->param_formats[index] = 0;
     return true;
@@ -273,10 +278,12 @@ statement<BACKEND>::exec (error * perr)
     int result_in_binary_format = 1;
 
     for (int i = 0; i < _rep.param_transient_values.size(); i++) {
-        if (_rep.param_lengths[i] > 0)
-            _rep.param_values[i] = _rep.param_transient_values[i].c_str();
-        else
+        if (_rep.param_lengths[i] > 0) {
+            if (_rep.param_values[i] == nullptr) // nullptr - not a static value, expected transient value
+                _rep.param_values[i] = _rep.param_transient_values[i].c_str();
+        } else {
             _rep.param_values[i] = nullptr;
+        }
     }
 
     auto sth = PQexecPrepared(_rep.dbh, _rep.name.c_str()
