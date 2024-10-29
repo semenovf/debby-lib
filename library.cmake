@@ -4,35 +4,32 @@
 # This file is part of `debby-lib`.
 #
 # Changelog:
-#      2021.11.24 Initial version.
+#       2021.11.24 Initial version.
+#       2024.10.27 Removed `portable_target` dependency.
 ################################################################################
 cmake_minimum_required (VERSION 3.11)
 project(debby LANGUAGES CXX C)
 
 option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
-option(DEBBY__BUILD_STATIC "Enable build static library" ON)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
 option(DEBBY__ENABLE_SQLITE_FTS5 "Enable support for `FTS5` in `Sqlite3` backend" OFF)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
 option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" ON)
 option(DEBBY__ENABLE_LMDB "Enable `LMDB` backend" ON)
+option(DEBBY__ENABLE_PSQL  "Enable `PostgreSQL` front-end backend" ON)
 option(DEBBY__ENABLE_MAP  "Enable `in-memory` map backend" ON)
 option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
 
-if (NOT PORTABLE_TARGET__CURRENT_PROJECT_DIR)
-    set(PORTABLE_TARGET__CURRENT_PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-endif()
-
 if (DEBBY__BUILD_SHARED)
-    portable_target(ADD_SHARED ${PROJECT_NAME} ALIAS pfs::debby EXPORTS DEBBY__EXPORTS)
-    list(APPEND _debby__targets ${PROJECT_NAME})
+    add_library(debby SHARED)
+    target_compile_definitions(debby PRIVATE DEBBY__EXPORTS)
+else()
+    add_library(debby STATIC)
 endif()
 
-if (DEBBY__BUILD_STATIC)
-    set(STATIC_PROJECT_NAME ${PROJECT_NAME}-static)
-    portable_target(ADD_STATIC ${STATIC_PROJECT_NAME} ALIAS pfs::debby::static EXPORTS DEBBY__STATIC)
-    list(APPEND _debby__targets ${PROJECT_NAME}-static)
-endif()
+add_library(pfs::debby ALIAS debby)
+
+list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp)
 
 if (DEBBY__ENABLE_MAP)
     list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/map.cpp)
@@ -46,7 +43,6 @@ endif()
 
 if (DEBBY__ENABLE_SQLITE3)
     list(APPEND _debby__sources
-        ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
@@ -56,41 +52,27 @@ if (DEBBY__ENABLE_SQLITE3)
 
     # Enable full-text search (FTS) functionality in sqlite3
     if (DEBBY__ENABLE_SQLITE_FTS5)
-        if (DEBBY__BUILD_SHARED)
-            portable_target(DEFINITIONS ${PROJECT_NAME} PRIVATE "SQLITE_ENABLE_FTS5=1")
-        endif()
-
-        if (DEBBY__BUILD_STATIC)
-            portable_target(DEFINITIONS ${STATIC_PROJECT_NAME} PRIVATE "SQLITE_ENABLE_FTS5=1")
-        endif()
+        target_compile_definitions(debby PRIVATE "SQLITE_ENABLE_FTS5=1")
     endif()
 endif()
 
 if (NOT TARGET pfs::common)
-    portable_target(INCLUDE_PROJECT
-        ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/2ndparty/common/library.cmake)
+    include(${CMAKE_CURRENT_LIST_DIR}/2ndparty/common/library.cmake)
 endif()
 
 if (DEBBY__ENABLE_ROCKSDB)
     if (NOT DEBBY__ROCKSDB_ROOT)
-        set(DEBBY__ROCKSDB_ROOT "${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/rocksdb" CACHE INTERNAL "")
+        set(DEBBY__ROCKSDB_ROOT "${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb" CACHE INTERNAL "")
     endif()
 
-    _portable_target_status(${PROJECT_NAME} "RocksDB root: [${DEBBY__ROCKSDB_ROOT}]")
+    message(STATUS "RocksDB root: [${DEBBY__ROCKSDB_ROOT}]")
 
-    portable_target(INCLUDE_PROJECT
-        ${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/RocksDB.cmake)
+    include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb.cmake)
 
     list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
     list(APPEND _debby__definitions "DEBBY__ROCKSDB_ENABLED=1")
 
-    if (DEBBY__BUILD_SHARED)
-        portable_target(LINK ${PROJECT_NAME} PRIVATE rocksdb)
-    endif()
-
-    if (DEBBY__BUILD_STATIC)
-        portable_target(LINK ${STATIC_PROJECT_NAME} PRIVATE rocksdb)
-    endif()
+    target_link_libraries(debby PRIVATE rocksdb)
 endif(DEBBY__ENABLE_ROCKSDB)
 
 if (DEBBY__ENABLE_LIBMDBX)
@@ -98,28 +80,14 @@ if (DEBBY__ENABLE_LIBMDBX)
     set(MDBX_BUILD_TOOLS OFF CACHE BOOL "Disable build `libmdbx` tools")
     set(MDBX_BUILD_CXX OFF CACHE BOOL "Disable build `libmdbx` with C++ support")
 
-    add_subdirectory(${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/src/libmdbx/lib EXCLUDE_FROM_ALL)
-    #if (NOT DEBBY__LIBMDBX_ROOT)
-        #set(DEBBY__LIBMDBX_ROOT
-            #"${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/3rdparty/libmdbx"
-            #CACHE INTERNAL "")
-    #endif()
+    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/lib EXCLUDE_FROM_ALL)
 
-    _portable_target_status(${PROJECT_NAME} "libmdbx root: [${DEBBY__LIBMDBX_ROOT}]")
-
-    #portable_target(INCLUDE_PROJECT
-        #${PORTABLE_TARGET__CURRENT_PROJECT_DIR}/cmake/libmdbx.cmake)
+    message(STATUS "libmdbx root: [${DEBBY__LIBMDBX_ROOT}]")
 
     list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/database.cpp)
     list(APPEND _debby__definitions "DEBBY__LIBMDBX_ENABLED=1")
 
-    if (DEBBY__BUILD_SHARED)
-        portable_target(LINK ${PROJECT_NAME} PRIVATE mdbx-static)
-    endif()
-
-    if (DEBBY__BUILD_STATIC)
-        portable_target(LINK ${STATIC_PROJECT_NAME} PRIVATE mdbx-static)
-    endif()
+    target_link_libraries(debby PRIVATE mdbx-static)
 endif(DEBBY__ENABLE_LIBMDBX)
 
 if (DEBBY__ENABLE_LMDB)
@@ -129,9 +97,31 @@ if (DEBBY__ENABLE_LMDB)
     list(APPEND _debby__definitions "DEBBY__LMDB_ENABLED=1")
 endif(DEBBY__ENABLE_LMDB)
 
-foreach (_target IN LISTS _debby__targets)
-    portable_target(SOURCES ${_target} ${_debby__sources})
-    portable_target(DEFINITIONS ${_target} PUBLIC ${_debby__definitions})
-    portable_target(INCLUDE_DIRS ${_target} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
-    portable_target(LINK ${_target} PUBLIC pfs::common)
-endforeach()
+if (DEBBY__ENABLE_PSQL)
+    set(_postgres_dir ${CMAKE_CURRENT_LIST_DIR}/3rdparty/postgres)
+
+    if (EXISTS ${_postgres_dir} AND EXISTS ${_postgres_dir}/README)
+        list(APPEND _debby__definitions "DEBBY__PSQL_ENABLED=1")
+        list(APPEND _debby__include_dirs
+            $<TARGET_PROPERTY:pgcommon,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:pgport,INTERFACE_INCLUDE_DIRECTORIES>
+            $<TARGET_PROPERTY:pq-static,INTERFACE_INCLUDE_DIRECTORIES>)
+
+        list(APPEND _debby__private_libs pq-static pgport pgcommon)
+
+        include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/postgres.cmake)
+
+        list(APPEND _debby__sources
+            ${CMAKE_CURRENT_LIST_DIR}/src/psql/database.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/src/psql/result.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/src/psql/statement.cpp)
+    else()
+        message(WARNING "PostgreSQL source directory not found: ${_postgres_dir}")
+        set(DEBBY__ENABLE_PSQL FALSE)
+    endif()
+endif()
+
+target_sources(debby PRIVATE ${_debby__sources})
+target_compile_definitions(debby PUBLIC ${_debby__definitions})
+target_include_directories(debby PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+target_link_libraries(debby PUBLIC pfs::common PRIVATE ${_debby__private_libs})

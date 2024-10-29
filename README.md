@@ -8,6 +8,7 @@ Currently implementation is done for:
 * `sqlite3`
 * `RocksDB`
 * `libmdbx`
+* `lmdb`
 * in-memory based on `std::map` and `std::unordered_map` (thread safe and unsafe)
 
 The list can grow...

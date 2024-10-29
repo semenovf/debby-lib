@@ -28,7 +28,7 @@ namespace debby {
 namespace backend {
 namespace rocksdb {
 
-static char const * NULL_HANDLER = tr::noop_("uninitialized database handler");
+static char const * NULL_HANDLER_TEXT = tr::noop_("uninitialized database handler");
 
 static ::rocksdb::Options default_options ()
 {
@@ -64,7 +64,7 @@ static bool get (database::rep_type const * rep
     , database::key_type const & key, std::string * string_result
     , blob_t * blob_result, error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     std::string buf;
     ::rocksdb::Status status = rep->dbh->Get(::rocksdb::ReadOptions()
@@ -111,7 +111,7 @@ static bool get (database::rep_type const * rep
 static bool remove (database::rep_type * rep, database::key_type const & key
     , error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     // Remove the database entry (if any) for "key". Returns OK on success,
     // and a non-OK status on error. It is not an error if "key" did not exist
@@ -151,7 +151,7 @@ static bool remove (database::rep_type * rep, database::key_type const & key
 static bool put (database::rep_type * rep, database::key_type const & key
     , char const * data, std::size_t len, error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER);
+    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
 
     // Attempt to write `null` data interpreted as delete operation for key
     if (!data)

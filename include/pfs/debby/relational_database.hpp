@@ -165,7 +165,7 @@ public:
     }
 
     /**
-     * Wipes database (e.g. removes files associated with database if possible).
+     * Wipes database (e.g. drops database or removes files associated with database if possible).
      *
      * @return @c true if removing was successful, @c false otherwise.
      */

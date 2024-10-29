@@ -47,16 +47,13 @@ struct statement
     static bool bind (rep_type * rep, int index, T && value, error * perr)
     {
         auto v = to_storage(std::forward<T>(value));
-        //bind_helper<T>(rep, index, std::move(v));
         return bind_helper(rep, index, std::move(v), perr);
     }
 
     template <typename T>
-    static bool bind (rep_type * rep, std::string const & placeholder
-        , T && value, error * perr)
+    static bool bind (rep_type * rep, std::string const & placeholder, T && value, error * perr)
     {
         auto v = to_storage(std::forward<T>(value));
-        //bind_helper<T>(rep, placeholder, std::move(v));
         return bind_helper(rep, placeholder, std::move(v), perr);
     }
 };

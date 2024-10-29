@@ -16,7 +16,7 @@
 
 namespace debby {
 
-static char const * NULL_HANDLER = "uninitialized statement handler";
+static char const * NULL_HANDLER_TEXT = "uninitialized statement handler";
 
 namespace backend {
 namespace sqlite3 {
@@ -70,6 +70,20 @@ result<BACKEND>::operator bool () const noexcept
     return _rep.sth != nullptr;
 }
 
+template <>
+int
+result<BACKEND>::rows_affected () const
+{
+    PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
+
+    auto dbh = sqlite3_db_handle(_rep.sth);
+
+    PFS__ASSERT(dbh, NULL_HANDLER_TEXT);
+
+    //return sqlite3_changes64(_sth);
+    return sqlite3_changes(dbh);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // has_more
 ////////////////////////////////////////////////////////////////////////////////
@@ -107,7 +121,7 @@ template <>
 int
 result<BACKEND>::column_count () const noexcept
 {
-    PFS__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
     return sqlite3_column_count(_rep.sth);
 }
 
@@ -118,7 +132,7 @@ template <>
 std::string
 result<BACKEND>::column_name (int column) const noexcept
 {
-    PFS__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
 
     if (column >= 0 && column < sqlite3_column_count(_rep.sth))
         return std::string {sqlite3_column_name(_rep.sth, column)};
@@ -133,7 +147,7 @@ template <>
 void
 result<BACKEND>::next ()
 {
-    PFS__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
 
     auto rc = sqlite3_step(_rep.sth);
 
@@ -183,7 +197,7 @@ template <>
 bool
 result<BACKEND>::fetch (int column, value_type & value, error & err) const noexcept
 {
-    PFS__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
 
     auto upper_limit = sqlite3_column_count(_rep.sth);
 
@@ -301,7 +315,7 @@ bool
 result<BACKEND>::fetch (std::string const & column_name, value_type & value
     , error & err) const noexcept
 {
-    PFS__ASSERT(_rep.sth, NULL_HANDLER);
+    PFS__ASSERT(_rep.sth, NULL_HANDLER_TEXT);
 
     if (_rep.column_mapping.empty()) {
         auto count = sqlite3_column_count(_rep.sth);

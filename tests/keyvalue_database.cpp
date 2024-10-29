@@ -38,6 +38,11 @@
 #   include "pfs/debby/backend/rocksdb/database.hpp"
 #endif
 
+#if DEBBY__PSQL_ENABLED
+#   include "pfs/debby/backend/psql/database.hpp"
+#   include "psql_support.hpp"
+#endif
+
 namespace fs = pfs::filesystem;
 
 template <typename Backend>
@@ -211,5 +216,24 @@ TEST_CASE("lmdb set/get") {
 TEST_CASE("rocksdb set/get") {
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-rocksdb-kv.db");
     check_persistance_storage<debby::backend::rocksdb::database>(db_path);
+}
+#endif
+
+#if DEBBY__PSQL_ENABLED
+TEST_CASE("PostgreSQL set/get") {
+    // using database_t = debby::keyvalue_database<debby::backend::psql::database>;
+    // using settings_t = debby::settings<debby::backend::psql::database>;
+    //
+    // auto conninfo = psql_conninfo();
+    // auto db = database_t::make("debby-kv", conninfo.cbegin(), conninfo.cend());
+    //
+    // if (!db) {
+    //     MESSAGE(preconditions_notice);
+    // }
+    //
+    // REQUIRE(db);
+    //
+    // check_keyvalue_database(db);
+    // // check_persistance_storage<debby::backend::sqlite3::database>(db_path);
 }
 #endif

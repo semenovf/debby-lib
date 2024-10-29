@@ -1,11 +1,10 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021,2022 Vladislav Trifochkin
+// Copyright (c) 2023 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
-//      2021.11.26 Initial version.
-//      2022.03.12 Refactored.
+//      2023.11.25 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "affinity_traits.hpp"
@@ -18,34 +17,37 @@
 #include <type_traits>
 #include <unordered_map>
 
-struct sqlite3_stmt;
+struct pg_result;
 
 namespace debby {
 namespace backend {
-namespace sqlite3 {
+namespace psql {
 
 #include "../assigner.hpp"
 
-struct result {
-    using handle_type = struct sqlite3_stmt *;
+struct result
+{
+    using handle_type = struct pg_result *;
     using value_type = unified_value;
 
-    enum status {
-          INITIAL
-        , FAILURE
-        , DONE
-        , ROW
-    };
+//     enum status {
+//           INITIAL
+//         , FAILURE
+//         , DONE
+//         , ROW
+//     };
 
     struct rep_type
     {
         mutable handle_type sth;
-        status state; // {INITIAL};
-        int error_code; // {0};
-        mutable std::unordered_map<std::string, int> column_mapping;
+        int row_count; // Total number of tuples
+        int row_index;
+//         status state; // {INITIAL};
+//         int error_code; // {0};
+//         mutable std::unordered_map<std::string, int> column_mapping;
     };
 
-    static DEBBY__EXPORT rep_type make (handle_type sth, status state, int error_code);
+    static DEBBY__EXPORT rep_type make (handle_type sth);
 
     template <typename NativeType>
     static void assign (NativeType & target, value_type & v)
@@ -54,4 +56,4 @@ struct result {
     }
 };
 
-}}} // namespace debby::backend::sqlite3
+}}} // namespace debby::backend::psql

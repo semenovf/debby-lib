@@ -186,6 +186,10 @@ public:
 
     /**
      */
+    DEBBY__EXPORT int rows_affected () const;
+
+    /**
+     */
     DEBBY__EXPORT bool has_more () const noexcept;
 
     /**
