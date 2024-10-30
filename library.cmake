@@ -123,5 +123,7 @@ endif()
 
 target_sources(debby PRIVATE ${_debby__sources})
 target_compile_definitions(debby PUBLIC ${_debby__definitions})
-target_include_directories(debby PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include)
+target_include_directories(debby
+    PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
+    PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include/pfs)
 target_link_libraries(debby PUBLIC pfs::common PRIVATE ${_debby__private_libs})

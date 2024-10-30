@@ -1,18 +1,20 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021,2022 Vladislav Trifochkin
+// Copyright (c) 2021-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.07 Initial version.
+//      2024.10.29 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
-#include "pfs/fmt.hpp"
+#include "debby/namespace.hpp"
+#include <pfs/fmt.hpp>
 #include <string>
 #include <cassert>
 
-namespace debby {
-namespace backend {
+DEBBY__NAMESPACE_BEGIN
+
 namespace sqlite3 {
 
 inline std::string build_errstr (int rc, struct sqlite3 * dbh)
@@ -64,4 +66,6 @@ inline std::string current_sql (struct sqlite3_stmt * sth) noexcept
     return sql ? std::string(sql) : std::string{};
 }
 
-}}} // namespace debby::backend::sqlite3
+} // namespace sqlite3
+
+DEBBY__NAMESPACE_END

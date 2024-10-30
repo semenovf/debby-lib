@@ -1,188 +1,136 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021,2022 Vladislav Trifochkin
+// Copyright (c) 2021-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.11.26 Initial version.
 //      2022.03.12 Refactored.
+//      2024.10.29 V2 started.
+//      2024.10.30 Fixed API.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "backend_enum.hpp"
 #include "error.hpp"
 #include "exports.hpp"
-#include "unified_value.hpp"
-#include "pfs/fmt.hpp"
-#include "pfs/optional.hpp"
-#include "pfs/type_traits.hpp"
+#include "namespace.hpp"
+#include <pfs/i18n.hpp>
+#include <cstdint>
 #include <string>
 
-namespace debby {
+DEBBY__NAMESPACE_BEGIN
 
-template <typename Backend>
+template <typename T, typename U>
+struct bounded_type;
+
+template <typename T>
+struct bounded_type<T, typename std::enable_if<std::is_integral<T>::value, void>::type>
+{
+    using type = std::intmax_t;
+};
+
+template <typename T>
+struct bounded_type<T, typename std::enable_if<std::is_floating_point<T>::value, void>::type>
+{
+    using type = double;
+};
+
+template <backend_enum Backend>
 class result
 {
-    using rep_type = typename Backend::rep_type;
-
 public:
-    using value_type = unified_value;
-
-    class column_wrapper
-    {
-        value_type _v;
-
-    public:
-        column_wrapper (value_type && v) : _v(std::move(v)) {}
-
-        template <typename NativeType>
-        void operator >> (NativeType & target)
-        {
-            Backend::template assign(target, _v);
-        }
-
-        template <typename NativeType>
-        void operator >> (pfs::optional<NativeType> & target)
-        {
-            Backend::template assign(target, _v);
-        }
-    };
+    class impl;
 
 private:
-    rep_type _rep;
-
-private:
-    DEBBY__EXPORT result (rep_type && rep);
+    impl * _d {nullptr};
 
 public:
-    result () = delete;
+    DEBBY__EXPORT result ();
+    DEBBY__EXPORT result (impl && d);
+    DEBBY__EXPORT result (result && other);
+    DEBBY__EXPORT ~result ();
+
     result (result const & other) = delete;
     result & operator = (result const & other) = delete;
     result & operator = (result && other) = delete;
 
-    DEBBY__EXPORT result (result && other);
-    DEBBY__EXPORT ~result ();
-
 private:
-    DEBBY__EXPORT bool fetch (int column, value_type & value, error & perr) const noexcept;
-    DEBBY__EXPORT bool fetch (std::string const & column_name, value_type & value, error & perr) const noexcept;
+    DEBBY__EXPORT
+    std::pair<char *, std::size_t>
+    fetch (int column, char * buffer, std::size_t initial_size, error & err) const;
 
-    template <typename T, typename ColumntType>
-    typename std::enable_if<!std::is_pointer<T>::value, T>::type
-    get_helper (ColumntType column, error * perr = nullptr)
+    DEBBY__EXPORT
+    std::pair<char *, std::size_t>
+    fetch (std::string const & column_name, char * buffer, std::size_t initial_size, error & err) const;
+
+    template <typename T, typename ColumnType>
+    typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
+    get_helper (ColumnType column, T & result, error * perr = nullptr)
     {
-        // Assign type to value
-        value_type value = value_type::make_zero<T>();
-
         error err;
-        auto success = fetch(column, value, err);
+        union {
+            //std::intmax_t n;
+            typename bounded_type<T, void>::type n;
+            char buffer [sizeof(std::intmax_t)];
+        } u;
 
-        if (!success) {
-            if (perr) {
-                *perr = std::move(err);
-                return T{};
-            } else {
-                throw err;
-            }
+        auto res = fetch(column, u.buffer, sizeof(u.buffer), err);
+
+        if (err) {
+            pfs::throw_or(perr, std::move(err));
+            return false;
         }
 
-        auto ptr = get_if<T>(& value);
+        // Result contains null value
+        if (res.first == nullptr)
+            return false;
 
-        if (!ptr) {
-            error err {
+        if (u.buffer != res.first) {
+            delete [] res.first;
+
+            pfs::throw_or(perr, error {
                   errc::bad_value
-                , fmt::format("unsuitable data stored in column: {}", column)
-            };
+                , tr::f_("unsuitable data stored in column: {}", column)
+            });
 
-            if (perr) {
-                *perr = std::move(err);
-                return T{};
-            } else {
-                throw err;
-            }
+            return false;
         }
 
-        return static_cast<T>(*ptr);
+        result = static_cast<T>(u.n);
+        return true;
     }
 
-    template <typename T, typename ColumntType>
-    typename std::enable_if<std::is_pointer<T>::value, T>::type
-    get_helper (ColumntType column, error * perr = nullptr)
+    template <typename /*T*/, typename ColumnType>
+    bool
+    get_helper (ColumnType column, std::string & result, error * perr = nullptr)
     {
-        value_type value;
-
         error err;
-        auto success = fetch(column, value, err);
+        char buffer [64];
 
-        if (!success) {
-            if (perr) {
-                *perr = std::move(err);
-                return T{};
-            } else {
-                throw err;
-            }
+        auto res = fetch(column, buffer, sizeof(buffer), err);
+
+        if (err) {
+            pfs::throw_or(perr, std::move(err));
+            return false;
         }
 
-        auto ptr = reinterpret_cast<T>(get_if<typename std::remove_pointer<T>::type>(& value));
-        return ptr;
-    }
+        // Result contains null value
+        if (res.first == nullptr)
+            return false;
 
-    template <typename T, typename ColumntType>
-    typename std::enable_if<!std::is_pointer<T>::value, T>::type
-    get_or_helper (ColumntType column, T const & default_value, error * perr = nullptr)
-    {
-        // Assign type to value
-        value_type value = value_type::make_zero<T>();
+        result = std::string(res.first, res.second);
 
-        error err;
-        auto success = fetch(column, value, err);
+        if (buffer != res.first)
+            delete [] res.first;
 
-        if (!success) {
-            if (err.code().value() == static_cast<int>(errc::column_not_found))
-                return default_value;
-
-            if (perr) {
-                *perr = std::move(err);
-                return T{};
-            } else {
-                throw err;
-            }
-        }
-
-        auto ptr = get_if<T>(& value);
-
-        if (!ptr)
-            return default_value;
-
-        return static_cast<T>(*ptr);
-    }
-
-    template <typename T, typename ColumntType>
-    typename std::enable_if<std::is_pointer<T>::value, T>::type
-    get_or_helper (ColumntType column, T const & default_value, error * perr = nullptr)
-    {
-        // Assign type to value
-        value_type value = value_type::make_zero<typename std::remove_pointer<T>::type>();
-
-        error err;
-        auto success = fetch(column, value, err);
-
-        if (!success) {
-            if (err.code().value() == static_cast<int>(errc::column_not_found))
-                return default_value;
-
-            if (perr) {
-                *perr = std::move(err);
-                return T{};
-            } else {
-                throw err;
-            }
-        }
-
-        auto ptr = reinterpret_cast<T>(get_if<typename std::remove_pointer<T>::type>(& value));
-        return ptr;
+        return true;
     }
 
 public:
-    DEBBY__EXPORT operator bool () const noexcept;
+    inline operator bool () const noexcept
+    {
+        return _d != nullptr;
+    }
 
     /**
      */
@@ -198,7 +146,7 @@ public:
 
     /**
      */
-    //bool is_error () const noexcept;
+    DEBBY__EXPORT bool is_error () const noexcept;
 
     /**
      * Returns column count for this result.
@@ -217,69 +165,46 @@ public:
 
     /**
      */
-    template <typename T>
-    T get (int column, error * perr = nullptr)
+    template <typename T, typename ColumnType>
+    T get (ColumnType column, error * perr = nullptr)
     {
-        return get_helper<T, int>(column, perr);
-    }
-
-    /**
-     */
-    template <typename T>
-    T get (std::string const & column, error * perr = nullptr)
-    {
-        return get_helper<T, std::string const &>(column, perr);
-    }
-
-    /**
-     */
-    template <typename T>
-    T get_or (int column, T const & default_value, error * perr = nullptr)
-    {
-        return get_or_helper<T, int>(column, default_value, perr);
-    }
-
-    /**
-     */
-    template <typename T>
-    T get_or (std::string const & column, T const & default_value, error * perr = nullptr)
-    {
-        return get_or_helper<T, std::string const &>(column, default_value, perr);
-    }
-
-    /**
-     *
-     */
-    column_wrapper operator [] (std::string const & column_name)
-    {
-        value_type v;
+        T result;
         error err;
-        auto success = fetch(column_name, v, err);
+        auto success = get_helper<T>(column, result, & err);
+
+        if (err) {
+            pfs::throw_or(perr, std::move(err));
+            return T{};
+        }
+
+        if (!success) {
+            pfs::throw_or(perr, error{
+                  errc::bad_value
+                , tr::f_("result is null for column: {}", column)
+            });
+            return T{};
+        }
+
+        return result;
+    }
+
+    template <typename T, typename ColumnType>
+    T get_or (ColumnType column, T const & default_value, error * perr = nullptr)
+    {
+        T result;
+        error err;
+        auto success = get_helper<T>(column, result, & err);
+
+        if (err) {
+            pfs::throw_or(perr, std::move(err));
+            return T{};
+        }
 
         if (!success)
-            throw err;
+            return default_value;
 
-        return column_wrapper(std::move(v));
-    }
-
-    column_wrapper operator [] (char const * column_name)
-    {
-        return operator [] (std::string{column_name});
-    }
-
-public:
-    template <typename ...Args>
-    static result make (Args &&... args)
-    {
-        return result{Backend::make(std::forward<Args>(args)...)};
-    }
-
-    template <typename ...Args>
-    static std::unique_ptr<result> make_unique (Args &&... args)
-    {
-        auto ptr = new result {Backend::make(std::forward<Args>(args)...)};
-        return std::unique_ptr<result>(ptr);
+        return result;
     }
 };
 
-} // namespace debby
+DEBBY__NAMESPACE_END

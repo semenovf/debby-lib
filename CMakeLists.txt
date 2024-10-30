@@ -6,6 +6,7 @@
 # Changelog:
 #       2019.11.24 Initial version.
 #       2024.10.27 Removed `portable_target` dependency.
+#       2024.10.29 Up to C++14 standard.
 ################################################################################
 cmake_minimum_required (VERSION 3.11)
 project(debby-ALL CXX C)
@@ -17,7 +18,7 @@ option(DEBBY__ENABLE_COVERAGE "Build tests with coverage support" OFF)
 
 if (DEBBY__BUILD_STRICT)
     if (NOT CMAKE_CXX_STANDARD)
-        set(CMAKE_CXX_STANDARD 11)
+        set(CMAKE_CXX_STANDARD 14)
     endif()
 
     set(CXX_STANDARD_REQUIRED ON)

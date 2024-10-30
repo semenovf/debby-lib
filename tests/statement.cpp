@@ -16,15 +16,14 @@
 #include <limits>
 
 #if DEBBY__SQLITE3_ENABLED
-#   include "pfs/debby/backend/sqlite3/database.hpp"
-#   include "pfs/debby/backend/sqlite3/statement.hpp"
+#   include "pfs/debby/sqlite3.hpp"
 #endif
-
-#if DEBBY__PSQL_ENABLED
-#   include "pfs/debby/backend/psql/database.hpp"
-#   include "pfs/debby/backend/psql/statement.hpp"
-#   include "psql_support.hpp"
-#endif
+//
+// #if DEBBY__PSQL_ENABLED
+// #   include "pfs/debby/backend/psql/database.hpp"
+// #   include "pfs/debby/backend/psql/statement.hpp"
+// #   include "psql_support.hpp"
+// #endif
 
 namespace fs = pfs::filesystem;
 
@@ -134,6 +133,7 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
 
         auto result = stmt.exec();
         REQUIRE(result.is_done());
+        REQUERE_EQ(db.rows_count(), 1);
     }
 
     {
@@ -167,16 +167,11 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
 
         while (result.has_more()) {
             {
-                REQUIRE_EQ(result.template get_or<int>("unknown", -42), -42);
+                REQUIRE_THROWS_AS(result.template get_or<int>("unknown", -42), debby::error);
             }
 
-            {
-                // Column `null_field` is INTEGER but contains null value
-                REQUIRE_EQ(result.template get<int *>("null_field"), nullptr);
-                REQUIRE_EQ(result.template get<std::string *>("null_field"), nullptr);
-            }
-
-            CHECK_EQ(result.template get<int>("null_field"), 0);
+            CHECK_THROWS_AS(result.template get<int>("null_field"), debby::error);
+            CHECK_EQ(result.template get_or<int>("null_field", 0), 0);
             CHECK_EQ(result.template get<bool>("bool"), true);
             CHECK_EQ(result.template get<std::int8_t>("int8"), std::numeric_limits<std::int8_t>::min());
             CHECK_EQ(result.template get<std::uint8_t>("uint8"), std::numeric_limits<std::uint8_t>::max());
@@ -190,71 +185,11 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
             CHECK(std::abs(result.template get<double>("double") - static_cast<double>(3.14159)) < double(0.001));
             CHECK_EQ(result.template get<std::string>("text"), std::string{"Hello"});
 
-            {
-                bool b;
-                result["bool"] >> b;
-                CHECK_EQ(b, true);
-            }
-
-            {
-                std::int8_t i8;
-                result["int8"] >> i8;
-                CHECK(i8 == std::numeric_limits<std::int8_t>::min());
-            }
-
-            {
-                std::int64_t i64;
-                result["int64"] >> i64;
-                CHECK(i64 == std::numeric_limits<std::int64_t>::min());
-            }
-
-            {
-                std::uint64_t u64;
-                result["uint64"] >> u64;
-                CHECK(u64 == std::numeric_limits<std::uint64_t>::max());
-            }
-
-            {
-                float f;
-                result["float"] >> f;
-                CHECK(std::abs(f - static_cast<float>(3.14159)) < float{0.001});
-            }
-
-            {
-                double f;
-                result["double"] >> f;
-                CHECK(std::abs(f - static_cast<double>(3.14159)) < double{0.001});
-            }
-
-            {
-                std::string s;
-                result["text"] >> s;
-                CHECK(s == "Hello");
-            }
-
-            {
-                // `null_field` value results throwing exception for `direct` variable
-                int n;
-                REQUIRE_THROWS((result["null_field"] >> n));
-
-                pfs::optional<int> opt;
-
-                // `null_field` value results nullopt
-                result["null_field"] >> opt;
-                REQUIRE_FALSE(opt.has_value());
-            }
-
-            {
-                // Unknown column results throwing exception
-                REQUIRE_THROWS((result["unknown"]));
-            }
-
             result.next();
         }
 
         CHECK(result.is_done());
     }
-
 }
 
 template <typename RelationalDatabaseType>
@@ -281,7 +216,7 @@ void prepared_select (RelationalDatabaseType & db, std::string const & sql)
 
 #if DEBBY__SQLITE3_ENABLED
 TEST_CASE("sqlite3") {
-    using database_t = debby::relational_database<debby::backend::sqlite3::database>;
+    using database_t = debby::relational_database<debby::backend_enum::sqlite3>;
 
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
     database_t::wipe(db_path);
@@ -309,24 +244,23 @@ TEST_CASE("sqlite3") {
     prepared_select(db1, SELECT_SQLITE3);
 
     database_t::wipe(db_path);
-
 }
 #endif
 
-#if DEBBY__PSQL_ENABLED
-TEST_CASE("PostgreSQL") {
-    using database_t = debby::relational_database<debby::backend::psql::database>;
-
-    auto conninfo = psql_conninfo();
-    auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
-
-    if (!db) {
-        MESSAGE(preconditions_notice());
-    }
-
-    REQUIRE(db);
-
-    check(db, INSERT_PSQL, false);
-    prepared_select(db, SELECT_PSQL);
-}
-#endif
+// #if DEBBY__PSQL_ENABLED
+// TEST_CASE("PostgreSQL") {
+//     using database_t = debby::relational_database<debby::backend::psql::database>;
+//
+//     auto conninfo = psql_conninfo();
+//     auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
+//
+//     if (!db) {
+//         MESSAGE(preconditions_notice());
+//     }
+//
+//     REQUIRE(db);
+//
+//     check(db, INSERT_PSQL, false);
+//     prepared_select(db, SELECT_PSQL);
+// }
+// #endif

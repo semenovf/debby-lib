@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021,2022 Vladislav Trifochkin
+// Copyright (c) 2021-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -7,61 +7,81 @@
 //      2021.11.24 Initial version.
 //      2021.12.18 Reimplemented with new error handling.
 //      2022.03.12 Refactored.
+//      2024.10.29 V2 started.
+//      2024.10.30 Fixed API.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "backend_enum.hpp"
 #include "error.hpp"
 #include "exports.hpp"
-#include "pfs/c++support.hpp"
-#include "pfs/string_view.hpp"
+#include "namespace.hpp"
+#include "result.hpp"
+#include <cstdint>
 #include <string>
-#include <vector>
+#include <type_traits>
 
-namespace debby {
+DEBBY__NAMESPACE_BEGIN
 
-using pfs::string_view;
-
-enum class transient_enum { no, yes };
-
-template <typename Backend>
+template <backend_enum Backend>
 class statement
 {
-    using rep_type = typename Backend::rep_type;
+public:
+    class impl;
+    using result_type = result<Backend>;
+
+private:
+    impl * _d {nullptr};
 
 public:
-    using result_type = typename Backend::result_type;
+    DEBBY__EXPORT statement ();
+    DEBBY__EXPORT statement (impl && d);
+    DEBBY__EXPORT statement (statement && other) noexcept;
+    DEBBY__EXPORT ~statement ();
 
-private:
-    rep_type _rep;
-
-private:
-    DEBBY__EXPORT statement (rep_type && rep);
     statement (statement const & other) = delete;
     statement & operator = (statement const & other) = delete;
     statement & operator = (statement && other) = delete;
 
-public:
-    DEBBY__EXPORT statement () = delete;
-    DEBBY__EXPORT statement (statement && other) noexcept;
-    DEBBY__EXPORT ~statement ();
+private:
+    DEBBY__EXPORT bool bind_helper (int index, std::int64_t value, error * perr = nullptr);
+    DEBBY__EXPORT bool bind_helper (int index, double value, error * perr = nullptr);
+    DEBBY__EXPORT bool bind_helper (char const * placeholder, std::int64_t value, error * perr = nullptr);
+    DEBBY__EXPORT bool bind_helper (char const * placeholder, double value, error * perr = nullptr);
 
 public:
-    DEBBY__EXPORT operator bool () const noexcept;
+    inline operator bool () const noexcept
+    {
+        return _d != nullptr;
+    }
 
     /**
      * Executes prepared statement
      */
     DEBBY__EXPORT result_type exec (error * perr = nullptr);
 
-    // DEPRECATED
-    // PFS__DEPRECATED
-    // DEBBY__EXPORT int rows_affected () const;
+    template <typename T>
+    inline typename std::enable_if<std::is_integral<T>::value, bool>::type
+    bind (int index, T value, error * perr = nullptr)
+    {
+        return bind_helper(index, static_cast<std::int64_t>(value), perr);
+    }
+
+    template <typename T>
+    inline typename std::enable_if<std::is_floating_point<T>::value, bool>::type
+    bind (int index, T value, error * perr = nullptr)
+    {
+        return bind_helper(index, static_cast<double>(value), perr);
+    }
 
     /**
+     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
+     * is thrown or an error is returned in @a *perr.
      */
     template <typename T>
-    bool bind (int index, T && value, error * perr = nullptr)
+    inline typename std::enable_if<std::is_integral<T>::value, bool>::type
+    bind (char const * placeholder, T value, error * perr = nullptr)
     {
-        return Backend::template bind<T>(& _rep, index, std::forward<T>(value), perr);
+        return bind_helper(placeholder, static_cast<std::int64_t>(value), perr);
     }
 
     /**
@@ -69,19 +89,19 @@ public:
      * is thrown or an error is returned in @a *perr.
      */
     template <typename T>
-    bool bind (std::string const & placeholder, T && value, error * perr = nullptr)
+    inline typename std::enable_if<std::is_floating_point<T>::value, bool>::type
+    bind (char const * placeholder, T value, error * perr = nullptr)
     {
-        return Backend::template bind<T>(& _rep, placeholder, std::forward<T>(value), perr);
+        return bind_helper(placeholder, static_cast<double>(value), perr);
     }
 
-    /**
-     */
-    DEBBY__EXPORT bool bind (int index, std::string const & value
-        , transient_enum transient, error * perr = nullptr);
+    bool bind (int index, std::nullptr_t, error * perr = nullptr);
+    bool bind (char const * placeholder, std::nullptr_t, error * perr = nullptr);
+
+    bool bind (int index, std::string && value, error * perr = nullptr);
 
     /**
-     * Set the @a placeholder to be bound to string @a value in the prepared
-     * statement.
+     * Set the @a placeholder to be bound to string @a value in the prepared statement.
      *
      * @details Placeholder mark (e.g :) must be included when specifying the
      *          placeholder name.
@@ -89,137 +109,21 @@ public:
      * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
      * is thrown or an error is returned in @a *perr.
      */
-    DEBBY__EXPORT bool bind (std::string const & placeholder
-        , std::string const & value, transient_enum transient
-        , error * perr = nullptr);
+    bool bind (char const * placeholder, std::string && value, error * perr = nullptr);
 
     /**
+     * Bind binary value (blob) to @a index. @a ptr must remain valid until either the
+     * prepared statement is finalized or the same SQL parameter is bound to something else,
+     * whichever occurs sooner.
      */
-    DEBBY__EXPORT bool bind (int index, string_view value
-        , transient_enum transient, error * perr = nullptr);
+    bool bind (int index, char const * ptr, std::size_t len, error * perr = nullptr);
 
     /**
-     * Set the @a placeholder to be bound to string @a value in the prepared
-     * statement.
-     *
-     * @details Placeholder mark (e.g :) must be included when specifying the
-     *          placeholder name.
-     *
-     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
-     * is thrown or an error is returned in @a *perr.
+     * Bind binary value (blob) to @a placholder. @a ptr must remain valid until either the
+     * prepared statement is finalized or the same SQL parameter is bound to something else,
+     * whichever occurs sooner.
      */
-    DEBBY__EXPORT bool bind (std::string const & placeholder, string_view value
-        , transient_enum transient, error * perr = nullptr);
-
-    /**
-     */
-    DEBBY__EXPORT bool bind (int index, char const * value
-        , transient_enum transient, error * perr = nullptr);
-
-    /**
-     * Set the @a placeholder to be bound to C-string @a value with in the
-     * prepared statement.
-     *
-     * @details Placeholder mark (e.g :) must be included when specifying the
-     *          placeholder name.
-     *
-     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
-     * is thrown or an error is returned in @a *perr.
-     */
-    DEBBY__EXPORT bool bind (std::string const & placeholder
-        , char const * value, transient_enum transient, error * perr = nullptr);
-
-    /**
-     * Set the @a index to be bound to @a blob in the prepared statement.
-     */
-    DEBBY__EXPORT bool bind (int index, std::uint8_t const * blob, std::size_t len
-        , transient_enum transient, error * perr = nullptr);
-
-    /**
-     * Set the @a index to be bound to @a blob in the prepared statement.
-     */
-    inline bool bind (int index, char const * blob, std::size_t len
-        , transient_enum transient, error * perr = nullptr)
-    {
-        return bind(index, reinterpret_cast<std::uint8_t const *>(blob), len
-            , transient, perr);
-    }
-
-    /**
-     * Set the @a index to be bound to @a blob in the prepared statement.
-     */
-    inline bool bind (int index, std::vector<std::uint8_t> blob
-        , transient_enum transient, error * perr = nullptr)
-    {
-        return bind(index, blob.data(), blob.size(), transient, perr);
-    }
-
-    /**
-     * Set the @a index to be bound to @a blob in the prepared statement.
-     */
-    inline bool bind (int index, std::vector<char> const & blob
-        , transient_enum transient, error * perr = nullptr)
-    {
-        return bind(index, reinterpret_cast<std::uint8_t const *>(blob.data())
-            , blob.size(), transient, perr);
-    }
-
-    /**
-     * Set the @a placeholder to be bound to @a blob with length @a len
-     * in the prepared statement.
-     *
-     * @details Placeholder mark (e.g :) must be included when specifying the
-     *          placeholder name.
-     *
-     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
-     * is thrown or an error is returned in @a *perr.
-     */
-    DEBBY__EXPORT bool bind (std::string const & placeholder, std::uint8_t const * blob
-        , std::size_t len, transient_enum transient, error * perr = nullptr);
-
-    inline bool bind (std::string const & placeholder, char const * blob, std::size_t len
-        , transient_enum transient, error * perr = nullptr)
-    {
-        return bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob)
-            , len, transient, perr);
-    }
-
-    /**
-     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
-     * is thrown or an error is returned in @a *perr.
-     */
-    inline bool bind (std::string const & placeholder
-        , std::vector<std::uint8_t> const & blob, transient_enum transient
-        , error * perr = nullptr)
-    {
-        return bind(placeholder, blob.data(), blob.size(), transient, perr);
-    }
-
-    /**
-     * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
-     * is thrown or an error is returned in @a *perr.
-     */
-    inline bool bind (std::string const & placeholder
-        , std::vector<char> const & blob, transient_enum transient
-        , error * perr = nullptr)
-    {
-        return bind(placeholder, reinterpret_cast<std::uint8_t const *>(blob.data())
-            , blob.size(), transient, perr);
-    }
-
-public:
-    template <typename ...Args>
-    static statement make (Args &&... args)
-    {
-        return statement{Backend::make(std::forward<Args>(args)...)};
-    }
-
-    template <typename ...Args>
-    static std::unique_ptr<statement> make_unique (Args &&... args)
-    {
-        auto ptr = new statement {Backend::make(std::forward<Args>(args)...)};
-        return std::unique_ptr<statement>(ptr);
-    }
+    bool bind (char const * placeholder, char const * ptr, std::size_t len, error * perr = nullptr);
 };
 
-} // namespace debby
+DEBBY__NAMESPACE_END

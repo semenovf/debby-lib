@@ -1,26 +1,26 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021 Vladislav Trifochkin
+// Copyright (c) 2021-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.11.24 Initial version.
+//      2024.10.29 V2 started.
+//      2024.10.30 Fixed for sqlite3 database.
 ////////////////////////////////////////////////////////////////////////////////
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
-#include "pfs/filesystem.hpp"
-#include "pfs/fmt.hpp"
 #include "pfs/debby/relational_database.hpp"
-#include <algorithm>
+#include <pfs/filesystem.hpp>
 
 #if DEBBY__SQLITE3_ENABLED
-#   include "pfs/debby/backend/sqlite3/database.hpp"
+#   include "pfs/debby/sqlite3.hpp"
 #endif
-
-#if DEBBY__PSQL_ENABLED
-#   include "pfs/debby/backend/psql/database.hpp"
-#   include "psql_support.hpp"
-#endif
+//
+// #if DEBBY__PSQL_ENABLED
+// #   include "pfs/debby/backend/psql/database.hpp"
+// #   include "psql_support.hpp"
+// #endif
 
 namespace fs = pfs::filesystem;
 
@@ -83,34 +83,32 @@ void check (RelationalDatabaseType & db)
 
 #if DEBBY__SQLITE3_ENABLED
 TEST_CASE("sqlite3") {
-    using database_t = debby::relational_database<debby::backend::sqlite3::database>;
-
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
-    database_t::wipe(db_path);
+    debby::sqlite3::wipe(db_path);
 
-    auto db = database_t::make(db_path);
-
-    REQUIRE(db);
-
-    check(db);
-
-    database_t::wipe(db_path);
-}
-#endif
-
-#if DEBBY__PSQL_ENABLED
-TEST_CASE("PostgreSQL") {
-    using database_t = debby::relational_database<debby::backend::psql::database>;
-
-    auto conninfo = psql_conninfo();
-    auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
-
-    if (!db) {
-        MESSAGE(preconditions_notice());
-    }
+    auto db = debby::sqlite3::make(db_path);
 
     REQUIRE(db);
 
     check(db);
+
+    debby::sqlite3::wipe(db_path);
 }
 #endif
+
+// #if DEBBY__PSQL_ENABLED
+// TEST_CASE("PostgreSQL") {
+//     using database_t = debby::relational_database<debby::backend::psql::database>;
+//
+//     auto conninfo = psql_conninfo();
+//     auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
+//
+//     if (!db) {
+//         MESSAGE(preconditions_notice());
+//     }
+//
+//     REQUIRE(db);
+//
+//     check(db);
+// }
+// #endif

@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021,2022 Vladislav Trifochkin
+// Copyright (c) 2021-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -7,50 +7,56 @@
 //      2021.12.07 Initial version.
 //      2021.12.18 Reimplemented with new error handling.
 //      2022.03.12 Refactored.
+//      2024.10.29 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "backend_enum.hpp"
 #include "error.hpp"
 #include "exports.hpp"
-#include <memory>
+#include "namespace.hpp"
+#include "statement.hpp"
 #include <string>
 #include <vector>
 
-namespace debby {
+DEBBY__NAMESPACE_BEGIN
 
-template <typename Backend>
+template <backend_enum Backend>
+class relational_database;
+
+template <backend_enum Backend>
 class relational_database
 {
-    using rep_type = typename Backend::rep_type;
-
 public:
-    using statement_type = typename Backend::statement_type;
+    class impl;
+    using statement_type = statement<Backend>;
 
 private:
-    rep_type _rep;
-
-private:
-    DEBBY__EXPORT relational_database (rep_type && rep);
+    impl * _d {nullptr};
 
 public:
-    relational_database () = delete;
+    DEBBY__EXPORT relational_database ();
+    DEBBY__EXPORT relational_database (impl && d);
+    DEBBY__EXPORT relational_database (relational_database && other) noexcept;
+    DEBBY__EXPORT ~relational_database ();
+
     relational_database (relational_database const & other) = delete;
     relational_database & operator = (relational_database const & other) = delete;
     relational_database & operator = (relational_database && other) = delete;
-
-    DEBBY__EXPORT relational_database (relational_database && other);
-    DEBBY__EXPORT ~relational_database ();
 
 public:
     /**
      * Checks if database is open.
      */
-    DEBBY__EXPORT operator bool () const noexcept;
+    inline operator bool () const noexcept
+    {
+        return _d != nullptr;
+    }
 
-    /**
-     * Return rows count in named table.
-     */
-    DEBBY__EXPORT std::size_t rows_count (std::string const & table_name
-        , error * perr = nullptr);
+//     /**
+//      * Return rows count in named table.
+//      */
+//     DEBBY__EXPORT std::size_t rows_count (std::string const & table_name
+//         , error * perr = nullptr);
 
     /**
      * Prepares statement.
@@ -73,10 +79,10 @@ public:
     DEBBY__EXPORT std::vector<std::string> tables (std::string const & pattern = std::string{}
         , error * perr = nullptr);
 
-    /**
-     * Clear all records from @a table.
-     */
-    DEBBY__EXPORT void clear (std::string const & table, error * perr = nullptr);
+//     /**
+//      * Clear all records from @a table.
+//      */
+//     DEBBY__EXPORT void clear (std::string const & table, error * perr = nullptr);
 
     /**
      * Removes named @a table or drop all tables if @a table is empty.
@@ -146,34 +152,16 @@ public:
 
 public:
     /**
-     * @throw debby::error on create/open data failure.
+     * See description for backend specific make() functions.
      */
     template <typename ...Args>
-    static relational_database make (Args &&... args)
-    {
-        return relational_database{Backend::make_r(std::forward<Args>(args)...)};
-    }
+    static relational_database make (Args &&... args);
 
     /**
-     * @throw debby::error on create/open data failure.
+     * See description for backend specific wipe() function.
      */
     template <typename ...Args>
-    static std::unique_ptr<relational_database> make_unique (Args &&... args)
-    {
-        auto ptr = new relational_database {Backend::make_r(std::forward<Args>(args)...)};
-        return std::unique_ptr<relational_database>(ptr);
-    }
-
-    /**
-     * Wipes database (e.g. drops database or removes files associated with database if possible).
-     *
-     * @return @c true if removing was successful, @c false otherwise.
-     */
-    template <typename ...Args>
-    static bool wipe (Args &&... args)
-    {
-        return Backend::wipe(std::forward<Args>(args)...);
-    }
+    static bool wipe (Args &&... args);
 };
 
-} // namespace debby
+DEBBY__NAMESPACE_END
