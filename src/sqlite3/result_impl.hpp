@@ -35,12 +35,12 @@ public:
     mutable std::unordered_map<std::string, int> column_mapping;
 
 public:
-    impl (handle_type h, status s)
+    impl (handle_type h, status s) noexcept
         : sth(h)
         , state(s)
     {}
 
-    impl (impl && other)
+    impl (impl && other) noexcept
     {
         sth = other.sth;
         state = other.state;

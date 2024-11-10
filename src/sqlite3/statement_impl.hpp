@@ -24,12 +24,12 @@ private:
     bool _cached {false};
 
 public:
-    impl (native_type sth, bool cached)
+    impl (native_type sth, bool cached) noexcept
         : _sth(sth)
         , _cached(cached)
     {}
 
-    impl (impl && other)
+    impl (impl && other) noexcept
     {
         _sth = other._sth;
         other._sth = nullptr;

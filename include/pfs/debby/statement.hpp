@@ -95,10 +95,9 @@ public:
         return bind_helper(placeholder, static_cast<double>(value), perr);
     }
 
-    bool bind (int index, std::nullptr_t, error * perr = nullptr);
-    bool bind (char const * placeholder, std::nullptr_t, error * perr = nullptr);
-
-    bool bind (int index, std::string && value, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (int index, std::nullptr_t, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (char const * placeholder, std::nullptr_t, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (int index, std::string && value, error * perr = nullptr);
 
     /**
      * Set the @a placeholder to be bound to string @a value in the prepared statement.
@@ -109,21 +108,21 @@ public:
      * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
      * is thrown or an error is returned in @a *perr.
      */
-    bool bind (char const * placeholder, std::string && value, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (char const * placeholder, std::string && value, error * perr = nullptr);
 
     /**
      * Bind binary value (blob) to @a index. @a ptr must remain valid until either the
      * prepared statement is finalized or the same SQL parameter is bound to something else,
      * whichever occurs sooner.
      */
-    bool bind (int index, char const * ptr, std::size_t len, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (int index, char const * ptr, std::size_t len, error * perr = nullptr);
 
     /**
      * Bind binary value (blob) to @a placholder. @a ptr must remain valid until either the
      * prepared statement is finalized or the same SQL parameter is bound to something else,
      * whichever occurs sooner.
      */
-    bool bind (char const * placeholder, char const * ptr, std::size_t len, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (char const * placeholder, char const * ptr, std::size_t len, error * perr = nullptr);
 };
 
 DEBBY__NAMESPACE_END

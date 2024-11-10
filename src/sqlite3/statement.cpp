@@ -13,6 +13,7 @@
 #include "result_impl.hpp"
 #include "statement_impl.hpp"
 #include "utils.hpp"
+#include <pfs/numeric_cast.hpp>
 #include <limits>
 
 DEBBY__NAMESPACE_BEGIN
@@ -68,7 +69,7 @@ statement_t::result_type statement_t::impl::exec (error * perr)
 }
 
 template <>
-statement_t::statement () = default;
+statement_t::statement () {}
 
 template <>
 statement_t::statement (impl && d)
@@ -198,7 +199,7 @@ template <>
 bool statement_t::bind (int index, std::string && value, error * perr)
 {
     auto sth = _d->native();
-    auto rc = sqlite3_bind_text(sth, index + 1, value.c_str(), value.size(), SQLITE_TRANSIENT);
+    auto rc = sqlite3_bind_text(sth, index + 1, value.c_str(), pfs::numeric_cast<int>(value.size()), SQLITE_TRANSIENT);
 
     if (SQLITE_OK != rc) {
         BIND_HELPER_BOILERPLATE_ON_FAILURE

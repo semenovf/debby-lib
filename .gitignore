@@ -1,11 +1,12 @@
 ################################################################################
-## Copyright (c) 2020-2023 Vladislav Trifochkin
+## Copyright (c) 2020-2024 Vladislav Trifochkin
 ##
 ## This file is part of `debby`.
 ##
 ## Changelog:
 ##      2020.03.29 Initial version.
 ##      2023.11.25 Removed useless (rare) rules.
+##      2024.11.10 Added Visual Studio rules.
 ################################################################################
 
 /3rdparty/*
@@ -21,3 +22,8 @@
 ### KDevelop ###
 *.kdev4
 .kdev4/
+
+### Visual Studio ###
+.vs/
+/out/
+/CMakeSettings.json

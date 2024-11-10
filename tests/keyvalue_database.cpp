@@ -30,9 +30,9 @@
 #   include "pfs/debby/lmdb.hpp"
 #endif
 
-// #if DEBBY__LIBMDBX_ENABLED
-// #   include "pfs/debby/backend/libmdbx/database.hpp"
-// #endif
+#if DEBBY__MDBX_ENABLED
+#   include "pfs/debby/mdbx.hpp"
+#endif
 //
 // #if DEBBY__ROCKSDB_ENABLED
 // #   include "pfs/debby/backend/rocksdb/database.hpp"
@@ -68,7 +68,6 @@ void check_keyvalue_database (debby::keyvalue_database<Backend> & db)
 
         REQUIRE_EQ(db.template get_or<int>("unknown", -1), -1);
 
-        auto x = db.template get<bool>("bool");
         REQUIRE_EQ(db.template get<bool>("bool")            , true);
         REQUIRE_EQ(db.template get<std::int8_t>("int8")     , std::numeric_limits<std::int8_t>::min());
         REQUIRE_EQ(db.template get<std::uint8_t>("uint8")   , std::numeric_limits<std::uint8_t>::max());
@@ -186,7 +185,6 @@ TEST_CASE("in-memory thread safe unordered_map set/get") {
 #if DEBBY__LMDB_ENABLED
 TEST_CASE("lmdb set/get") {
     using database_t = debby::keyvalue_database<debby::backend_enum::lmdb>;
-
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-lmdb-kv.db");
     auto db = database_t::make(db_path, true);
     db.clear();
@@ -194,17 +192,25 @@ TEST_CASE("lmdb set/get") {
 }
 #endif
 
-// TEST_CASE("sqlite3 set/get") {
-//     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3-kv.db");
-//     check_persistance_storage<debby::backend_enum::sqlite3>(db_path);
-// }
+#if DEBBY__MDBX_ENABLED
+TEST_CASE("dbmx set/get") {
+    using database_t = debby::keyvalue_database<debby::backend_enum::mdbx>;
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-mdbx-kv.db");
+    auto db = database_t::make(db_path, true);
+    db.clear();
+    check(std::move(db));
+}
+#endif
 
-// #if DEBBY__LIBMDBX_ENABLED
-// TEST_CASE("libdbmx set/get") {
-//     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-libmdbx-kv.db");
-//     check_persistance_storage<debby::backend::libmdbx::database>(db_path);
-// }
-// #endif
+#if DEBBY__SQLITE3_ENABLED
+ TEST_CASE("sqlite3 set/get") {
+     using database_t = debby::keyvalue_database<debby::backend_enum::sqlite3>;
+     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3-kv.db");
+     auto db = database_t::make(db_path, "test-kv", true);
+     db.clear();
+     check(std::move(db));
+}
+#endif
 
 // #if DEBBY__ROCKSDB_ENABLED
 // TEST_CASE("rocksdb set/get") {

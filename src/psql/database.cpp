@@ -397,7 +397,6 @@ bool database_t::exists (std::string const & name, error * perr)
     return false;
 }
 
-// Explicit instantiation
 template database_t & database_t::operator = (relational_database && other);
 
 template

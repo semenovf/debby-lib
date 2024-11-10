@@ -44,15 +44,15 @@ protected:
     native_type _dbh;
 
 public:
-    keyvalue_database_impl () = default;
+    keyvalue_database_impl () noexcept = default;
 
-    keyvalue_database_impl (keyvalue_database_impl && other)
+    keyvalue_database_impl (keyvalue_database_impl && other) noexcept
     {
         lock_guard locker(other._mtx);
         _dbh = std::move(other._dbh);
     }
 
-    keyvalue_database_impl & operator = (keyvalue_database_impl && other)
+    keyvalue_database_impl & operator = (keyvalue_database_impl && other) noexcept
     {
         lock_guard locker(other._mtx);
         _dbh = std::move(other._dbh);
@@ -168,17 +168,17 @@ bool wipe (error *)
 }
 
 #if DEBBY__MAP_ENABLED
-template keyvalue_database<backend_enum::map_st> make_kv<backend_enum::map_st> (error *);
-template keyvalue_database<backend_enum::map_mt> make_kv<backend_enum::map_mt> (error *);
-template bool wipe<backend_enum::map_st> (error *);
-template bool wipe<backend_enum::map_mt> (error *);
+template DEBBY__EXPORT keyvalue_database<backend_enum::map_st> make_kv<backend_enum::map_st> (error *);
+template DEBBY__EXPORT keyvalue_database<backend_enum::map_mt> make_kv<backend_enum::map_mt> (error *);
+template DEBBY__EXPORT bool wipe<backend_enum::map_st> (error *);
+template DEBBY__EXPORT bool wipe<backend_enum::map_mt> (error *);
 #endif
 
 #if DEBBY__UNORDERED_MAP_ENABLED
-template keyvalue_database<backend_enum::unordered_map_st> make_kv<backend_enum::unordered_map_st> (error *);
-template keyvalue_database<backend_enum::unordered_map_mt> make_kv<backend_enum::unordered_map_mt> (error *);
-template bool wipe<backend_enum::unordered_map_st> (error *);
-template bool wipe<backend_enum::unordered_map_mt> (error *);
+template DEBBY__EXPORT keyvalue_database<backend_enum::unordered_map_st> make_kv<backend_enum::unordered_map_st> (error *);
+template DEBBY__EXPORT keyvalue_database<backend_enum::unordered_map_mt> make_kv<backend_enum::unordered_map_mt> (error *);
+template DEBBY__EXPORT bool wipe<backend_enum::unordered_map_st> (error *);
+template DEBBY__EXPORT bool wipe<backend_enum::unordered_map_mt> (error *);
 #endif
 
 } // namespace in_mamory

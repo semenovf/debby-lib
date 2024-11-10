@@ -19,7 +19,7 @@
 DEBBY__NAMESPACE_BEGIN
 
 template <>
-result_t::result () = default;
+result_t::result () {}
 
 template <>
 result_t::result (impl && d)
@@ -28,7 +28,7 @@ result_t::result (impl && d)
 }
 
 template <>
-result_t::result (result && other)
+result_t::result (result && other) noexcept
 {
     _d = other._d;
     other._d = nullptr;

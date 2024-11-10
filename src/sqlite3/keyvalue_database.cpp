@@ -39,8 +39,25 @@ public:
      */
     void remove (keyvalue_database_t::key_type const & key, error * perr)
     {
-        std::string sql = fmt::format("DELETE FROM '{}' WHERE key='{}'", _table_name, key);
-        this->query(sql, perr);
+        error err;
+        std::string sql = fmt::format("DELETE FROM '{}' WHERE key=?", _table_name);
+
+        // NOTE: Unable to delete row using query() call. Only using prepared statement is successful.
+        //this->query(sql, perr);
+
+        auto stmt = this->prepare(sql, true, & err);
+
+        if (!err) {
+            stmt.bind(0, key.c_str(), key.size(), & err);
+
+            if (!err)
+                stmt.exec(& err);
+
+            if (err) {
+                pfs::throw_or(perr, std::move(err));
+                return;
+            }
+        }
     }
 
     bool put (keyvalue_database_t::key_type const & key, char const * data, std::size_t len, error * perr)
@@ -110,7 +127,7 @@ keyvalue_database_t::keyvalue_database (impl && d)
 }
 
 template <>
-keyvalue_database_t::keyvalue_database (keyvalue_database_t && other)
+keyvalue_database_t::keyvalue_database (keyvalue_database_t && other) noexcept
 {
     if (other._d != nullptr) {
         _d = new impl(std::move(*other._d));
@@ -130,7 +147,7 @@ keyvalue_database_t::~keyvalue_database ()
 }
 
 template <>
-keyvalue_database_t & keyvalue_database_t::operator = (keyvalue_database && other)
+keyvalue_database_t & keyvalue_database_t::operator = (keyvalue_database && other) noexcept
 {
     if (other._d != nullptr) {
         if (_d != nullptr) {
@@ -176,14 +193,9 @@ make_kv (pfs::filesystem::path const & path, std::string const & table_name, boo
         return keyvalue_database_t{};
     }
 
-    // FIXME
     std::string sql = fmt::format("CREATE TABLE IF NOT EXISTS '{}'"
         " (key TEXT NOT NULL UNIQUE, value BLOB"
         " , PRIMARY KEY(key)) WITHOUT ROWID", table_name);
-
-    // std::string sql = fmt::format("CREATE TABLE IF NOT EXISTS '{}'"
-    //     " (key TEXT NOT NULL UNIQUE, value TEXT"
-    //     " , PRIMARY KEY(key))", table_name);
 
     db.query(sql, & err);
 

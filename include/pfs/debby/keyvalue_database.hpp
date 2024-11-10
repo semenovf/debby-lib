@@ -48,10 +48,10 @@ private:
 public:
     DEBBY__EXPORT keyvalue_database ();
     DEBBY__EXPORT keyvalue_database (impl && d);
-    DEBBY__EXPORT keyvalue_database (keyvalue_database && other);
+    DEBBY__EXPORT keyvalue_database (keyvalue_database && other) noexcept;
     DEBBY__EXPORT ~keyvalue_database ();
 
-    DEBBY__EXPORT keyvalue_database & operator = (keyvalue_database && other);
+    DEBBY__EXPORT keyvalue_database & operator = (keyvalue_database && other) noexcept;
 
     keyvalue_database (keyvalue_database const & other) = delete;
     keyvalue_database & operator = (keyvalue_database const & other) = delete;

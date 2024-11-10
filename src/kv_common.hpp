@@ -53,7 +53,7 @@ keyvalue_database<Backend>::keyvalue_database (impl && d)
 }
 
 template <backend_enum Backend>
-keyvalue_database<Backend>::keyvalue_database (keyvalue_database && other)
+keyvalue_database<Backend>::keyvalue_database (keyvalue_database && other) noexcept
 {
     if (other._d != nullptr) {
         _d = new impl(std::move(*other._d));
@@ -73,7 +73,7 @@ keyvalue_database<Backend>::~keyvalue_database ()
 }
 
 template <backend_enum Backend>
-keyvalue_database<Backend> & keyvalue_database<Backend>::operator = (keyvalue_database && other)
+keyvalue_database<Backend> & keyvalue_database<Backend>::operator = (keyvalue_database && other) noexcept
 {
     if (other._d != nullptr) {
         if (_d != nullptr) {

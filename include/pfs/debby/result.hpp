@@ -47,7 +47,7 @@ private:
 public:
     DEBBY__EXPORT result ();
     DEBBY__EXPORT result (impl && d);
-    DEBBY__EXPORT result (result && other);
+    DEBBY__EXPORT result (result && other) noexcept;
     DEBBY__EXPORT ~result ();
 
     result (result const & other) = delete;
@@ -69,9 +69,8 @@ private:
     {
         error err;
         union {
-            //std::intmax_t n;
             typename bounded_type<T, void>::type n;
-            char buffer [sizeof(std::intmax_t)];
+            char buffer [sizeof(bounded_type<T, void>::type)];
         } u;
 
         auto res = fetch(column, u.buffer, sizeof(u.buffer), err);

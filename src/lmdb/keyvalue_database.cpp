@@ -48,11 +48,12 @@ bool assign (T & result, MDB_val const & val);
 template <>
 inline bool assign<std::int64_t> (std::int64_t & result, MDB_val const & val)
 {
-    if (val.mv_size != sizeof(std::int64_t))
+    if (val.mv_size > sizeof(std::int64_t))
         return false;
 
     fixed_packer<std::int64_t> p;
-    std::memcpy(p.bytes, val.mv_data, val.mv_size);
+    std::memset(p.bytes, 0, sizeof(p.bytes));
+    std::memcpy(p.bytes/* + (sizeof(std::int64_t) - val.mv_size)*/, val.mv_data, val.mv_size);
     result = p.value;
     return true;
 }
@@ -165,17 +166,14 @@ public:
                 env = nullptr;
             }
 
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , fs::utf8_encode(path)
-                , mdb_strerror(rc)
-            });
+            pfs::throw_or(perr, error {errc::backend_error, fs::utf8_encode(path), mdb_strerror(rc)});
 
             return;
         }
 
         _env = env;
         _dbh = dbh;
+        _path = path;
     }
 
     impl (fs::path const & path, bool create_if_missing, error * perr)
@@ -208,13 +206,13 @@ public:
 
 private:
     template <typename F>
-    int perform_transaction (F && f)
+    int perform_transaction (F && f, unsigned int flags)
     {
         MDB_txn * txn = nullptr;
         int rc = MDB_SUCCESS;
 
         do {
-            rc = mdb_txn_begin(_env, nullptr, 0, & txn);
+            rc = mdb_txn_begin(_env, nullptr, flags, & txn);
 
             if (rc != MDB_SUCCESS)
                 break;
@@ -252,7 +250,7 @@ public:
             k.mv_size = key.size();
 
             return mdb_del(txn, _dbh, & k, nullptr);
-        });
+        }, 0);
 
         if (rc != MDB_SUCCESS) {
             pfs::throw_or(perr, error {
@@ -269,7 +267,7 @@ public:
     {
         auto rc = perform_transaction([this] (MDB_txn * txn) -> int {
             return mdb_drop(txn, _dbh, 0);
-        });
+        }, 0);
 
         if (rc != MDB_SUCCESS) {
             pfs::throw_or(perr, error {
@@ -316,7 +314,7 @@ public:
             val.mv_size = size;
 
             return mdb_put(txn, _dbh, & ky, & val, 0);
-        });
+        }, 0);
 
         if (rc != MDB_SUCCESS) {
             pfs::throw_or(perr, error {
@@ -350,7 +348,7 @@ public:
             }
 
             return rc;
-        });
+        }, MDB_RDONLY);
 
         if (rc != MDB_SUCCESS) {
             if (rc == UNSUITABLE_VALUE_ERROR) {
@@ -378,12 +376,11 @@ public:
     }
 };
 
-
 //template keyvalue_database<backend_enum::lmdb>::keyvalue_database ();
 template keyvalue_database<backend_enum::lmdb>::keyvalue_database (impl && d);
-template keyvalue_database<backend_enum::lmdb>::keyvalue_database (keyvalue_database && other);
+template keyvalue_database<backend_enum::lmdb>::keyvalue_database (keyvalue_database && other) noexcept;
 template keyvalue_database<backend_enum::lmdb>::~keyvalue_database ();
-template keyvalue_database<backend_enum::lmdb> & keyvalue_database<backend_enum::lmdb>::operator = (keyvalue_database && other);
+template keyvalue_database<backend_enum::lmdb> & keyvalue_database<backend_enum::lmdb>::operator = (keyvalue_database && other) noexcept;
 
 template <>
 void keyvalue_database_t::clear (error * perr)
@@ -446,13 +443,13 @@ void keyvalue_database_t::set_arithmetic (key_type const & key, std::int64_t val
 }
 
 template <>
-void keyvalue_database_t::set_arithmetic (key_type const & key, double value, std::size_t size, error * perr)
+void keyvalue_database_t::set_arithmetic (key_type const & key, double value, std::size_t /*size*/, error * perr)
 {
     if (_d != nullptr) {
         char buf[sizeof(fixed_packer<double>)];
         auto p = new (buf) fixed_packer<double>{};
         p->value = value;
-        _d->put(key, buf, size, perr);
+        _d->put(key, buf, sizeof(fixed_packer<double>), perr);
     }
 }
 

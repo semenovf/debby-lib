@@ -14,9 +14,9 @@ option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
 option(DEBBY__ENABLE_SQLITE_FTS5 "Enable support for `FTS5` in `Sqlite3` backend" OFF)
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
-option(DEBBY__ENABLE_LIBMDBX "Enable `libmdbx` backend" ON)
+option(DEBBY__ENABLE_MDBX "Enable `libmdbx` backend" ON)
 option(DEBBY__ENABLE_LMDB "Enable `LMDB` backend" ON)
-option(DEBBY__ENABLE_PSQL  "Enable `PostgreSQL` front-end backend" ON)
+option(DEBBY__ENABLE_PSQL  "Enable `PostgreSQL` front-end backend" OFF)
 option(DEBBY__ENABLE_MAP  "Enable `in-memory` map backend" ON)
 option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
 
@@ -25,9 +25,14 @@ if (DEBBY__BUILD_SHARED)
     target_compile_definitions(debby PRIVATE DEBBY__EXPORTS)
 else()
     add_library(debby STATIC)
+    target_compile_definitions(debby PRIVATE DEBBY__STATIC)
 endif()
 
 add_library(pfs::debby ALIAS debby)
+
+if (MSVC)
+    target_compile_definitions(debby PRIVATE _CRT_SECURE_NO_WARNINGS)
+endif()
 
 list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp)
 
@@ -78,18 +83,14 @@ if (DEBBY__ENABLE_ROCKSDB)
     target_link_libraries(debby PRIVATE rocksdb)
 endif(DEBBY__ENABLE_ROCKSDB)
 
-if (DEBBY__ENABLE_LIBMDBX)
+if (DEBBY__ENABLE_MDBX)
     set(MDBX_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Enable/disable build shared `libmdbx` library")
     set(MDBX_BUILD_TOOLS OFF CACHE BOOL "Disable build `libmdbx` tools")
     set(MDBX_BUILD_CXX OFF CACHE BOOL "Disable build `libmdbx` with C++ support")
 
     add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/lib EXCLUDE_FROM_ALL)
-
-    message(STATUS "libmdbx root: [${DEBBY__LIBMDBX_ROOT}]")
-
-    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/database.cpp)
-    list(APPEND _debby__definitions "DEBBY__LIBMDBX_ENABLED=1")
-
+    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/keyvalue_database.cpp)
+    list(APPEND _debby__definitions "DEBBY__MDBX_ENABLED=1")
     target_link_libraries(debby PRIVATE mdbx-static)
 endif(DEBBY__ENABLE_LIBMDBX)
 
