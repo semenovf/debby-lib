@@ -8,9 +8,10 @@
 //      2024.10.29 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "namespace.hpp"
 #include "error.hpp"
 #include "exports.hpp"
-#include "namespace.hpp"
+#include "keyvalue_database.hpp"
 #include "relational_database.hpp"
 #include <pfs/filesystem.hpp>
 #include <pfs/optional.hpp>
@@ -28,7 +29,7 @@ enum synchronous_enum { SYN_OFF, SYN_NORMAL, SYN_FULL, SYN_EXTRA };
 // https://www.sqlite.org/pragma.html#pragma_temp_store
 enum temp_store_enum { TS_DEFAULT, TS_FILE, TS_MEMORY };
 
-enum presets_enum
+enum preset_enum
 {
       DEFAULT_PRESET
     , CONCURRENCY_PRESET
@@ -73,7 +74,7 @@ make (pfs::filesystem::path const & path, bool create_if_missing, make_options &
 
 DEBBY__EXPORT
 relational_database<backend_enum::sqlite3>
-make (pfs::filesystem::path const & path, bool create_if_missing, presets_enum preset, error * perr = nullptr);
+make (pfs::filesystem::path const & path, bool create_if_missing, preset_enum preset, error * perr = nullptr);
 
 /**
  * Wipes database (e.g. drops database or removes files associated with database if possible).
@@ -83,6 +84,16 @@ make (pfs::filesystem::path const & path, bool create_if_missing, presets_enum p
 DEBBY__EXPORT
 bool
 wipe (pfs::filesystem::path const & path, error * perr = nullptr);
+
+DEBBY__EXPORT
+keyvalue_database<backend_enum::sqlite3>
+make_kv (pfs::filesystem::path const & path, std::string const & table_name, bool create_if_missing
+    , error * perr = nullptr);
+
+DEBBY__EXPORT
+keyvalue_database<backend_enum::sqlite3>
+make_kv (pfs::filesystem::path const & path, std::string const & table_name, bool create_if_missing
+    , preset_enum preset, error * perr = nullptr);
 
 } // namespace sqlite3
 
@@ -94,9 +105,33 @@ relational_database<backend_enum::sqlite3>::make (Args &&... args)
     return relational_database<backend_enum::sqlite3>{sqlite3::make(std::forward<Args>(args)...)};
 }
 
+/**
+ * Deletes files associated with database
+ *
+ * In Windows database must be closed/destructed before to avoid exception:
+ * "The process cannot access the file because it is being used by another process"
+ */
 template<>
 template <typename ...Args>
 bool relational_database<backend_enum::sqlite3>::wipe (Args &&... args)
+{
+    return sqlite3::wipe(std::forward<Args>(args)...);
+}
+
+template<>
+template <typename ...Args>
+keyvalue_database<backend_enum::sqlite3>
+keyvalue_database<backend_enum::sqlite3>::make (Args &&... args)
+{
+    return keyvalue_database<backend_enum::sqlite3>{sqlite3::make_kv(std::forward<Args>(args)...)};
+}
+
+/**
+ * Deletes files associated with database
+ */
+template<>
+template <typename ...Args>
+bool keyvalue_database<backend_enum::sqlite3>::wipe (Args &&... args)
 {
     return sqlite3::wipe(std::forward<Args>(args)...);
 }

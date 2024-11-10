@@ -31,20 +31,23 @@ add_library(pfs::debby ALIAS debby)
 
 list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp)
 
-if (DEBBY__ENABLE_MAP)
-    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/map.cpp)
-    list(APPEND _debby__definitions "DEBBY__MAP_ENABLED=1")
-endif()
+if (DEBBY__ENABLE_MAP OR DEBBY__ENABLE_UNORDERED_MAP)
+    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/keyvalue_database.cpp)
 
-if (DEBBY__ENABLE_UNORDERED_MAP)
-    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/unordered_map.cpp)
-    list(APPEND _debby__definitions "DEBBY__UNORDERED_MAP_ENABLED=1")
+    if (DEBBY__ENABLE_MAP)
+        list(APPEND _debby__definitions "DEBBY__MAP_ENABLED=1")
+    endif()
+
+    if (DEBBY__ENABLE_UNORDERED_MAP)
+        list(APPEND _debby__definitions "DEBBY__UNORDERED_MAP_ENABLED=1")
+    endif()
 endif()
 
 if (DEBBY__ENABLE_SQLITE3)
     list(APPEND _debby__sources
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/database.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/keyvalue_database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp)
 
@@ -91,7 +94,7 @@ if (DEBBY__ENABLE_LIBMDBX)
 endif(DEBBY__ENABLE_LIBMDBX)
 
 if (DEBBY__ENABLE_LMDB)
-    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/database.cpp
+    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/keyvalue_database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/lib/mdb.c
         ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/lib/midl.c)
     list(APPEND _debby__definitions "DEBBY__LMDB_ENABLED=1")

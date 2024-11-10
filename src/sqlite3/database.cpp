@@ -15,6 +15,7 @@
 #include "debby/sqlite3.hpp"
 #include "sqlite3.h"
 #include "utils.hpp"
+#include "../database_common.hpp"
 #include <pfs/assert.hpp>
 #include <pfs/i18n.hpp>
 #include <regex>
@@ -147,7 +148,7 @@ database_t make (fs::path const & path, bool create_if_missing, error * perr)
     return make(path, create_if_missing, make_options{}, perr);
 }
 
-database_t make (pfs::filesystem::path const & path, bool create_if_missing, presets_enum preset, error * perr)
+database_t make (pfs::filesystem::path const & path, bool create_if_missing, preset_enum preset, error * perr)
 {
     switch (preset) {
         // See https://phiresky.github.io/blog/2020/sqlite-performance-tuning/
@@ -318,7 +319,6 @@ bool wipe (fs::path const & path, error * perr)
 
 } // namespace sqlite3
 
-
 template <>
 void database_t::query (std::string const & sql, error * perr)
 {
@@ -352,37 +352,6 @@ database_t::statement_type database_t::prepare (std::string const & sql, bool ca
 
     return _d->prepare(sql, cache, perr);
 }
-
-// template <>
-// std::size_t
-// relational_database<BACKEND>::rows_count (std::string const & table_name, error * perr)
-// {
-//     PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
-//
-//     std::size_t count = 0;
-//     std::string sql = fmt::format("SELECT COUNT(1) as count FROM \"{}\""
-//         , table_name);
-//
-//     statement_type stmt = prepare(sql, false, perr);
-//
-//     if (stmt) {
-//         auto res = stmt.exec();
-//
-//         if (res) {
-//             if (res.has_more()) {
-//                 count = res.get<std::size_t>(0);
-//
-//                 // May be `sql_error` exception
-//                 res.next();
-//             }
-//         }
-//
-//         // Expecting done
-//         PFS__ASSERT(res.is_done(), "expecting done");
-//     }
-//
-//     return count;
-// }
 
 template <>
 std::vector<std::string> database_t::tables (std::string const & pattern, error * perr)
@@ -426,12 +395,11 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
     return list;
 }
 
-// template <>
-// void
-// relational_database<BACKEND>::clear (std::string const & table, error * perr)
-// {
-//     query(fmt::format("DELETE FROM \"{}\"", table), perr);
-// }
+template <>
+void database_t::clear (std::string const & table, error * perr)
+{
+    query(fmt::format("DELETE FROM \"{}\"", table), perr);
+}
 
 template <>
 void database_t::remove (std::vector<std::string> const & tables, error * perr)
@@ -473,11 +441,10 @@ void database_t::remove_all (error * perr)
 }
 
 template <>
-bool
-database_t::exists (std::string const & name, error * perr)
+bool database_t::exists (std::string const & name, error * perr)
 {
     auto stmt = prepare(
-        fmt::format("SELECT name FROM sqlite_master"" WHERE type='table' AND name='{}'", name)
+        fmt::format("SELECT name FROM sqlite_master WHERE type='table' AND name='{}'", name)
             , false, perr);
 
     if (stmt) {
@@ -490,325 +457,11 @@ database_t::exists (std::string const & name, error * perr)
     return false;
 }
 
-// ////////////////////////////////////////////////////////////////////////////////
-// // Key-value database
-// //
-// namespace backend {
-// namespace sqlite3 {
-//
-// database::rep_type
-// database::make_kv (pfs::filesystem::path const & path, bool create_if_missing, error * perr)
-// {
-//     auto rep = make_r(path, create_if_missing);
-//
-//     std::string sql = "CREATE TABLE IF NOT EXISTS debby"
-//         " (key TEXT NOT NULL UNIQUE, value BLOB"
-//         " , PRIMARY KEY(key)) WITHOUT ROWID";
-//
-//     error err;
-//     auto success = query(& rep, sql, & err);
-//
-//     if (!success) {
-//         sqlite3_close_v2(rep.dbh);
-//         rep.dbh = nullptr;
-//         pfs::throw_or(perr, std::move(err));
-//         return rep;
-//     }
-//
-//     return rep;
-// }
-//
-// static bool get (database::rep_type const * rep
-//     , database::key_type const & key
-//     , std::string * string_result
-//     , blob_t * blob_result
-//     , error * perr)
-// {
-//     PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
-//
-//     error err;
-//     std::string sql = fmt::format("SELECT value FROM debby WHERE key = '{}'", key);
-//     sqlite3_stmt * stmt = nullptr;
-//
-//     do {
-//         auto rc = sqlite3_prepare_v2(rep->dbh, sql.c_str(), static_cast<int>(sql.size())
-//             , & stmt, nullptr);
-//
-//         if (rc != SQLITE_OK) {
-//             err = error {
-//                     errc::sql_error
-//                   , tr::f_("read failure for key: {}", build_errstr(rc, rep->dbh))
-//                   , sql
-//             };
-//             break;
-//         }
-//
-//         rc = sqlite3_step(stmt);
-//
-//         if (rc != SQLITE_ROW) {
-//             err = error { errc::key_not_found, tr::f_("key not found: '{}'", key) };
-//             break;
-//         }
-//
-//         if (string_result) {
-//             auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(stmt, 0));
-//             int size = sqlite3_column_bytes(stmt, 0);
-//             *string_result = std::string(cstr, size);
-//         } else if (blob_result) {
-//             auto data = reinterpret_cast<char const *>(sqlite3_column_blob(stmt, 0));
-//             int size = sqlite3_column_bytes(stmt, 0);
-//             blob_result->resize(size);
-//             std::memcpy(blob_result->data(), data, size);
-//         }
-//     } while (false);
-//
-//     if (stmt)
-//         sqlite3_finalize(stmt);
-//
-//     if (err) {
-//         if (perr) {
-//             *perr = err;
-//             return false;
-//         } else {
-//             throw err;
-//         }
-//     }
-//
-//     return true;
-// }
-//
-// /**
-//  * Removes value for @a key.
-//  */
-// static bool remove (database::rep_type * rep, database::key_type const & key, error * perr)
-// {
-//     PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
-//     std::string sql = fmt::format("DELETE FROM `debby` WHERE `key` = '{}'", key);
-//     return query(rep, sql, perr);
-// }
-//
-// static bool put (database::rep_type * rep, database::key_type const & key
-//     , char const * data, std::size_t len, error * perr)
-// {
-//     PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
-//
-//     // Attempt to write `null` data interpreted as delete operation for key
-//     if (!data)
-//         return remove(rep, key, perr);
-//
-//     error err;
-//     std::string sql {"INSERT OR REPLACE INTO debby (key, value) VALUES (?, ?)"};
-//     sqlite3_stmt * stmt = nullptr;
-//
-//     do {
-//         auto rc = sqlite3_prepare_v2(rep->dbh, sql.c_str(), static_cast<int>(sql.size())
-//             , & stmt, nullptr);
-//
-//         if (rc != SQLITE_OK) {
-//             err = error { errc::sql_error, build_errstr(rc, rep->dbh), sql };
-//             break;
-//         }
-//
-//         sqlite3_bind_text(stmt, 1, key.c_str(), static_cast<int>(key.size()), SQLITE_STATIC);
-//         sqlite3_bind_blob(stmt, 2, data, static_cast<int>(len), SQLITE_STATIC);
-//
-//         rc = sqlite3_step(stmt);
-//
-//         if (rc != SQLITE_DONE) {
-//             err = error { errc::sql_error, build_errstr(rc, stmt), current_sql(stmt) };
-//             break;
-//         }
-//     } while (false);
-//
-//     if (stmt)
-//         sqlite3_finalize(stmt);
-//
-//     if (err) {
-//         if (perr) {
-//             *perr = err;
-//             return false;
-//         } else {
-//             throw err;
-//         }
-//     }
-//
-//     return true;
-// }
-//
-// }} // namespace backend::sqlite3
-//
-// template <>
-// keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep) noexcept
-//     : _rep(std::move(rep))
-// {}
-//
-// template <>
-// keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other) noexcept
-// {
-//     _rep = std::move(other._rep);
-//     other._rep.dbh = nullptr;
-// }
-//
-// template <>
-// keyvalue_database<BACKEND>::~keyvalue_database ()
-// {
-//     if (_rep.dbh)
-//         sqlite3_close_v2(_rep.dbh);
-//
-//     _rep.dbh = nullptr;
-// }
-//
-// template <>
-// keyvalue_database<BACKEND>::operator bool () const noexcept
-// {
-//     return _rep.dbh != nullptr;
-// }
-//
-// template <>
-// void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key
-//     , std::intmax_t value, std::size_t size, error * perr)
-// {
-//     char buf[sizeof(std::intmax_t)];
-//     backend::pack_arithmetic(buf, value, size);
-//     backend::sqlite3::put(& _rep, key, buf, size, perr);
-// }
-//
-// template <>
-// void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, double value
-//     , std::size_t size, error * perr)
-// {
-//     backend::fixed_packer<double> p;
-//     p.value = value;
-//     backend::sqlite3::put(& _rep, key, p.bytes, size, perr);
-// }
-//
-// template <>
-// void keyvalue_database<BACKEND>::set_arithmetic (key_type const & key, float value
-//     , std::size_t size, error * perr)
-// {
-//     backend::fixed_packer<float> p;
-//     p.value = value;
-//     backend::sqlite3::put(& _rep, key, p.bytes, size, perr);
-// }
-//
-// template <>
-// void keyvalue_database<BACKEND>::set_chars (key_type const & key, char const * data
-//     , std::size_t size, error * perr)
-// {
-//     backend::sqlite3::put(& _rep, key, data, size, perr);
-// }
-//
-// template <>
-// void keyvalue_database<BACKEND>::set_blob (key_type const & key, char const * data
-//     , std::size_t size, error * perr)
-// {
-//     backend::sqlite3::put(& _rep, key, data, size, perr);
-// }
-//
-// ////////////////////////////////////////////////////////////////////////////////
-// // keyvalue_database::remove
-// ////////////////////////////////////////////////////////////////////////////////
-// template <>
-// void
-// keyvalue_database<BACKEND>::remove (key_type const & key, error * perr)
-// {
-//     backend::sqlite3::remove(& _rep, key, perr);
-// }
-//
-// ////////////////////////////////////////////////////////////////////////////////
-// // keyvalue_database::get
-// ////////////////////////////////////////////////////////////////////////////////
-//
-// template <>
-// std::intmax_t
-// keyvalue_database<BACKEND>::get_integer (key_type const & key, error * perr) const
-// {
-//     error err;
-//     blob_t blob;
-//     backend::sqlite3::get(& _rep, key, nullptr, & blob, & err);
-//
-//     if (!err) {
-//         auto res = backend::get_integer(blob);
-//
-//         if (res.first)
-//             return res.second;
-//     }
-//
-//     if (!err)
-//         err = backend::make_unsuitable_error(key);
-//
-//     if (perr)
-//         *perr = err;
-//     else
-//         throw err;
-//
-//     return std::intmax_t{0};
-// }
-//
-// template <>
-// float keyvalue_database<BACKEND>::get_float (key_type const & key, error * perr) const
-// {
-//     error err;
-//     blob_t blob;
-//     backend::sqlite3::get(& _rep, key, nullptr, & blob, & err);
-//
-//     if (!err) {
-//         auto res = backend::get_float(blob);
-//
-//         if (res.first)
-//             return res.second;
-//     }
-//
-//     if (!err)
-//         err = backend::make_unsuitable_error(key);
-//
-//     if (perr)
-//         *perr = err;
-//     else
-//         throw err;
-//
-//     return float{0};
-// }
-//
-// template <>
-// double keyvalue_database<BACKEND>::get_double (key_type const & key, error * perr) const
-// {
-//     error err;
-//     blob_t blob;
-//     backend::sqlite3::get(& _rep, key, nullptr, & blob, & err);
-//
-//     if (!err) {
-//         auto res = backend::get_double(blob);
-//
-//         if (res.first)
-//             return res.second;
-//     }
-//
-//     if (!err)
-//         err = backend::make_unsuitable_error(key);
-//
-//     if (perr)
-//         *perr = err;
-//     else
-//         throw err;
-//
-//     return double{0};
-// }
-//
-// template <>
-// std::string keyvalue_database<BACKEND>:: get_string (key_type const & key, error * perr) const
-// {
-//     std::string s;
-//     backend::sqlite3::get(& _rep, key, & s, nullptr, perr);
-//     return s;
-// }
-//
-// template <>
-// blob_t keyvalue_database<BACKEND>::get_blob (key_type const & key, error * perr) const
-// {
-//     blob_t blob;
-//     backend::sqlite3::get(& _rep, key, nullptr, & blob, perr);
-//     return blob;
-// }
+// Explicit instantiation
+template database_t & database_t::operator = (relational_database && other);
+
+template
+std::size_t
+database_t::rows_count (std::string const & table_name, error * perr);
 
 DEBBY__NAMESPACE_END

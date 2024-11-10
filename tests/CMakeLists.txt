@@ -12,14 +12,15 @@ project(debby-TESTS CXX C)
 
 list(APPEND TESTS
     keyvalue_database
-    psql_affinity
-    psql_cast_traits
+    # psql_affinity
+    # psql_cast_traits
     relational_database
-    sqlite3_affinity
-    sqlite3_cast_traits
+    # sqlite3_affinity
+    # sqlite3_cast_traits
     statement
-    cached_statement
-    unified_value)
+    # cached_statement
+    # unified_value
+)
 
 foreach (target ${TESTS})
     add_executable(${target} ${target}.cpp)

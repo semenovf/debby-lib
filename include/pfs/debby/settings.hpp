@@ -1,26 +1,30 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021-2023 Vladislav Trifochkin
+// Copyright (c) 2021-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2023.02.08 Initial version.
+//      2024.11.04 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "pfs/optional.hpp"
-#include "pfs/string_view.hpp"
-#include "pfs/debby/exports.hpp"
-#include "pfs/debby/keyvalue_database.hpp"
+#include "backend_enum.hpp"
+#include "keyvalue_database.hpp"
+#include "namespace.hpp"
+#include <pfs/optional.hpp>
+#include <pfs/string_view.hpp>
+#include <memory>
 
 namespace debby {
 
-template <typename Backend>
+template <backend_enum Backend>
 class settings
 {
     using storage_type = keyvalue_database<Backend>;
 
 public:
     using key_type = typename storage_type::key_type;
+    using string_view = pfs::string_view;
 
 private:
     storage_type _db;
@@ -74,7 +78,7 @@ public:
     }
 
     template <typename T>
-    T get (key_type const & key, T const & default_value = T{}, error * perr = nullptr) const
+    T get (key_type const & key, T const & default_value = T{}, error * perr = nullptr)
     {
         return _db.template get_or<T>(key, default_value, perr);
     }
@@ -96,13 +100,7 @@ public:
                 return get(key, default_value, perr);
         }
 
-        if (err) {
-            if (perr)
-                *perr = err;
-            else
-                throw err;
-        }
-
+        pfs::throw_or(perr, std::move(err));
         return default_value;
     }
 
@@ -116,13 +114,6 @@ public:
     static settings make (Args &&... args)
     {
         return settings {storage_type::make(std::forward<Args>(args)...)};
-    }
-
-    template <typename ...Args>
-    static std::unique_ptr<settings> make_unique (Args &&... args)
-    {
-        auto ptr = new settings {storage_type::make(std::forward<Args>(args)...)};
-        return std::unique_ptr<settings>(ptr);
     }
 };
 

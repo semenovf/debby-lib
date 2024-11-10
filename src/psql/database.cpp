@@ -1,31 +1,180 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2023,2024 Vladislav Trifochkin
+// Copyright (c) 2023-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2023.11.25 Initial version.
+//      2024.11.02 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
-#include "pfs/i18n.hpp"
-#include "pfs/fmt.hpp"
-#include "pfs/debby/error.hpp"
-#include "pfs/debby/keyvalue_database.hpp"
-#include "pfs/debby/relational_database.hpp"
-#include "pfs/debby/backend/psql/database.hpp"
-#include "../kv_common.hpp"
+#include "statement_impl.hpp"
 #include "utils.hpp"
+#include "debby/psql.hpp"
+#include "../database_common.hpp"
+#include <pfs/fmt.hpp>
+#include <pfs/i18n.hpp>
+#include <pfs/string_view.hpp>
 #include <regex>
 
 extern "C" {
 #include <libpq-fe.h>
 }
 
-namespace debby {
+DEBBY__NAMESPACE_BEGIN
 
-// int constexpr MAX_BUSY_TIMEOUT = 1000; // 1 second
-static char const * NULL_HANDLER_TEXT = tr::noop_("uninitialized database handler");
+using database_t = relational_database<backend_enum::psql>;
 
-namespace backend {
+template <>
+class database_t::impl
+{
+public:
+    using native_type = struct pg_conn *;
+
+private:
+    native_type _dbh {nullptr};
+
+public:
+    impl (native_type dbh) : _dbh(dbh)
+    {}
+
+    impl (impl && d)
+    {
+        _dbh = d._dbh;
+        d._dbh = nullptr;
+    }
+
+    ~impl ()
+    {
+        if (_dbh)
+            PQfinish(_dbh);
+
+        _dbh = nullptr;
+    }
+
+public:
+    bool query (std::string const & sql, error * perr)
+    {
+        PGresult * res = PQexec(_dbh, sql.c_str());
+
+        if (res == nullptr) {
+            pfs::throw_or(perr, error {
+                  errc::sql_error
+                , tr::f_("query execution failure: {}: {}", sql, psql::build_errstr(_dbh))
+            });
+
+            return false;
+        }
+
+        ExecStatusType status = PQresultStatus(res);
+        bool r = (status == PGRES_COMMAND_OK);
+
+        PQclear(res);
+
+        if (!r) {
+            if (status == PGRES_FATAL_ERROR) {
+                pfs::throw_or(perr, error {
+                      errc::backend_error
+                    , tr::f_("query failure : {}", psql::build_errstr(_dbh))
+                });
+            } else {
+                pfs::throw_or(perr, error {
+                      errc::sql_error
+                    , tr::f_("query failure: query request should not return any data")
+                });
+            }
+
+            return false;
+        }
+
+        return true;
+    }
+
+    database_t::statement_type prepare (std::string const & sql, bool cache, error * perr)
+    {
+        if (_dbh == nullptr)
+            return database_t::statement_type{};
+
+        // Check already prepared
+        if (cache) {
+            auto res = PQdescribePrepared(_dbh, sql.c_str());
+
+            if (res) {
+                ExecStatusType status = PQresultStatus(res);
+
+                if (status == PGRES_COMMAND_OK) {
+                    statement_t::impl d{_dbh, sql};
+                    return database_t::statement_type {std::move(d)};
+                }
+            } else {
+                pfs::throw_or(perr, error {
+                      errc::backend_error
+                    , tr::f_("check prepared statement existence failure: {}: {}"
+                        , sql, psql::build_errstr(_dbh))
+                });
+
+                return database_t::statement_type{};
+            }
+        }
+
+        PGresult * sth = PQprepare(_dbh, cache ? sql.c_str() : "", sql.c_str(), 0, nullptr);
+
+        if (sth == nullptr) {
+            pfs::throw_or(perr, error {
+                  errc::backend_error
+                , tr::f_("prepare statement failure: {}: {}", sql, psql::build_errstr(_dbh))
+            });
+
+            return database_t::statement_type{};
+        }
+
+        ExecStatusType status = PQresultStatus(sth);
+        bool r = (status == PGRES_COMMAND_OK/* || status == PGRES_TUPLES_OK*/);
+
+        PQclear(sth);
+
+        if (!r) {
+            pfs::throw_or(perr, error {
+                  errc::backend_error
+                , tr::f_("query failure : {}", psql::build_errstr(_dbh))
+            });
+
+            return database_t::statement_type{};
+        }
+
+        statement_t::impl d{_dbh, sql};
+        return database_t::statement_type{std::move(d)};
+    }
+};
+
+template <>
+database_t::relational_database () = default;
+
+template <>
+database_t::relational_database (impl && d)
+{
+    _d = new impl(std::move(d));
+}
+
+template <>
+database_t::relational_database (database_t && other) noexcept
+{
+    _d = other._d;
+    other._d = nullptr;
+}
+
+template <>
+database_t::~relational_database ()
+{
+    if (_d != nullptr)
+        delete _d;
+
+    _d = nullptr;
+}
+
+// Forward declaration
+template <>
+void database_t::query (std::string const & sql, error * perr);
+
 namespace psql {
 
 static PGconn * connect (std::string const & conninfo, error * perr)
@@ -70,229 +219,86 @@ static PGconn * connect (std::string const & conninfo, error * perr)
     return dbh;
 }
 
-static bool query (database::rep_type const * rep, std::string const & sql, error * perr)
+database_t make (std::string const & conninfo, error * perr)
 {
-    PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
+    auto dbh = connect(conninfo, perr);
+    return database_t{database_t::impl{dbh}};
+}
 
-    PGresult * res = PQexec(rep->dbh, sql.c_str());
+database_t make (std::string const & conninfo, notice_processor_type proc , error * perr)
+{
+    error err;
+    auto dbh = connect(conninfo, & err);
 
-    if (res == nullptr) {
-        pfs::throw_or(perr, error {
-              errc::backend_error
-            , tr::f_("query execution failure: {}: {}", sql, backend::psql::build_errstr(rep->dbh))
-        });
+    if (err) {
+        pfs::throw_or(perr, std::move(err));
+        database_t{};
+    }
 
+    PQsetNoticeProcessor(dbh, proc, nullptr);
+    return database_t{database_t::impl{dbh}};
+}
+
+bool wipe (std::string const & db_name, std::string const & conninfo, error * perr)
+{
+    error err;
+    auto db = make(conninfo, & err);
+
+    if (err) {
+        pfs::throw_or(perr, std::move(err));
         return false;
     }
 
-    ExecStatusType status = PQresultStatus(res);
-    bool r = (status == PGRES_COMMAND_OK);
+    db.query(fmt::format("DROP DATABASE IF EXISTS {}", db_name), & err);
 
-    PQclear(res);
-
-    if (!r) {
-        if (status == PGRES_FATAL_ERROR) {
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , tr::f_("query failure : {}", build_errstr(rep->dbh))
-            });
-        } else {
-            pfs::throw_or(perr, error {
-                  errc::sql_error
-                , tr::f_("query failure: query request should not return any data")
-            });
-        }
-
+    if (err) {
+        pfs::throw_or(perr, std::move(err));
         return false;
     }
 
     return true;
 }
 
-database::rep_type
-database::make_r (std::string const & conninfo, error * perr)
-{
-    rep_type rep;
-    rep.dbh = connect(conninfo, perr);
-    return rep;
-}
-
-
-database::rep_type
-database::make_r (std::string const & conninfo, notice_processor_type proc, error * perr)
-{
-    error err;
-    auto rep = make_r(conninfo, & err);
-
-    if (err) {
-        pfs::throw_or(perr, std::move(err));
-        return rep;
-    }
-
-    PQsetNoticeProcessor(rep.dbh, proc, nullptr);
-
-    return rep;
-}
-
-bool database::wipe (std::string const & db_name, std::string const & conninfo, error * perr)
-{
-    error err;
-    auto rep = make_r(conninfo, & err);
-
-    if (err) {
-        pfs::throw_or(perr, std::move(err));
-        return false;
-    }
-
-    return query(& rep, fmt::format("DROP DATABASE IF EXISTS {}", db_name), perr);
-}
-
-}} // namespace backend::psql
-
-using BACKEND = backend::psql::database;
+} // namespace psql
 
 template <>
-relational_database<BACKEND>::relational_database (rep_type && rep)
-    : _rep(std::move(rep))
-{}
-
-template <>
-relational_database<BACKEND>::relational_database (relational_database && other)
+void database_t::query (std::string const & sql, error * perr)
 {
-    _rep = std::move(other._rep);
-    other._rep.dbh = nullptr;
+    _d->query(sql, perr);
 }
 
 template <>
-relational_database<BACKEND>::~relational_database ()
-{
-    if (_rep.dbh)
-        PQfinish(_rep.dbh);
-
-    _rep.dbh = nullptr;
-}
-
-template <>
-relational_database<BACKEND>::operator bool () const noexcept
-{
-    return _rep.dbh != nullptr;
-}
-
-template <>
-void
-relational_database<BACKEND>::query (std::string const & sql, error * perr)
-{
-    backend::psql::query(& _rep, sql, perr);
-}
-
-template <>
-void
-relational_database<BACKEND>::begin (error * perr)
+void database_t::begin (error * perr)
 {
     query("BEGIN", perr);
 }
 
 template <>
-void
-relational_database<BACKEND>::commit (error * perr)
+void database_t::commit (error * perr)
 {
     query("COMMIT", perr);
 }
 
 template <>
-void
-relational_database<BACKEND>::rollback (error * perr)
+void database_t::rollback (error * perr)
 {
     query("ROLLBACK", perr);
 }
 
 template <>
-relational_database<BACKEND>::statement_type
-relational_database<BACKEND>::prepare (std::string const & sql, bool cache, error * perr)
+database_t::statement_type database_t::prepare (std::string const & sql, bool cache, error * perr)
 {
-    PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
+    if (_d == nullptr)
+        return database_t::statement_type{};
 
-    // Check already prepared
-    if (cache) {
-        auto res = PQdescribePrepared(_rep.dbh, sql.c_str());
-
-        if (res) {
-            ExecStatusType status = PQresultStatus(res);
-
-            if (status == PGRES_COMMAND_OK)
-                return statement_type::make(_rep.dbh, sql);
-        } else {
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , tr::f_("check prepared statement existence failure: {}: {}"
-                    , sql, backend::psql::build_errstr(_rep.dbh))
-            });
-        }
-    }
-
-    PGresult * sth = PQprepare(_rep.dbh, cache ? sql.c_str() : "", sql.c_str(), 0, nullptr);
-
-    if (sth == nullptr) {
-        pfs::throw_or(perr, error {
-              errc::backend_error
-            , tr::f_("prepare statement failure: {}: {}", sql, backend::psql::build_errstr(_rep.dbh))
-        });
-
-        return statement_type::make(nullptr, std::string{});
-    }
-
-    ExecStatusType status = PQresultStatus(sth);
-    bool r = (status == PGRES_COMMAND_OK/* || status == PGRES_TUPLES_OK*/);
-
-    PQclear(sth);
-
-    if (!r) {
-        pfs::throw_or(perr, error {
-              errc::backend_error
-            , tr::f_("query failure : {}", backend::psql::build_errstr(_rep.dbh))
-        });
-
-        return statement_type::make(nullptr, std::string{});
-    }
-
-    return statement_type::make(_rep.dbh, cache ? sql : "");
+    return _d->prepare(sql, cache, perr);
 }
 
 template <>
-std::size_t
-relational_database<BACKEND>::rows_count (std::string const & table_name, error * perr)
+std::vector<std::string> database_t::tables (std::string const & pattern, error * perr)
 {
-    PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
-
-    std::size_t count = 0;
-    std::string sql = fmt::format("SELECT COUNT(1) as count FROM `{}`", table_name);
-
-    statement_type stmt = prepare(sql, false, perr);
-
-    if (stmt) {
-        auto res = stmt.exec();
-
-        if (res) {
-            if (res.has_more()) {
-                count = res.get<std::size_t>(0);
-
-                // May be `sql_error` exception
-                res.next();
-            }
-        }
-
-        // Expecting done
-        PFS__ASSERT(res.is_done(), "expecting done");
-    }
-
-    return count;
-}
-
-template <>
-std::vector<std::string>
-relational_database<BACKEND>::tables (std::string const & pattern, error * perr)
-{
-    PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
+    if (_d == nullptr)
+        return std::vector<std::string>{};
 
     // SQL statement borrowed from Qt5 project
     std::string sql = "SELECT pg_class.relname, pg_namespace.nspname from pg_class"
@@ -325,25 +331,24 @@ relational_database<BACKEND>::tables (std::string const & pattern, error * perr)
             }
         }
 
-        PFS__ASSERT(res.is_done(), "expecting done");
+        if (!res.is_done()) {
+            pfs::throw_or(perr, error {pfs::errc::unexpected_error, tr::_("expecting done")});
+            return std::vector<std::string>{};
+        }
     }
 
     return list;
 }
 
 template <>
-void
-relational_database<BACKEND>::clear (std::string const & table, error * perr)
+void database_t::clear (std::string const & table, error * perr)
 {
     query(fmt::format("DELETE FROM '{}'", table), perr);
 }
 
 template <>
-void
-relational_database<BACKEND>::remove (std::vector<std::string> const & tables, error * perr)
+void database_t::remove (std::vector<std::string> const & tables, error * perr)
 {
-    PFS__ASSERT(_rep.dbh, NULL_HANDLER_TEXT);
-
     if (tables.empty())
         return;
 
@@ -364,8 +369,7 @@ relational_database<BACKEND>::remove (std::vector<std::string> const & tables, e
 }
 
 template <>
-void
-relational_database<BACKEND>::remove_all (error * perr)
+void database_t::remove_all (error * perr)
 {
     error err;
     auto list = tables(std::string{}, & err);
@@ -378,8 +382,7 @@ relational_database<BACKEND>::remove_all (error * perr)
 }
 
 template <>
-bool
-relational_database<BACKEND>::exists (std::string const & name, error * perr)
+bool database_t::exists (std::string const & name, error * perr)
 {
     auto stmt = prepare(fmt::format("SELECT relname FROM pg_class WHERE relname='{}'", name)
         , false, perr);
@@ -394,87 +397,11 @@ relational_database<BACKEND>::exists (std::string const & name, error * perr)
     return false;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// Key-value database
-//
-namespace backend {
-namespace psql {
+// Explicit instantiation
+template database_t & database_t::operator = (relational_database && other);
 
-// database::rep_type
-// database::make_kv (std::string const & table_name, std::string const & conninfo, error * perr)
-// {
-//     return make_kv(table_name, conninfo, nullptr, perr);
-// }
-//
-// database::rep_type
-// database::make_kv (std::string const & table_name, std::string const & conninfo
-//     , notice_processor_type proc, error * perr)
-// {
-//     error err;
-//     auto rep = proc != nullptr
-//         ? make_r(conninfo, proc, & err)
-//         : make_r(conninfo, & err);
-//
-//     if (err) {
-//         pfs::throw_or(perr, std::move(err));
-//         return rep;
-//     }
-//
-//     std::string sql = fmt::format("CREATE TABLE IF NOT EXISTS \"{}\""
-//         " (key TEXT NOT NULL UNIQUE, value BLOB PRIMARY KEY(key))", table_name);
-//
-//     auto success = query(& rep, sql, & err);
-//
-//     if (!success) {
-//         if (rep.dbh)
-//             PQfinish(rep.dbh);
-//
-//         rep.dbh = nullptr;
-//         pfs::throw_or(perr, std::move(err));
-//     }
-//
-//     rep.kv_table_name = table_name;
-//
-//     return rep;
-// }
-//
-// /**
-//  * Removes value for @a key.
-//  */
-// static bool remove (database::rep_type * rep, database::key_type const & key, error * perr)
-// {
-//     PFS__ASSERT(rep->dbh, NULL_HANDLER_TEXT);
-//     std::string sql = fmt::format("DELETE FROM '{}' WHERE key = '{}'", key);
-//     return query(rep, sql, perr);
-// }
+template
+std::size_t
+database_t::rows_count (std::string const & table_name, error * perr);
 
-}} // namespace backend::psql
-
-// template <>
-// keyvalue_database<BACKEND>::keyvalue_database (rep_type && rep)
-//     : _rep(std::move(rep))
-// {}
-//
-// template <>
-// keyvalue_database<BACKEND>::keyvalue_database (keyvalue_database && other)
-// {
-//     _rep = std::move(other._rep);
-//     other._rep.dbh = nullptr;
-// }
-//
-// template <>
-// keyvalue_database<BACKEND>::~keyvalue_database ()
-// {
-//     if (_rep.dbh)
-//         PQfinish(_rep.dbh);
-//
-//     _rep.dbh = nullptr;
-// }
-//
-// template <>
-// keyvalue_database<BACKEND>::operator bool () const noexcept
-// {
-//     return _rep.dbh != nullptr;
-// }
-
-} // namespace debby
+DEBBY__NAMESPACE_END

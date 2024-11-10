@@ -28,7 +28,6 @@ enum class errc
     , column_not_found = key_not_found
     , bad_value      // Bad/unsuitable value stored
     , sql_error
-    // , invalid_argument
     , unsupported
 };
 

@@ -1,19 +1,21 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2023 Vladislav Trifochkin
+// Copyright (c) 2023-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2023.11.25 Initial version.
+//      2024.11.02 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
+#include "debby/namespace.hpp"
 #include <string>
 
 extern "C" {
 #include <libpq-fe.h>
 }
 
-namespace debby {
-namespace backend {
+DEBBY__NAMESPACE_BEGIN
+
 namespace psql {
 
 inline std::string build_errstr (PGconn * dbh)
@@ -37,4 +39,6 @@ inline std::string build_errstr (PGconn * dbh)
     return r;
 }
 
-}}} // namespace debby::backend::psql
+} // namespace psql
+
+DEBBY__NAMESPACE_END

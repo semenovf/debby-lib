@@ -38,10 +38,10 @@ public:
     DEBBY__EXPORT relational_database (impl && d);
     DEBBY__EXPORT relational_database (relational_database && other) noexcept;
     DEBBY__EXPORT ~relational_database ();
+    DEBBY__EXPORT relational_database & operator = (relational_database && other);
 
     relational_database (relational_database const & other) = delete;
     relational_database & operator = (relational_database const & other) = delete;
-    relational_database & operator = (relational_database && other) = delete;
 
 public:
     /**
@@ -52,11 +52,10 @@ public:
         return _d != nullptr;
     }
 
-//     /**
-//      * Return rows count in named table.
-//      */
-//     DEBBY__EXPORT std::size_t rows_count (std::string const & table_name
-//         , error * perr = nullptr);
+    /**
+     * Returns rows count in named table.
+     */
+    DEBBY__EXPORT std::size_t rows_count (std::string const & table_name, error * perr = nullptr);
 
     /**
      * Prepares statement.
@@ -79,10 +78,10 @@ public:
     DEBBY__EXPORT std::vector<std::string> tables (std::string const & pattern = std::string{}
         , error * perr = nullptr);
 
-//     /**
-//      * Clear all records from @a table.
-//      */
-//     DEBBY__EXPORT void clear (std::string const & table, error * perr = nullptr);
+    /**
+     * Clear all records from @a table.
+     */
+    DEBBY__EXPORT void clear (std::string const & table, error * perr = nullptr);
 
     /**
      * Removes named @a table or drop all tables if @a table is empty.

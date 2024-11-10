@@ -1,18 +1,19 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021-2023 Vladislav Trifochkin
+// Copyright (c) 2021-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2023.02.07 Initial version.
+//      2024.11.04 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
-#include "pfs/debby/error.hpp"
-#include "pfs/i18n.hpp"
-#include <utility>
+#include "debby/error.hpp"
+#include "debby/namespace.hpp"
+#include "debby/keyvalue_database.hpp"
+#include <pfs/i18n.hpp>
 
-namespace debby {
-namespace backend {
+DEBBY__NAMESPACE_BEGIN
 
 template <typename T>
 union fixed_packer
@@ -38,93 +39,56 @@ inline error make_key_not_found_error (std::string const & key)
     };
 }
 
-inline void pack_arithmetic (char buf[sizeof(fixed_packer<std::intmax_t>)]
-    , std::intmax_t value
-    , std::size_t size)
+template <backend_enum Backend>
+keyvalue_database<Backend>::keyvalue_database () = default;
+
+template <backend_enum Backend>
+keyvalue_database<Backend>::keyvalue_database (impl && d)
 {
-    if (size == sizeof(std::intmax_t)) {
-        auto p = new (buf) fixed_packer<std::intmax_t>{};
-        p->value = value;
+    if (_d == nullptr) {
+        _d = new impl(std::move(d));
     } else {
-        if (size <= sizeof(char)) {
-            auto p = new (buf) fixed_packer<char>{};
-            p->value = static_cast<char>(value);
-        } else if (size <= sizeof(short)) {
-            auto p = new (buf) fixed_packer<short>{};
-            p->value = static_cast<short>(value);
-        } else if (size <= sizeof(int)) {
-            auto p = new (buf) fixed_packer<int>{};
-            p->value = static_cast<int>(value);
-        } else if (size <= sizeof(long int)) {
-            auto p = new (buf) fixed_packer<long int>{};
-            p->value = static_cast<long int>(value);
-        } else {
-            auto p = new (buf) fixed_packer<std::intmax_t>{};
-            p->value = value;
-        }
+        *_d = std::move(d);
     }
 }
 
-inline std::pair<bool,std::intmax_t> get_integer (blob_t const & blob)
+template <backend_enum Backend>
+keyvalue_database<Backend>::keyvalue_database (keyvalue_database && other)
 {
-    if (blob.size() == sizeof(std::intmax_t)) {
-        fixed_packer<std::intmax_t> p;
-        std::memcpy(p.bytes, blob.data(), blob.size());
-        return std::make_pair(true, static_cast<std::intmax_t>(p.value));
+    if (other._d != nullptr) {
+        _d = new impl(std::move(*other._d));
     } else {
-        if (blob.size() <= sizeof(std::int8_t)) {
-            fixed_packer<std::int8_t> p;
-            std::memcpy(p.bytes, blob.data(), blob.size());
-            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
-        } else if (blob.size() <= sizeof(std::int16_t)) {
-            fixed_packer<std::int16_t> p;
-            std::memcpy(p.bytes, blob.data(), blob.size());
-            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
-        } else if (blob.size() <= sizeof(std::int32_t)) {
-            fixed_packer<std::int32_t> p;
-            std::memcpy(p.bytes, blob.data(), blob.size());
-            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
-        } else if (blob.size() <= sizeof(std::int64_t)) {
-            fixed_packer<std::int64_t> p;
-            std::memcpy(p.bytes, blob.data(), blob.size());
-            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
-        } else if (blob.size() <= sizeof(std::intmax_t)) {
-            fixed_packer<std::intmax_t> p;
-            std::memcpy(p.bytes, blob.data(), blob.size());
-            return std::make_pair(true, static_cast<std::intmax_t>(p.value));
+        delete _d;
+        _d = nullptr;
+    }
+}
+
+template <backend_enum Backend>
+keyvalue_database<Backend>::~keyvalue_database ()
+{
+    if (_d != nullptr)
+        delete _d;
+
+    _d = nullptr;
+}
+
+template <backend_enum Backend>
+keyvalue_database<Backend> & keyvalue_database<Backend>::operator = (keyvalue_database && other)
+{
+    if (other._d != nullptr) {
+        if (_d != nullptr) {
+            *_d = std::move(std::move(*other._d));
         } else {
-            // Error: unsuitable or corrupted data
+            _d = new impl(std::move(*other._d));
+        }
+    } else {
+        if (_d != nullptr) {
+            delete _d;
+            _d = nullptr;
         }
     }
 
-    return std::make_pair(false, 0);
+    return *this;
 }
 
-inline std::pair<bool,float> get_float (blob_t const & blob)
-{
-    if (blob.size() == sizeof(float)) {
-        fixed_packer<float> p;
-        std::memcpy(p.bytes, blob.data(), blob.size());
-
-        if (!std::isnan(p.value))
-            return std::make_pair(true, p.value);
-    }
-
-    return std::make_pair(false, float{0});
-}
-
-inline std::pair<bool,double> get_double (blob_t const & blob)
-{
-    if (blob.size() == sizeof(double)) {
-        fixed_packer<double> p;
-        std::memcpy(p.bytes, blob.data(), blob.size());
-
-        if (!std::isnan(p.value))
-            return std::make_pair(true, p.value);
-    }
-
-    return std::make_pair(false, double{0});
-}
-
-}} // namespace debby::backend
-
+DEBBY__NAMESPACE_END

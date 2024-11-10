@@ -223,15 +223,16 @@ result_t::fetch (std::string const & column_name, char * buffer, std::size_t ini
 
     auto pos = _d->column_mapping.find(column_name);
 
-    if (pos != _d->column_mapping.end())
-        return fetch(pos->second, buffer, initial_size, err);
+    if (pos == _d->column_mapping.end()) {
+        err = error {
+            errc::column_not_found
+            , tr::f_("bad column name: {}", column_name)
+        };
 
-    err = error {
-          errc::column_not_found
-        , tr::f_("bad column name: {}", column_name)
-    };
+        return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
+    }
 
-    return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
+    return fetch(pos->second, buffer, initial_size, err);
 }
 
 DEBBY__NAMESPACE_END

@@ -1,15 +1,16 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021,2022 Vladislav Trifochkin
+// Copyright (c) 2021-2024 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.14 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
-#include "pfs/fmt.hpp"
-#include "pfs/debby/error.hpp"
+#include "debby/error.hpp"
+#include "debby/namespace.hpp"
+#include <pfs/fmt.hpp>
 
-namespace debby {
+DEBBY__NAMESPACE_BEGIN
 
 char const * error_category::name () const noexcept
 {
@@ -53,4 +54,4 @@ std::error_category const & get_error_category ()
     return instance;
 }
 
-} // namespace debby
+DEBBY__NAMESPACE_END

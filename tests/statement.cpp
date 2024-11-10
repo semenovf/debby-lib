@@ -19,11 +19,10 @@
 #   include "pfs/debby/sqlite3.hpp"
 #endif
 //
-// #if DEBBY__PSQL_ENABLED
-// #   include "pfs/debby/backend/psql/database.hpp"
-// #   include "pfs/debby/backend/psql/statement.hpp"
-// #   include "psql_support.hpp"
-// #endif
+#if DEBBY__PSQL_ENABLED
+#   include "pfs/debby/psql.hpp"
+#   include "psql_support.hpp"
+#endif
 
 namespace fs = pfs::filesystem;
 
@@ -53,10 +52,7 @@ std::string const INSERT_SQLITE3 {
         ", int16, uint16, int32, uint32"
         ", int64, uint64, float, double"
         ", text, cstr)"
-    " VALUES (:null, :bool, :int8, :uint8"
-        ", :int16, :uint16, :int32, :uint32"
-        ", :int64, :uint64, :float, :double"
-        ", :text, :cstr)"
+    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 };
 
 std::string const INSERT_PSQL {
@@ -72,7 +68,7 @@ std::string const SELECT_ALL {
 };
 
 std::string const SELECT_SQLITE3 {
-    "SELECT * FROM {} WHERE int8 = :int8"
+    "SELECT * FROM {} WHERE int8 = ?"
 };
 
 std::string const SELECT_PSQL {
@@ -82,7 +78,7 @@ std::string const SELECT_PSQL {
 } // namespace
 
 template <typename RelationalDatabaseType>
-void check (RelationalDatabaseType & db, std::string const & insert_statement_format, bool placeholder_binding)
+void check (RelationalDatabaseType & db, std::string const & insert_statement_format)
 {
     db.remove_all();
 
@@ -99,41 +95,40 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
 
         REQUIRE(stmt);
 
-        if (placeholder_binding) {
-            stmt.bind(":null", nullptr);
-            stmt.bind(":bool", true);
-            stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
-            stmt.bind(":uint8", std::numeric_limits<std::uint8_t>::max());
-            stmt.bind(":int16", std::numeric_limits<std::int16_t>::min());
-            stmt.bind(":uint16", std::numeric_limits<std::uint16_t>::max());
-            stmt.bind(":int32", std::numeric_limits<std::int32_t>::min());
-            stmt.bind(":uint32", std::numeric_limits<std::uint32_t>::max());
-            stmt.bind(":int64", std::numeric_limits<std::int64_t>::min());
-            stmt.bind(":uint64", std::numeric_limits<std::uint64_t>::max());
-            stmt.bind(":float", static_cast<float>(3.14159));
-            stmt.bind(":double", static_cast<double>(3.14159));
-            stmt.bind(":text", std::string{"Hello"});
-            stmt.bind(":cstr", "World");
-        } else {
-            stmt.bind(0, nullptr);
-            stmt.bind(1, true);
-            stmt.bind(2, std::numeric_limits<std::int8_t>::min());
-            stmt.bind(3, std::numeric_limits<std::uint8_t>::max());
-            stmt.bind(4, std::numeric_limits<std::int16_t>::min());
-            stmt.bind(5, std::numeric_limits<std::uint16_t>::max());
-            stmt.bind(6, std::numeric_limits<std::int32_t>::min());
-            stmt.bind(7, std::numeric_limits<std::uint32_t>::max());
-            stmt.bind(8, std::numeric_limits<std::int64_t>::min());
-            stmt.bind(9, std::numeric_limits<std::uint64_t>::max());
-            stmt.bind(10, static_cast<float>(3.14159));
-            stmt.bind(11, static_cast<double>(3.14159));
-            stmt.bind(12, std::string{"Hello"});
-            stmt.bind(13, "World");
-        }
+        // Not all backends support placeholders
+        // stmt.bind(":null", nullptr);
+        // stmt.bind(":bool", true);
+        // stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
+        // stmt.bind(":uint8", std::numeric_limits<std::uint8_t>::max());
+        // stmt.bind(":int16", std::numeric_limits<std::int16_t>::min());
+        // stmt.bind(":uint16", std::numeric_limits<std::uint16_t>::max());
+        // stmt.bind(":int32", std::numeric_limits<std::int32_t>::min());
+        // stmt.bind(":uint32", std::numeric_limits<std::uint32_t>::max());
+        // stmt.bind(":int64", std::numeric_limits<std::int64_t>::min());
+        // stmt.bind(":uint64", std::numeric_limits<std::uint64_t>::max());
+        // stmt.bind(":float", static_cast<float>(3.14159));
+        // stmt.bind(":double", static_cast<double>(3.14159));
+        // stmt.bind(":text", std::string{"Hello"});
+        // stmt.bind(":cstr", "World");
+
+        stmt.bind(0, nullptr);
+        stmt.bind(1, true);
+        stmt.bind(2, std::numeric_limits<std::int8_t>::min());
+        stmt.bind(3, std::numeric_limits<std::uint8_t>::max());
+        stmt.bind(4, std::numeric_limits<std::int16_t>::min());
+        stmt.bind(5, std::numeric_limits<std::uint16_t>::max());
+        stmt.bind(6, std::numeric_limits<std::int32_t>::min());
+        stmt.bind(7, std::numeric_limits<std::uint32_t>::max());
+        stmt.bind(8, std::numeric_limits<std::int64_t>::min());
+        stmt.bind(9, std::numeric_limits<std::uint64_t>::max());
+        stmt.bind(10, static_cast<float>(3.14159));
+        stmt.bind(11, static_cast<double>(3.14159));
+        stmt.bind(12, std::string{"Hello"});
+        stmt.bind(13, "World");
 
         auto result = stmt.exec();
         REQUIRE(result.is_done());
-        REQUERE_EQ(db.rows_count(), 1);
+        REQUIRE_EQ(db.rows_count(TABLE_NAME), 1);
     }
 
     {
@@ -189,6 +184,10 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
         }
 
         CHECK(result.is_done());
+
+        REQUIRE_EQ(db.rows_count(TABLE_NAME), 1);
+        db.clear(TABLE_NAME);
+        REQUIRE_EQ(db.rows_count(TABLE_NAME), 0);
     }
 }
 
@@ -200,10 +199,7 @@ void prepared_select (RelationalDatabaseType & db, std::string const & sql)
 
         REQUIRE(stmt);
 
-        if (sql == SELECT_SQLITE3)
-            stmt.bind(":int8", std::numeric_limits<std::int8_t>::min());
-        else if (sql == SELECT_PSQL)
-            stmt.bind(0, std::numeric_limits<std::int8_t>::min());
+        stmt.bind(0, std::numeric_limits<std::int8_t>::min());
 
         auto result = stmt.exec();
 
@@ -221,46 +217,31 @@ TEST_CASE("sqlite3") {
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
     database_t::wipe(db_path);
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//  Test binding by placeholder_binding
-////////////////////////////////////////////////////////////////////////////////////////////////////
     auto db = database_t::make(db_path);
 
     REQUIRE(db);
 
-    check(db, INSERT_SQLITE3, true);
+    check(db, INSERT_SQLITE3);
     prepared_select(db, SELECT_SQLITE3);
-
-    database_t::wipe(db_path);
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-//  Test binding by index
-////////////////////////////////////////////////////////////////////////////////////////////////////
-    auto db1 = database_t::make(db_path);
-
-    REQUIRE(db1);
-
-    check(db1, INSERT_SQLITE3, false);
-    prepared_select(db1, SELECT_SQLITE3);
 
     database_t::wipe(db_path);
 }
 #endif
 
-// #if DEBBY__PSQL_ENABLED
-// TEST_CASE("PostgreSQL") {
-//     using database_t = debby::relational_database<debby::backend::psql::database>;
-//
-//     auto conninfo = psql_conninfo();
-//     auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
-//
-//     if (!db) {
-//         MESSAGE(preconditions_notice());
-//     }
-//
-//     REQUIRE(db);
-//
-//     check(db, INSERT_PSQL, false);
-//     prepared_select(db, SELECT_PSQL);
-// }
-// #endif
+#if DEBBY__PSQL_ENABLED
+TEST_CASE("PostgreSQL") {
+    using database_t = debby::relational_database<debby::backend_enum::psql>;
+
+    auto conninfo = psql_conninfo();
+    auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
+
+    if (!db) {
+        MESSAGE(preconditions_notice());
+    }
+
+    REQUIRE(db);
+
+    check(db, INSERT_PSQL);
+    prepared_select(db, SELECT_PSQL);
+}
+#endif

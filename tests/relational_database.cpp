@@ -17,10 +17,10 @@
 #   include "pfs/debby/sqlite3.hpp"
 #endif
 //
-// #if DEBBY__PSQL_ENABLED
-// #   include "pfs/debby/backend/psql/database.hpp"
-// #   include "psql_support.hpp"
-// #endif
+#if DEBBY__PSQL_ENABLED
+#   include "pfs/debby/psql.hpp"
+#   include "psql_support.hpp"
+#endif
 
 namespace fs = pfs::filesystem;
 
@@ -96,19 +96,17 @@ TEST_CASE("sqlite3") {
 }
 #endif
 
-// #if DEBBY__PSQL_ENABLED
-// TEST_CASE("PostgreSQL") {
-//     using database_t = debby::relational_database<debby::backend::psql::database>;
-//
-//     auto conninfo = psql_conninfo();
-//     auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
-//
-//     if (!db) {
-//         MESSAGE(preconditions_notice());
-//     }
-//
-//     REQUIRE(db);
-//
-//     check(db);
-// }
-// #endif
+#if DEBBY__PSQL_ENABLED
+TEST_CASE("PostgreSQL") {
+    auto conninfo = psql_conninfo();
+    auto db = debby::psql::make(conninfo.cbegin(), conninfo.cend());
+
+    if (!db) {
+        MESSAGE(preconditions_notice());
+    }
+
+    REQUIRE(db);
+
+    check(db);
+}
+#endif
