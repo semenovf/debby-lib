@@ -69,18 +69,16 @@ if (NOT TARGET pfs::common)
 endif()
 
 if (DEBBY__ENABLE_ROCKSDB)
-    if (NOT DEBBY__ROCKSDB_ROOT)
-        set(DEBBY__ROCKSDB_ROOT "${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb" CACHE INTERNAL "")
-    endif()
-
-    message(STATUS "RocksDB root: [${DEBBY__ROCKSDB_ROOT}]")
-
     include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb.cmake)
 
-    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/database.cpp)
-    list(APPEND _debby__definitions "DEBBY__ROCKSDB_ENABLED=1")
+    if (TARGET rocksdb)
+        list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/keyvalue_database.cpp)
+        list(APPEND _debby__definitions "DEBBY__ROCKSDB_ENABLED=1")
 
-    target_link_libraries(debby PRIVATE rocksdb)
+        target_link_libraries(debby PRIVATE rocksdb)
+    else()
+        message(WARNING "No RocksDB target found, may be need to download it (run ${CMAKE_CURRENT_LIST_DIR}/3rdparty/download.sh)")
+    endif()
 endif(DEBBY__ENABLE_ROCKSDB)
 
 if (DEBBY__ENABLE_MDBX)
@@ -92,7 +90,7 @@ if (DEBBY__ENABLE_MDBX)
     list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/keyvalue_database.cpp)
     list(APPEND _debby__definitions "DEBBY__MDBX_ENABLED=1")
     target_link_libraries(debby PRIVATE mdbx-static)
-endif(DEBBY__ENABLE_LIBMDBX)
+endif(DEBBY__ENABLE_MDBX)
 
 if (DEBBY__ENABLE_LMDB)
     list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/keyvalue_database.cpp

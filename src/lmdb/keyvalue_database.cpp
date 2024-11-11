@@ -8,7 +8,7 @@
 //      2024.11.04 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../kv_common.hpp"
-#include "pfs/debby/keyvalue_database.hpp"
+#include "debby/keyvalue_database.hpp"
 #include "debby/lmdb.hpp"
 #include "lib/lmdb.h"
 #include <pfs/assert.hpp>

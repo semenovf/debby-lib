@@ -33,11 +33,11 @@
 #if DEBBY__MDBX_ENABLED
 #   include "pfs/debby/mdbx.hpp"
 #endif
-//
-// #if DEBBY__ROCKSDB_ENABLED
-// #   include "pfs/debby/backend/rocksdb/database.hpp"
-// #endif
-//
+
+#if DEBBY__ROCKSDB_ENABLED
+#   include "pfs/debby/rocksdb.hpp"
+#endif
+
 // #if DEBBY__PSQL_ENABLED
 // #   include "pfs/debby/backend/psql/database.hpp"
 // #   include "psql_support.hpp"
@@ -202,6 +202,16 @@ TEST_CASE("dbmx set/get") {
 }
 #endif
 
+#if DEBBY__ROCKSDB_ENABLED
+TEST_CASE("rocksdb set/get") {
+    using database_t = debby::keyvalue_database<debby::backend_enum::rocksdb>;
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-rocksdb-kv.db");
+    auto db = database_t::make(db_path, true);
+    db.clear();
+    check(std::move(db));
+}
+#endif
+
 #if DEBBY__SQLITE3_ENABLED
  TEST_CASE("sqlite3 set/get") {
      using database_t = debby::keyvalue_database<debby::backend_enum::sqlite3>;
@@ -211,13 +221,6 @@ TEST_CASE("dbmx set/get") {
      check(std::move(db));
 }
 #endif
-
-// #if DEBBY__ROCKSDB_ENABLED
-// TEST_CASE("rocksdb set/get") {
-//     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-rocksdb-kv.db");
-//     check_persistance_storage<debby::backend::rocksdb::database>(db_path);
-// }
-// #endif
 
 #if DEBBY__PSQL_ENABLED
 TEST_CASE("PostgreSQL set/get") {
