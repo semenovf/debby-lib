@@ -38,7 +38,7 @@ public:
     DEBBY__EXPORT relational_database (impl && d);
     DEBBY__EXPORT relational_database (relational_database && other) noexcept;
     DEBBY__EXPORT ~relational_database ();
-    DEBBY__EXPORT relational_database & operator = (relational_database && other);
+    DEBBY__EXPORT relational_database & operator = (relational_database && other) noexcept;
 
     relational_database (relational_database const & other) = delete;
     relational_database & operator = (relational_database const & other) = delete;

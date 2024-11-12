@@ -8,6 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/keyvalue_database.hpp"
 #include "debby/sqlite3.hpp"
+#include "../database_common.hpp"
 #include "../kv_common.hpp"
 #include <pfs/assert.hpp>
 #include <pfs/fmt.hpp>
@@ -113,57 +114,11 @@ public:
     }
 };
 
-template <>
-keyvalue_database_t::keyvalue_database () = default;
-
-template <>
-keyvalue_database_t::keyvalue_database (impl && d)
-{
-    if (_d == nullptr) {
-        _d = new impl(std::move(d));
-    } else {
-        *_d = std::move(d);
-    }
-}
-
-template <>
-keyvalue_database_t::keyvalue_database (keyvalue_database_t && other) noexcept
-{
-    if (other._d != nullptr) {
-        _d = new impl(std::move(*other._d));
-    } else {
-        delete _d;
-        _d = nullptr;
-    }
-}
-
-template <>
-keyvalue_database_t::~keyvalue_database ()
-{
-    if (_d != nullptr)
-        delete _d;
-
-    _d = nullptr;
-}
-
-template <>
-keyvalue_database_t & keyvalue_database_t::operator = (keyvalue_database && other) noexcept
-{
-    if (other._d != nullptr) {
-        if (_d != nullptr) {
-            *_d = std::move(std::move(*other._d));
-        } else {
-            _d = new impl(std::move(*other._d));
-        }
-    } else {
-        if (_d != nullptr) {
-            delete _d;
-            _d = nullptr;
-        }
-    }
-
-    return *this;
-}
+template keyvalue_database_t::keyvalue_database ();
+template keyvalue_database_t::keyvalue_database (impl && d);
+template keyvalue_database_t::keyvalue_database (keyvalue_database_t && other) noexcept;
+template keyvalue_database_t::~keyvalue_database ();
+template keyvalue_database_t & keyvalue_database_t::operator = (keyvalue_database && other) noexcept;
 
 template <>
 void keyvalue_database_t::clear (error * perr)
@@ -171,44 +126,6 @@ void keyvalue_database_t::clear (error * perr)
     if (_d != nullptr)
         _d->clear(_d->table_name(), perr);
 }
-
-namespace sqlite3 {
-
-keyvalue_database<backend_enum::sqlite3>
-make_kv (pfs::filesystem::path const & path, std::string const & table_name, bool create_if_missing
-    , error * perr)
-{
-    return make_kv(path, table_name, create_if_missing, preset_enum::DEFAULT_PRESET, perr);
-}
-
-keyvalue_database<backend_enum::sqlite3>
-make_kv (pfs::filesystem::path const & path, std::string const & table_name, bool create_if_missing
-    , preset_enum preset, error * perr)
-{
-    error err;
-    auto db = make(path, create_if_missing, preset, & err);
-
-    if (err) {
-        pfs::throw_or(perr, std::move(err));
-        return keyvalue_database_t{};
-    }
-
-    std::string sql = fmt::format("CREATE TABLE IF NOT EXISTS '{}'"
-        " (key TEXT NOT NULL UNIQUE, value BLOB"
-        " , PRIMARY KEY(key)) WITHOUT ROWID", table_name);
-
-    db.query(sql, & err);
-
-    if (err) {
-        pfs::throw_or(perr, std::move(err));
-        return keyvalue_database_t{};
-    }
-
-    keyvalue_database_t::impl d {std::move(db), std::string{table_name}};
-    return keyvalue_database_t{std::move(d)};
-}
-
-} // namespace backend::sqlite3
 
 template <>
 void keyvalue_database_t::set_arithmetic (key_type const & key, std::int64_t value, std::size_t size, error * perr)
@@ -267,5 +184,43 @@ std::string keyvalue_database_t::get_string (key_type const & key, error * perr)
     PFS__TERMINATE(_d != nullptr, "");
     return _d->get<std::string>(key, perr);
 }
+
+namespace sqlite3 {
+
+keyvalue_database<backend_enum::sqlite3>
+make_kv (pfs::filesystem::path const & path, std::string const & table_name, bool create_if_missing
+    , error * perr)
+{
+    return make_kv(path, table_name, create_if_missing, preset_enum::DEFAULT_PRESET, perr);
+}
+
+keyvalue_database<backend_enum::sqlite3>
+make_kv (pfs::filesystem::path const & path, std::string const & table_name, bool create_if_missing
+    , preset_enum preset, error * perr)
+{
+    error err;
+    auto db = make(path, create_if_missing, preset, & err);
+
+    if (err) {
+        pfs::throw_or(perr, std::move(err));
+        return keyvalue_database_t{};
+    }
+
+    std::string sql = fmt::format("CREATE TABLE IF NOT EXISTS '{}'"
+        " (key TEXT NOT NULL UNIQUE, value BLOB"
+        " , PRIMARY KEY(key)) WITHOUT ROWID", table_name);
+
+    db.query(sql, & err);
+
+    if (err) {
+        pfs::throw_or(perr, std::move(err));
+        return keyvalue_database_t{};
+    }
+
+    keyvalue_database_t::impl d {std::move(db), std::string{table_name}};
+    return keyvalue_database_t{std::move(d)};
+}
+
+} // namespace backend::sqlite3
 
 DEBBY__NAMESPACE_END

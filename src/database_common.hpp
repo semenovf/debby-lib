@@ -11,7 +11,32 @@
 DEBBY__NAMESPACE_BEGIN
 
 template <backend_enum Backend>
-relational_database<Backend> & relational_database<Backend>::operator = (relational_database && other)
+relational_database<Backend>::relational_database () = default;
+
+template <backend_enum Backend>
+relational_database<Backend>::relational_database (impl && d)
+{
+    _d = new impl(std::move(d));
+}
+
+template <backend_enum Backend>
+relational_database<Backend>::relational_database (relational_database && other) noexcept
+{
+    _d = other._d;
+    other._d = nullptr;
+}
+
+template <backend_enum Backend>
+relational_database<Backend>::~relational_database ()
+{
+    if (_d != nullptr)
+        delete _d;
+
+    _d = nullptr;
+}
+
+template <backend_enum Backend>
+relational_database<Backend> & relational_database<Backend>::operator = (relational_database && other) noexcept
 {
     if (_d != nullptr)
         delete _d;

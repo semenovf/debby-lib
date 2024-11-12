@@ -6,8 +6,9 @@
 # Changelog:
 #       2021.11.24 Initial version.
 #       2024.10.27 Removed `portable_target` dependency.
+#       2024.11.12 Min CMake version is 3.15.
 ################################################################################
-cmake_minimum_required (VERSION 3.11)
+cmake_minimum_required (VERSION 3.15)
 project(debby LANGUAGES CXX C)
 
 option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
@@ -16,8 +17,8 @@ option(DEBBY__ENABLE_SQLITE_FTS5 "Enable support for `FTS5` in `Sqlite3` backend
 option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
 option(DEBBY__ENABLE_MDBX "Enable `libmdbx` backend" ON)
 option(DEBBY__ENABLE_LMDB "Enable `LMDB` backend" ON)
-option(DEBBY__ENABLE_PSQL  "Enable `PostgreSQL` front-end backend" OFF)
-option(DEBBY__ENABLE_MAP  "Enable `in-memory` map backend" ON)
+option(DEBBY__ENABLE_PSQL "Enable `PostgreSQL` front-end backend" OFF)
+option(DEBBY__ENABLE_MAP "Enable `in-memory` map backend" ON)
 option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
 
 if (DEBBY__BUILD_SHARED)
@@ -51,7 +52,7 @@ endif()
 if (DEBBY__ENABLE_SQLITE3)
     list(APPEND _debby__sources
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
-        ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/database.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/relational_database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/keyvalue_database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp)
@@ -114,7 +115,7 @@ if (DEBBY__ENABLE_PSQL)
         include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/postgres.cmake)
 
         list(APPEND _debby__sources
-            ${CMAKE_CURRENT_LIST_DIR}/src/psql/database.cpp
+            ${CMAKE_CURRENT_LIST_DIR}/src/psql/relational_database.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/result.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/statement.cpp)
     else()
