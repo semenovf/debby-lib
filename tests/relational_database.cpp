@@ -83,16 +83,23 @@ void check (RelationalDatabaseType & db)
 
 #if DEBBY__SQLITE3_ENABLED
 TEST_CASE("sqlite3") {
+    using database_t = debby::relational_database<debby::backend_enum::sqlite3>;
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
     debby::sqlite3::wipe(db_path);
 
-    auto db = debby::sqlite3::make(db_path);
+    {   
+        database_t db; // Default constructor
 
-    REQUIRE(db);
+        REQUIRE_FALSE(db);
 
-    check(db);
+        auto db1 = debby::sqlite3::make(db_path);
+        REQUIRE(db1);
 
-    debby::sqlite3::wipe(db_path);
+        db = std::move(db1);
+
+        check(db);
+        debby::sqlite3::wipe(db_path);
+    }
 }
 #endif
 

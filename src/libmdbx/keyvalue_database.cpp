@@ -13,14 +13,6 @@
 #include "lib/mdbx.h"
 #include <pfs/filesystem.hpp>
 #include <pfs/i18n.hpp>
-//#include "pfs/assert.hpp"
-//#include "pfs/debby/error.hpp"
-//#include "pfs/debby/keyvalue_database.hpp"
-//#include "pfs/debby/backend/libmdbx/database.hpp"
-//#include "../kv_common.hpp"
-//#include <algorithm>
-//#include <cmath>
-//#include <type_traits>
 #include <utility>
 
 namespace fs = pfs::filesystem;
@@ -394,10 +386,10 @@ public:
     }
 };
 
-template keyvalue_database<backend_enum::mdbx>::keyvalue_database (impl && d);
-template keyvalue_database<backend_enum::mdbx>::keyvalue_database (keyvalue_database && other) noexcept;
-template keyvalue_database<backend_enum::mdbx>::~keyvalue_database ();
-template keyvalue_database<backend_enum::mdbx> & keyvalue_database<backend_enum::mdbx>::operator = (keyvalue_database && other) noexcept;
+template keyvalue_database_t::keyvalue_database (impl && d) noexcept;
+template keyvalue_database_t::keyvalue_database (keyvalue_database && other) noexcept;
+template keyvalue_database_t::~keyvalue_database ();
+template keyvalue_database_t & keyvalue_database_t::operator = (keyvalue_database && other) noexcept;
 
 template <>
 void keyvalue_database_t::clear (error * perr)

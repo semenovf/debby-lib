@@ -70,7 +70,7 @@ private:
         error err;
         union {
             typename bounded_type<T, void>::type n;
-            char buffer [sizeof(bounded_type<T, void>::type)];
+            char buffer [sizeof(typename bounded_type<T, void>::type)];
         } u;
 
         auto res = fetch(column, u.buffer, sizeof(u.buffer), err);

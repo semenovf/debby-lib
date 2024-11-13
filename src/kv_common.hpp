@@ -43,51 +43,23 @@ template <backend_enum Backend>
 keyvalue_database<Backend>::keyvalue_database () = default;
 
 template <backend_enum Backend>
-keyvalue_database<Backend>::keyvalue_database (impl && d)
-{
-    if (_d == nullptr) {
-        _d = new impl(std::move(d));
-    } else {
-        *_d = std::move(d);
-    }
-}
+keyvalue_database<Backend>::keyvalue_database (impl && d) noexcept
+    : _d(std::make_unique<impl>(std::move(d)))
+{}
 
 template <backend_enum Backend>
 keyvalue_database<Backend>::keyvalue_database (keyvalue_database && other) noexcept
-{
-    if (other._d != nullptr) {
-        _d = new impl(std::move(*other._d));
-    } else {
-        delete _d;
-        _d = nullptr;
-    }
-}
+    : _d(std::move(other._d))
+{}
 
 template <backend_enum Backend>
-keyvalue_database<Backend>::~keyvalue_database ()
-{
-    if (_d != nullptr)
-        delete _d;
-
-    _d = nullptr;
-}
+keyvalue_database<Backend>::~keyvalue_database () 
+{};
 
 template <backend_enum Backend>
 keyvalue_database<Backend> & keyvalue_database<Backend>::operator = (keyvalue_database && other) noexcept
 {
-    if (other._d != nullptr) {
-        if (_d != nullptr) {
-            *_d = std::move(std::move(*other._d));
-        } else {
-            _d = new impl(std::move(*other._d));
-        }
-    } else {
-        if (_d != nullptr) {
-            delete _d;
-            _d = nullptr;
-        }
-    }
-
+    _d = std::move(other._d);
     return *this;
 }
 

@@ -6,9 +6,9 @@
 // Changelog:
 //      2024.11.04 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
+#include "relational_database_impl.hpp"
 #include "debby/keyvalue_database.hpp"
 #include "debby/sqlite3.hpp"
-#include "../database_common.hpp"
 #include "../kv_common.hpp"
 #include <pfs/assert.hpp>
 #include <pfs/fmt.hpp>

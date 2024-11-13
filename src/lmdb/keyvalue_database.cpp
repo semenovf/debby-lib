@@ -376,11 +376,10 @@ public:
     }
 };
 
-//template keyvalue_database<backend_enum::lmdb>::keyvalue_database ();
-template keyvalue_database<backend_enum::lmdb>::keyvalue_database (impl && d);
-template keyvalue_database<backend_enum::lmdb>::keyvalue_database (keyvalue_database && other) noexcept;
-template keyvalue_database<backend_enum::lmdb>::~keyvalue_database ();
-template keyvalue_database<backend_enum::lmdb> & keyvalue_database<backend_enum::lmdb>::operator = (keyvalue_database && other) noexcept;
+template keyvalue_database_t::keyvalue_database (impl && d) noexcept;
+template keyvalue_database_t::keyvalue_database (keyvalue_database && other) noexcept;
+template keyvalue_database_t::~keyvalue_database ();
+template keyvalue_database_t & keyvalue_database_t::operator = (keyvalue_database && other) noexcept;
 
 template <>
 void keyvalue_database_t::clear (error * perr)

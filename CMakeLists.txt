@@ -8,13 +8,13 @@
 #       2024.10.27 Removed `portable_target` dependency.
 #       2024.10.29 Up to C++14 standard.
 #       2024.11.12 Min CMake version is 3.15.
+#       2024.11.13 Min CMake version is 3.19 (CMakePresets).
 ################################################################################
-cmake_minimum_required (VERSION 3.15)
+cmake_minimum_required (VERSION 3.19)
 project(debby-ALL CXX C)
 
 option(DEBBY__BUILD_STRICT "Build with strict policies: C++ standard required, C++ extension is OFF etc" ON)
 option(DEBBY__BUILD_TESTS "Build tests" OFF)
-option(DEBBY__BUILD_DEMO "Build demo" OFF)
 option(DEBBY__ENABLE_COVERAGE "Build tests with coverage support" OFF)
 
 if (DEBBY__BUILD_STRICT)

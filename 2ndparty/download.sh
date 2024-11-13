@@ -4,12 +4,10 @@ LOG_FILE='download.log'
 GIT_DOWNLOADER="git clone"
 
 # SSH
-SSH_SOURCES="git@github.com:semenovf/common-lib.git -b master common
-git@github.com:semenovf/scripts.git -b master scripts"
+SSH_SOURCES="git@github.com:semenovf/common-lib.git -b master common"
 
 # HTTPS
-HTTPS_SOURCES="https://github.com/semenovf/common-lib.git -b master common
-https://github.com/semenovf/scripts.git --depth=1 -b master scripts"
+HTTPS_SOURCES="https://github.com/semenovf/common-lib.git -b master common"
 
 DEFAULT_SOURCES=${SSH_SOURCES}
 DEFAULT_DOWNLOADER=${GIT_DOWNLOADER}

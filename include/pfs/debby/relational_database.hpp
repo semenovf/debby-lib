@@ -15,6 +15,7 @@
 #include "exports.hpp"
 #include "namespace.hpp"
 #include "statement.hpp"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -31,11 +32,11 @@ public:
     using statement_type = statement<Backend>;
 
 private:
-    impl * _d {nullptr};
+    std::unique_ptr<impl> _d;
 
 public:
     DEBBY__EXPORT relational_database ();
-    DEBBY__EXPORT relational_database (impl && d);
+    DEBBY__EXPORT relational_database (impl && d) noexcept;
     DEBBY__EXPORT relational_database (relational_database && other) noexcept;
     DEBBY__EXPORT ~relational_database ();
     DEBBY__EXPORT relational_database & operator = (relational_database && other) noexcept;

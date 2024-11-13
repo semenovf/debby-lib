@@ -17,9 +17,10 @@
 #include "relational_database.hpp"
 #include "pfs/string_view.hpp"
 #include <cstdint>
+#include <cstring>
+#include <memory>
 #include <string>
 #include <type_traits>
-#include <cstring>
 
 DEBBY__NAMESPACE_BEGIN
 
@@ -34,7 +35,7 @@ public:
     using key_type = std::string;
 
 private:
-    impl * _d {nullptr};
+    std::unique_ptr<impl> _d;
 
 private:
     DEBBY__EXPORT void set_arithmetic (key_type const & key, std::int64_t value, std::size_t size, error * perr = nullptr);
@@ -47,7 +48,7 @@ private:
 
 public:
     DEBBY__EXPORT keyvalue_database ();
-    DEBBY__EXPORT keyvalue_database (impl && d);
+    DEBBY__EXPORT keyvalue_database (impl && d) noexcept;
     DEBBY__EXPORT keyvalue_database (keyvalue_database && other) noexcept;
     DEBBY__EXPORT ~keyvalue_database ();
 

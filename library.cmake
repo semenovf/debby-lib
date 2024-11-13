@@ -7,8 +7,9 @@
 #       2021.11.24 Initial version.
 #       2024.10.27 Removed `portable_target` dependency.
 #       2024.11.12 Min CMake version is 3.15.
+#       2024.11.13 Min CMake version is 3.19 (CMakePresets).
 ################################################################################
-cmake_minimum_required (VERSION 3.15)
+cmake_minimum_required (VERSION 3.19)
 project(debby LANGUAGES CXX C)
 
 option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)

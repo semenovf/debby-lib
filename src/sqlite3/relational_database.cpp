@@ -10,114 +10,23 @@
 //      2023.02.07 Applied new API.
 //      2024.10.29 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
-#include "statement_impl.hpp"
-#include "debby/relational_database.hpp"
+#include "relational_database_impl.hpp"
 #include "debby/sqlite3.hpp"
-#include "sqlite3.h"
-#include "utils.hpp"
 #include "../database_common.hpp"
 #include <pfs/assert.hpp>
-#include <pfs/i18n.hpp>
 #include <regex>
-#include <unordered_map>
 
 namespace fs = pfs::filesystem;
 
 DEBBY__NAMESPACE_BEGIN
 
-using database_t = relational_database<backend_enum::sqlite3>;
-
-template <>
-class database_t::impl
-{
-public:
-    using native_type = struct sqlite3 *;
-    using cache_type = std::unordered_map<std::string, struct sqlite3_stmt *>;
-
-private:
-    native_type _dbh {nullptr};
-    cache_type  _cache; // Prepared statements cache
-
-public:
-    impl (native_type dbh) : _dbh(dbh)
-    {}
-
-    impl (impl && d) noexcept
-    {
-        _dbh = d._dbh;
-        d._dbh = nullptr;
-        _cache = std::move(d._cache);
-    }
-
-    ~impl ()
-    {
-       // Finalize cached statements
-        for (auto & x: _cache)
-            sqlite3_finalize(x.second);
-
-        _cache.clear();
-
-        if (_dbh != nullptr)
-            sqlite3_close_v2(_dbh);
-
-        _dbh = nullptr;
-    }
-
-public:
-    bool query (std::string const & sql, error * perr)
-    {
-        int rc = sqlite3_exec(_dbh, sql.c_str(), nullptr, nullptr, nullptr);
-
-        if (SQLITE_OK != rc) {
-            pfs::throw_or(perr, error {errc::sql_error, sqlite3::build_errstr(rc, _dbh), sql});
-            return false;
-        }
-
-        return true;
-    }
-
-    database_t::statement_type prepare (std::string const & sql, bool cache, error * perr)
-    {
-        if (_dbh == nullptr)
-            return database_t::statement_type{};
-
-        auto pos = _cache.find(sql);
-
-        // Found in cache
-        if (pos != _cache.end()) {
-            sqlite3_reset(pos->second);
-            sqlite3_clear_bindings(pos->second);
-            statement_t::impl d{pos->second, true};
-            return database_t::statement_type {std::move(d)};
-        }
-
-        struct sqlite3_stmt * sth {nullptr};
-
-        auto rc = sqlite3_prepare_v2(_dbh, sql.c_str(), static_cast<int>(sql.size()), & sth, nullptr);
-
-        if (SQLITE_OK != rc) {
-            pfs::throw_or(perr, error{errc::sql_error, sqlite3::build_errstr(rc, _dbh), sql});
-            return database_t::statement_type{};
-        }
-
-        if (cache) {
-            auto res = _cache.emplace(sql, sth);
-
-            if (!res.second) {
-                pfs::throw_or(perr, error{pfs::errc::unexpected_error, tr::_("key must be unique")});
-                return database_t::statement_type{};
-            }
-        }
-
-        statement_t::impl d{sth, cache};
-        return database_t::statement_type{std::move(d)};
-    }
-};
-
 template database_t::relational_database ();
-template database_t::relational_database (impl && d);
+template database_t::relational_database (impl && d) noexcept;
 template database_t::relational_database (database_t && other) noexcept;
 template database_t::~relational_database ();
+template database_t & database_t::operator = (relational_database && other) noexcept;
+
+template std::size_t database_t::rows_count (std::string const & table_name, error * perr);
 
 template <>
 void database_t::query (std::string const & sql, error * perr)
@@ -256,9 +165,6 @@ bool database_t::exists (std::string const & name, error * perr)
 
     return false;
 }
-
-template database_t & database_t::operator = (relational_database && other) noexcept;
-template std::size_t database_t::rows_count (std::string const & table_name, error * perr);
 
 namespace sqlite3 {
 
