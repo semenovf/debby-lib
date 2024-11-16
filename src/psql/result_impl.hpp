@@ -25,21 +25,24 @@ public:
 
 public:
     mutable handle_type sth {nullptr};
-    int row_count {0}; // Total number of tuples
+    int field_count {0}; // Number of fields
+    int row_count {0};  // Total number of tuples
     int row_index {0};
 
 public:
     impl (handle_type h)
         : sth(h)
     {
+        field_count = PQnfields(sth);
         row_count = PQntuples(sth);
     }
 
     impl (impl && other)
     {
         sth = other.sth;
-        row_count = other.row_count;
-        row_index = other.row_index;
+        field_count = other.field_count;
+        row_count  = other.row_count;
+        row_index  = other.row_index;
 
         other.sth = nullptr;
     }

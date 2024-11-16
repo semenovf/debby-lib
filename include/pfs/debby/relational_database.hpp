@@ -14,6 +14,7 @@
 #include "error.hpp"
 #include "exports.hpp"
 #include "namespace.hpp"
+#include "result.hpp"
 #include "statement.hpp"
 #include <memory>
 #include <string>
@@ -61,8 +62,7 @@ public:
     /**
      * Prepares statement.
      */
-    DEBBY__EXPORT statement_type prepare (std::string const & sql, bool cache = true
-        , error * perr = nullptr);
+    DEBBY__EXPORT statement_type prepare (std::string const & sql, error * perr = nullptr);
 
     /**
      * Executes SQL query.

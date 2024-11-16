@@ -39,9 +39,18 @@ std::string const CREATE_TABLE_THREE {
 } // namespace
 
 template <typename RelationalDatabaseType>
-void check (RelationalDatabaseType & db)
+void check (RelationalDatabaseType & db_opened)
 {
+    // Default constructor
+    RelationalDatabaseType db;
+
+    REQUIRE_FALSE(db);
+
+    // Move assignment operator
+    db = std::move(db_opened);
+
     db.remove_all();
+    
     REQUIRE_FALSE(db.exists("one"));
     REQUIRE_FALSE(db.exists("two"));
     REQUIRE_FALSE(db.exists("three"));
@@ -87,19 +96,11 @@ TEST_CASE("sqlite3") {
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3.db");
     debby::sqlite3::wipe(db_path);
 
-    {   
-        database_t db; // Default constructor
+    auto db = debby::sqlite3::make(db_path);
+    REQUIRE(db);
 
-        REQUIRE_FALSE(db);
-
-        auto db1 = debby::sqlite3::make(db_path);
-        REQUIRE(db1);
-
-        db = std::move(db1);
-
-        check(db);
-        debby::sqlite3::wipe(db_path);
-    }
+    check(db);
+    debby::sqlite3::wipe(db_path);
 }
 #endif
 

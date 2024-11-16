@@ -8,7 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/statement.hpp"
 #include "sqlite3.h"
-//
+
 DEBBY__NAMESPACE_BEGIN
 
 using statement_t = statement<backend_enum::sqlite3>;
@@ -21,27 +21,24 @@ public:
 
 private:
     mutable native_type _sth {nullptr};
-    bool _cached {false};
 
 public:
-    impl (native_type sth, bool cached) noexcept
+    impl (native_type sth) noexcept
         : _sth(sth)
-        , _cached(cached)
     {}
 
     impl (impl && other) noexcept
     {
         _sth = other._sth;
         other._sth = nullptr;
-        _cached = other._cached;
     }
 
     ~impl ()
     {
         if (_sth != nullptr) {
-            if (!_cached)
-                sqlite3_finalize(_sth);
-            else
+            // if (!_cached)
+            //     sqlite3_finalize(_sth);
+            // else
                 sqlite3_reset(_sth);
         }
 

@@ -32,22 +32,45 @@ public:
     mutable handle_type sth {nullptr};
     status state {INITIAL};
     int error_code {0};
+    int column_count {0};
     mutable std::unordered_map<std::string, int> column_mapping;
 
 public:
     impl (handle_type h, status s) noexcept
         : sth(h)
         , state(s)
-    {}
+    {
+        column_count =  sqlite3_column_count(sth);
+    }
 
     impl (impl && other) noexcept
     {
         sth = other.sth;
         state = other.state;
         error_code = other.error_code;
+        column_count = other.column_count;
         column_mapping = std::move(other.column_mapping);
 
         other.sth = nullptr;
+    }
+
+public:
+    /**
+     * @return Column index started from 0 and -1 if column not found 
+     */
+    int column_index (std::string const & column_name)
+    {
+        if (column_mapping.empty()) {
+            for (int i = 0; i < column_count; i++)
+                column_mapping.insert({std::string{sqlite3_column_name(sth, i)}, i});
+        }
+
+        auto pos = column_mapping.find(column_name);
+
+        if (pos == column_mapping.end())
+            return -1;
+
+        return pos->second;
     }
 };
 

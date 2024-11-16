@@ -14,8 +14,12 @@
 #include "error.hpp"
 #include "exports.hpp"
 #include "namespace.hpp"
+#include <pfs/endian.hpp>
 #include <pfs/i18n.hpp>
+#include <pfs/numeric_cast.hpp>
+#include <pfs/optional.hpp>
 #include <cstdint>
+#include <type_traits>
 #include <string>
 
 DEBBY__NAMESPACE_BEGIN
@@ -54,77 +58,6 @@ public:
     result & operator = (result const & other) = delete;
     result & operator = (result && other) = delete;
 
-private:
-    DEBBY__EXPORT
-    std::pair<char *, std::size_t>
-    fetch (int column, char * buffer, std::size_t initial_size, error & err) const;
-
-    DEBBY__EXPORT
-    std::pair<char *, std::size_t>
-    fetch (std::string const & column_name, char * buffer, std::size_t initial_size, error & err) const;
-
-    template <typename T, typename ColumnType>
-    typename std::enable_if<std::is_arithmetic<T>::value, bool>::type
-    get_helper (ColumnType column, T & result, error * perr = nullptr)
-    {
-        error err;
-        union {
-            typename bounded_type<T, void>::type n;
-            char buffer [sizeof(typename bounded_type<T, void>::type)];
-        } u;
-
-        auto res = fetch(column, u.buffer, sizeof(u.buffer), err);
-
-        if (err) {
-            pfs::throw_or(perr, std::move(err));
-            return false;
-        }
-
-        // Result contains null value
-        if (res.first == nullptr)
-            return false;
-
-        if (u.buffer != res.first) {
-            delete [] res.first;
-
-            pfs::throw_or(perr, error {
-                  errc::bad_value
-                , tr::f_("unsuitable data stored in column: {}", column)
-            });
-
-            return false;
-        }
-
-        result = static_cast<T>(u.n);
-        return true;
-    }
-
-    template <typename /*T*/, typename ColumnType>
-    bool
-    get_helper (ColumnType column, std::string & result, error * perr = nullptr)
-    {
-        error err;
-        char buffer [64];
-
-        auto res = fetch(column, buffer, sizeof(buffer), err);
-
-        if (err) {
-            pfs::throw_or(perr, std::move(err));
-            return false;
-        }
-
-        // Result contains null value
-        if (res.first == nullptr)
-            return false;
-
-        result = std::string(res.first, res.second);
-
-        if (buffer != res.first)
-            delete [] res.first;
-
-        return true;
-    }
-
 public:
     inline operator bool () const noexcept
     {
@@ -162,47 +95,60 @@ public:
      */
     DEBBY__EXPORT void next ();
 
-    /**
-     */
+    DEBBY__EXPORT pfs::optional<std::int64_t> get_int64 (int column, error * perr = nullptr);
+    DEBBY__EXPORT pfs::optional<double> get_double (int column, error * perr = nullptr);
+    DEBBY__EXPORT pfs::optional<std::string> get_string (int column, error * perr = nullptr);
+
+    DEBBY__EXPORT pfs::optional<std::int64_t> get_int64 (std::string const & column_name, error * perr = nullptr);
+    DEBBY__EXPORT pfs::optional<double> get_double (std::string const & column_name, error * perr = nullptr);
+    DEBBY__EXPORT pfs::optional<std::string> get_string (std::string const & column_name, error * perr = nullptr);
+
     template <typename T, typename ColumnType>
-    T get (ColumnType column, error * perr = nullptr)
+    inline pfs::optional<typename std::enable_if<std::is_integral<T>::value, T>::type>
+    get (ColumnType const & column, error * perr = nullptr)
     {
-        T result;
-        error err;
-        auto success = get_helper<T>(column, result, & err);
-
-        if (err) {
-            pfs::throw_or(perr, std::move(err));
-            return T{};
-        }
-
-        if (!success) {
-            pfs::throw_or(perr, error{
-                  errc::bad_value
-                , tr::f_("result is null for column: {}", column)
-            });
-            return T{};
-        }
-
-        return result;
+        auto opt = get_int64(column, perr);
+        return opt ? pfs::make_optional(pfs::numeric_cast<T>(*opt)) : pfs::nullopt;
     }
 
     template <typename T, typename ColumnType>
-    T get_or (ColumnType column, T const & default_value, error * perr = nullptr)
+    inline pfs::optional<typename std::enable_if<std::is_floating_point<T>::value, T>::type>
+    get (ColumnType const & column, error * perr = nullptr)
     {
-        T result;
-        error err;
-        auto success = get_helper<T>(column, result, & err);
+        auto opt = get_double(column, perr);
+        return opt ? pfs::make_optional(static_cast<T>(*opt)) : pfs::nullopt;
+    }
 
-        if (err) {
-            pfs::throw_or(perr, std::move(err));
-            return T{};
-        }
+    template <typename T, typename ColumnType>
+    inline pfs::optional<typename std::enable_if<std::is_same<std::decay_t<T>, std::string>::value, T>::type>
+    get (ColumnType const & column, error * perr = nullptr)
+    {
+        auto opt = get_string(column, perr);
+        return opt ? pfs::make_optional(*opt) : pfs::nullopt;
+    }
 
-        if (!success)
-            return default_value;
+    template <typename T, typename ColumnType>
+    inline typename std::enable_if<std::is_integral<T>::value, T>::type
+    get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
+    {
+        auto opt = get_int64(column, perr);
+        return opt ? pfs::numeric_cast<T>(*opt) : default_value;
+    }
 
-        return result;
+    template <typename T, typename ColumnType>
+    inline typename std::enable_if<std::is_floating_point<T>::value, T>::type
+    get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
+    {
+        auto opt = get_double(column, perr);
+        return opt ? static_cast<T>(*opt) : default_value;
+    }
+
+    template <typename T, typename ColumnType>
+    inline typename std::enable_if<std::is_same<std::decay_t<T>, std::string>::value, T>::type
+    get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
+    {
+        auto opt = get_string(column, perr);
+        return opt ? static_cast<T>(*opt) : default_value;
     }
 };
 

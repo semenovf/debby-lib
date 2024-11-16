@@ -67,7 +67,15 @@ if (DEBBY__ENABLE_SQLITE3)
 endif()
 
 if (NOT TARGET pfs::common)
-    include(${CMAKE_CURRENT_LIST_DIR}/2ndparty/common/library.cmake)
+    include(FetchContent)
+    FetchContent_Declare(common-ep
+        GIT_REPOSITORY https://github.com/semenovf/common-lib.git
+        GIT_TAG v1
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/2ndparty/common
+        SUBBUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/2ndparty/common)
+    FetchContent_MakeAvailable(common-ep)
+
+    #include(${CMAKE_CURRENT_LIST_DIR}/2ndparty/common/library.cmake)
 endif()
 
 if (DEBBY__ENABLE_ROCKSDB)

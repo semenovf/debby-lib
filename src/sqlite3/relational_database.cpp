@@ -54,12 +54,12 @@ void database_t::rollback (error * perr)
 }
 
 template <>
-database_t::statement_type database_t::prepare (std::string const & sql, bool cache, error * perr)
+database_t::statement_type database_t::prepare (std::string const & sql, error * perr)
 {
     if (_d == nullptr)
         return database_t::statement_type{};
 
-    return _d->prepare(sql, cache, perr);
+    return _d->prepare(sql, perr);
 }
 
 template <>
@@ -71,7 +71,7 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
     std::string sql = std::string{"SELECT name FROM sqlite_master"
         " WHERE type='table' ORDER BY name"};
 
-    auto stmt = prepare(sql, false, perr);
+    auto stmt = prepare(sql, perr);
     std::vector<std::string> list;
 
     if (stmt) {
@@ -81,13 +81,18 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
             std::regex rx {pattern.empty() ? ".*" : pattern};
 
             while (res.has_more()) {
-                auto name = res.get<std::string>(0);
+                auto opt_name = res.get<std::string>(0, perr);
 
-                if (pattern.empty()) {
-                    list.push_back(name);
+                if (opt_name) {
+                    if (pattern.empty()) {
+                        list.push_back(*opt_name);
+                    } else {
+                        if (std::regex_search(*opt_name, rx))
+                            list.push_back(*opt_name);
+                    }
                 } else {
-                    if (std::regex_search(name, rx))
-                        list.push_back(name);
+                    pfs::throw_or(perr, error {pfs::errc::unexpected_error, tr::_("expected table name")});
+                    return std::vector<std::string>{};
                 }
 
                 // May be `sql_error` exception
@@ -153,8 +158,7 @@ template <>
 bool database_t::exists (std::string const & name, error * perr)
 {
     auto stmt = prepare(
-        fmt::format("SELECT name FROM sqlite_master WHERE type='table' AND name='{}'", name)
-            , false, perr);
+        fmt::format("SELECT name FROM sqlite_master WHERE type='table' AND name='{}'", name), perr);
 
     if (stmt) {
         auto res = stmt.exec();

@@ -8,19 +8,13 @@
 //      2024.11.04 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "fixed_packer.hpp"
 #include "debby/error.hpp"
 #include "debby/namespace.hpp"
 #include "debby/keyvalue_database.hpp"
 #include <pfs/i18n.hpp>
 
 DEBBY__NAMESPACE_BEGIN
-
-template <typename T>
-union fixed_packer
-{
-    T value;
-    char bytes[sizeof(T)];
-};
 
 inline error make_unsuitable_error (std::string const & key)
 {

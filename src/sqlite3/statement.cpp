@@ -113,7 +113,7 @@ bool statement_t::bind_helper (int index, std::int64_t value, error * perr)
     auto sth = _d->native();
 
     // In sqlite3 index must be started from 1
-    auto rc = sqlite3_bind_int64(sth, index + 1, static_cast<sqlite3_int64>(value));
+    auto rc = sqlite3_bind_int64(sth, index, static_cast<sqlite3_int64>(value));
 
     if (SQLITE_OK != rc) {
         BIND_HELPER_BOILERPLATE_ON_FAILURE
@@ -129,7 +129,7 @@ bool statement_t::bind_helper (int index, double value, error * perr)
     auto sth = _d->native();
 
     // In sqlite3 index must be started from 1
-    auto rc = sqlite3_bind_double(sth, index + 1, value);
+    auto rc = sqlite3_bind_double(sth, index, value);
 
     if (SQLITE_OK != rc) {
         BIND_HELPER_BOILERPLATE_ON_FAILURE
@@ -150,7 +150,7 @@ bool statement_t::bind_helper (char const * placeholder, std::int64_t value, err
         return false;
     }
 
-    return bind_helper(index - 1, value, perr);
+    return bind_helper(index, value, perr);
 }
 
 template <>
@@ -164,14 +164,14 @@ bool statement_t::bind_helper (char const * placeholder, double value, error * p
         return false;
     }
 
-    return bind_helper(index - 1, value, perr);
+    return bind_helper(index, value, perr);
 }
 
 template <>
 bool statement_t::bind (int index, std::nullptr_t, error * perr)
 {
     auto sth = _d->native();
-    auto rc = sqlite3_bind_null(sth, index + 1);
+    auto rc = sqlite3_bind_null(sth, index);
 
     if (SQLITE_OK != rc) {
         BIND_HELPER_BOILERPLATE_ON_FAILURE
@@ -192,14 +192,14 @@ bool statement_t::bind (char const * placeholder, std::nullptr_t, error * perr)
         return false;
     }
 
-    return bind(index - 1, nullptr, perr);
+    return bind(index, nullptr, perr);
 }
 
 template <>
 bool statement_t::bind (int index, std::string && value, error * perr)
 {
     auto sth = _d->native();
-    auto rc = sqlite3_bind_text(sth, index + 1, value.c_str(), pfs::numeric_cast<int>(value.size()), SQLITE_TRANSIENT);
+    auto rc = sqlite3_bind_text(sth, index, value.c_str(), pfs::numeric_cast<int>(value.size()), SQLITE_TRANSIENT);
 
     if (SQLITE_OK != rc) {
         BIND_HELPER_BOILERPLATE_ON_FAILURE
@@ -220,7 +220,7 @@ bool statement_t::bind (char const * placeholder, std::string && value, error * 
         return false;
     }
 
-    return bind(index - 1, std::move(value), perr);
+    return bind(index, std::move(value), perr);
 }
 
 template <>
@@ -230,9 +230,9 @@ bool statement_t::bind (int index, char const * ptr, std::size_t len, error * pe
     int rc = SQLITE_OK;
 
     if (len > (std::numeric_limits<int>::max)())
-        rc = sqlite3_bind_blob64(sth, index + 1, ptr, static_cast<sqlite3_int64>(len), SQLITE_STATIC);
+        rc = sqlite3_bind_blob64(sth, index, ptr, static_cast<sqlite3_int64>(len), SQLITE_STATIC);
     else
-        rc = sqlite3_bind_blob(sth, index + 1, ptr, static_cast<int>(len), SQLITE_STATIC);
+        rc = sqlite3_bind_blob(sth, index, ptr, static_cast<int>(len), SQLITE_STATIC);
 
     if (SQLITE_OK != rc) {
         BIND_HELPER_BOILERPLATE_ON_FAILURE
@@ -253,7 +253,7 @@ bool statement_t::bind (char const * placeholder, char const * ptr, std::size_t 
         return false;
     }
 
-    return bind(index - 1, ptr, len, perr);
+    return bind(index, ptr, len, perr);
 }
 
 template <>

@@ -45,12 +45,12 @@ constexpr int MAX_ITERATIONS = 10;
 constexpr int MIN_EPOCH_ITERATIONS = 2;
 } // namespace
 
-void benchmark_insert_op (database_t * db, std::string const & table_name, bool cache)
+void benchmark_insert_op (database_t * db, std::string const & table_name)
 {
     db->begin();
 
     for (int i = 0; i < MAX_ITERATIONS; i++) {
-        auto stmt = db->prepare(fmt::format(INSERT, table_name), cache);
+        auto stmt = db->prepare(fmt::format(INSERT, table_name));
         REQUIRE(stmt);
 
         stmt.bind(":id", i);
@@ -64,12 +64,12 @@ void benchmark_insert_op (database_t * db, std::string const & table_name, bool 
     db->commit();
 }
 
-void benchmark_select_all_op (database_t * db, std::string const & table_name, bool cache)
+void benchmark_select_all_op (database_t * db, std::string const & table_name)
 {
     db->begin();
 
     for (int i = 0; i < MAX_ITERATIONS; i++) {
-        auto stmt = db->prepare(fmt::format(SELECT_ALL, table_name), cache);
+        auto stmt = db->prepare(fmt::format(SELECT_ALL, table_name));
         REQUIRE(stmt);
         auto result = stmt.exec();
     }
@@ -77,12 +77,12 @@ void benchmark_select_all_op (database_t * db, std::string const & table_name, b
     db->commit();
 }
 
-void benchmark_select_op (database_t * db, std::string const & table_name, bool cache)
+void benchmark_select_op (database_t * db, std::string const & table_name)
 {
     db->begin();
 
     for (int i = 0; i < MAX_ITERATIONS; i++) {
-        auto stmt = db->prepare(fmt::format(SELECT, table_name), cache);
+        auto stmt = db->prepare(fmt::format(SELECT, table_name));
         REQUIRE(stmt);
         REQUIRE_NOTHROW(stmt.bind(":id", i));
         auto result = stmt.exec();
@@ -93,44 +93,43 @@ void benchmark_select_op (database_t * db, std::string const & table_name, bool 
 
 void benchmark_initialize (database_t * db, std::string const & table_name)
 {
-    // Do not cache this statement ----------------------------------v
-    auto stmt = db->prepare(fmt::format(CREATE_TABLE, table_name), false);
+    auto stmt = db->prepare(fmt::format(CREATE_TABLE, table_name));
 
     REQUIRE(stmt);
     auto result = stmt.exec();
     REQUIRE(result.is_done());
 }
 
-void benchmark_insert (database_t * db, std::string const & table_name, bool cache)
+void benchmark_insert (database_t * db, std::string const & table_name)
 {
     ankerl::nanobench::Bench()
         .minEpochIterations(MIN_EPOCH_ITERATIONS)
         .title("insert")
         .name(table_name)
-        .run([db, table_name, cache] {
-            benchmark_insert_op(db, table_name, cache);
+        .run([db, table_name] {
+            benchmark_insert_op(db, table_name);
         });
 }
 
-void benchmark_select_all (database_t * db, std::string const & table_name, bool cache)
+void benchmark_select_all (database_t * db, std::string const & table_name)
 {
     ankerl::nanobench::Bench()
         .minEpochIterations(MIN_EPOCH_ITERATIONS)
         .title("select_all")
         .name(table_name)
-        .run([db, table_name, cache] {
-            benchmark_select_all_op(db, table_name, cache);
+        .run([db, table_name] {
+            benchmark_select_all_op(db, table_name);
         });
 }
 
-void benchmark_select (database_t * db, std::string const & table_name, bool cache)
+void benchmark_select (database_t * db, std::string const & table_name)
 {
     ankerl::nanobench::Bench()
         .minEpochIterations(MIN_EPOCH_ITERATIONS)
         .title("select")
         .name(table_name)
-        .run([db, table_name, cache] {
-            benchmark_select_op(db, table_name, cache);
+        .run([db, table_name] {
+            benchmark_select_op(db, table_name);
         });
 }
 

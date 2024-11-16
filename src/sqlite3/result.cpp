@@ -11,6 +11,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "result_impl.hpp"
 #include "utils.hpp"
+#include "../fixed_packer.hpp"
 #include <pfs/assert.hpp>
 #include <pfs/i18n.hpp>
 #include <cstring>
@@ -134,105 +135,150 @@ void result_t::next ()
         sqlite3_reset(_d->sth);
 }
 
-inline char * ensure_capacity (char * buffer, std::size_t size, std::size_t requred_size)
-{
-    if (size < requred_size) {
-        buffer = new char[requred_size];
-        return buffer;
+#define CHECK_COLUMN_INDEX_BOILERPLATE                                           \
+    if (column < 0 || column >= _d->column_count) {                             \
+        pfs::throw_or(perr, error {                                             \
+              errc::column_not_found                                            \
+            , tr::f_("bad column index: {}, expected greater or equal to 0 and" \
+                " less than {}", column, _d->column_count)                      \
+        });                                                                     \
+        return pfs::nullopt;                                                    \
     }
 
-    return buffer;
-}
+#define UNSUITABLE_ERROR_BOILERPLATE \
+    pfs::throw_or(perr, error {errc::bad_value, tr::f_("unsuitable column type at index {}", column)});
 
 template <>
-std::pair<char *, std::size_t>
-result_t::fetch (int column, char * buffer, std::size_t initial_size, error & err) const
+pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
 {
-    auto upper_limit = sqlite3_column_count(_d->sth);
-
-    if (column < 0 || column >= upper_limit) {
-        err = error {
-              errc::column_not_found
-            , tr::f_("bad column: {}, expected greater or equal to 0 and"
-                " less than {}", column, upper_limit)
-        };
-
-        return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
-    }
+    CHECK_COLUMN_INDEX_BOILERPLATE
 
     auto column_type = sqlite3_column_type(_d->sth, column);
 
     switch (column_type) {
-        case SQLITE_INTEGER: {
-            sqlite3_int64 n = sqlite3_column_int64(_d->sth, column);
-
-            buffer = ensure_capacity(buffer, initial_size, sizeof(n));
-            std::memcpy(buffer, & n, sizeof(n));
-            return std::make_pair(buffer, sizeof(n));
-        }
-
-        case SQLITE_FLOAT: {
-            double f = sqlite3_column_double(_d->sth, column);
-
-            buffer = ensure_capacity(buffer, initial_size, sizeof(f));
-            std::memcpy(buffer, & f, sizeof(f));
-            return std::make_pair(buffer, sizeof(f));
-        }
-
-        case SQLITE_TEXT: {
-            auto cstr = reinterpret_cast<char const *>(sqlite3_column_text(_d->sth, column));
-            int size = sqlite3_column_bytes(_d->sth, column);
-
-            buffer = ensure_capacity(buffer, initial_size, size);
-            std::memcpy(buffer, cstr, size);
-            return std::make_pair(buffer, size);
-        }
-
-        case SQLITE_BLOB: {
-            auto data = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
-            int size = sqlite3_column_bytes(_d->sth, column);
-
-            buffer = ensure_capacity(buffer, initial_size, size);
-            std::memcpy(buffer, data, size);
-            return std::make_pair(buffer, size);
-        }
-
+        case SQLITE_INTEGER:
+            return sqlite3_column_int64(_d->sth, column);
         case SQLITE_NULL:
-            return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
+            return pfs::nullopt;
+        case SQLITE_BLOB: { // Used by key/value database
+            auto bytes = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
+            int size = sqlite3_column_bytes(_d->sth, column);
+            fixed_packer<std::int64_t> fx;
 
+            if (size != sizeof(fx.bytes))
+                break;
+
+            std::memcpy(fx.bytes, bytes, size);
+            return fx.value;
+        }
         default:
-            // Unexpected column type, need to handle it.
-            PFS__TERMINATE(false, "Unexpected column type");
             break;
     }
 
-    // Unreachable in ordinary situation
-    return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
+    UNSUITABLE_ERROR_BOILERPLATE
+    return pfs::nullopt;
 }
 
 template <>
-std::pair<char *, std::size_t>
-result_t::fetch (std::string const & column_name, char * buffer, std::size_t initial_size, error & err) const
+pfs::optional<double> result_t::get_double (int column, error * perr)
 {
-    if (_d->column_mapping.empty()) {
-        auto count = sqlite3_column_count(_d->sth);
+    CHECK_COLUMN_INDEX_BOILERPLATE
 
-        for (int i = 0; i < count; i++)
-            _d->column_mapping.insert({std::string{sqlite3_column_name(_d->sth, i)}, i});
+    auto column_type = sqlite3_column_type(_d->sth, column);
+
+    switch (column_type) {
+        case SQLITE_FLOAT:
+            return sqlite3_column_double(_d->sth, column);
+        case SQLITE_NULL:
+            return pfs::nullopt;
+        case SQLITE_BLOB: { // Used by key/value database
+            auto bytes = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
+            int size = sqlite3_column_bytes(_d->sth, column);
+            fixed_packer<double> fx;
+
+            if (size != sizeof(fx.bytes))
+                break;
+
+            std::memcpy(fx.bytes, bytes, size);
+            return fx.value;
+        }
+        default:
+            break;
     }
 
-    auto pos = _d->column_mapping.find(column_name);
+    UNSUITABLE_ERROR_BOILERPLATE
+    return pfs::nullopt;
+}
 
-    if (pos == _d->column_mapping.end()) {
-        err = error {
-            errc::column_not_found
-            , tr::f_("bad column name: {}", column_name)
-        };
+template <>
+pfs::optional<std::string> result_t::get_string (int column, error * perr)
+{
+    CHECK_COLUMN_INDEX_BOILERPLATE
 
-        return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
+    auto column_type = sqlite3_column_type(_d->sth, column);
+
+    switch (column_type) {
+        case SQLITE_INTEGER:
+            return std::to_string(sqlite3_column_int64(_d->sth, column));
+        case SQLITE_FLOAT:
+            return std::to_string(sqlite3_column_double(_d->sth, column));
+        case SQLITE_TEXT: {
+            auto chars = reinterpret_cast<char const *>(sqlite3_column_text(_d->sth, column));
+            int size = sqlite3_column_bytes(_d->sth, column);
+            return std::string(chars, size);
+        }
+        case SQLITE_BLOB: {
+            auto bytes = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
+            int size = sqlite3_column_bytes(_d->sth, column);
+            return std::string(bytes, size);
+        }
+        case SQLITE_NULL:
+            return pfs::nullopt;
+        default:
+            break;
     }
 
-    return fetch(pos->second, buffer, initial_size, err);
+    UNSUITABLE_ERROR_BOILERPLATE
+    return pfs::nullopt;
+}
+
+template <>
+pfs::optional<std::int64_t> result_t::get_int64 (std::string const & column_name, error * perr)
+{
+    auto index = _d->column_index(column_name);
+
+    if (index < 0) {
+        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        return 0;
+    }
+
+    return get_int64(index, perr);
+}
+
+template <>
+pfs::optional<double> result_t::get_double (std::string const & column_name, error * perr)
+{
+    auto index = _d->column_index(column_name);
+
+    if (index < 0) {
+        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        return 0;
+    }
+
+    return get_double(index, perr);
+}
+
+template <>
+pfs::optional<std::string> result_t::get_string (std::string const & column_name, error * perr)
+{
+    auto index = _d->column_index(column_name);
+
+    if (index < 0) {
+        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        return std::string{};
+    }
+
+    return get_string(index, perr);
 }
 
 DEBBY__NAMESPACE_END

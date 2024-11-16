@@ -9,13 +9,8 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "oid_enum.hpp"
 #include "result_impl.hpp"
-// #include <pfs/assert.hpp>
-// #include <pfs/endian.hpp>
 #include <pfs/i18n.hpp>
 #include <pfs/integer.hpp>
-// #include <pfs/debby/result.hpp>
-// #include <pfs/debby/backend/psql/result.hpp>
-// #include <cstring>
 //
 DEBBY__NAMESPACE_BEGIN
 
@@ -29,7 +24,7 @@ result_t::result (impl && d)
 }
 
 template <>
-result_t::result (result && other)
+result_t::result (result && other) noexcept
 {
     _d = other._d;
     other._d = nullptr;
@@ -91,7 +86,7 @@ bool result_t::is_error () const noexcept
 template <>
 int result_t::column_count () const noexcept
 {
-    return PQnfields(_d->sth);
+    return _d->field_count;
 }
 
 template <>
@@ -125,13 +120,11 @@ template <>
 std::pair<char *, std::size_t>
 result_t::fetch (int column, char * buffer, std::size_t initial_size, error & err) const
 {
-    auto upper_limit = PQnfields(_d->sth);
-
-    if (column < 0 || column >= upper_limit) {
+    if (column < 0 || column >= _d->field_count) {
         err = error {
               errc::column_not_found
             , tr::f_("bad column: {}, expected greater or equal to 0 and"
-                " less than {}", column, upper_limit)
+                " less than {}", column, _d->field_count)
         };
 
         return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
@@ -157,9 +150,7 @@ result_t::fetch (std::string const & column_name, char * buffer, std::size_t ini
 {
     int column = -1;
 
-    auto upper_limit = PQnfields(_d->sth);
-
-    for (int i = 0; i < upper_limit; i++) {
+    for (int i = 0; i < _d->field_count; i++) {
         auto name = PQfname(_d->sth, i);
 
         if (column_name == name) {

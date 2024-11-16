@@ -66,7 +66,7 @@ public:
         return true;
     }
 
-    database_t::statement_type prepare (std::string const & sql, bool cache, error * perr)
+    database_t::statement_type prepare (std::string const & sql, error * perr)
     {
         if (_dbh == nullptr)
             return database_t::statement_type{};
@@ -77,7 +77,7 @@ public:
         if (pos != _cache.end()) {
             sqlite3_reset(pos->second);
             sqlite3_clear_bindings(pos->second);
-            statement_t::impl d{pos->second, true};
+            statement_t::impl d{pos->second};
             return database_t::statement_type {std::move(d)};
         }
 
@@ -90,16 +90,14 @@ public:
             return database_t::statement_type{};
         }
 
-        if (cache) {
-            auto res = _cache.emplace(sql, sth);
+        auto res = _cache.emplace(sql, sth);
 
-            if (!res.second) {
-                pfs::throw_or(perr, error{pfs::errc::unexpected_error, tr::_("key must be unique")});
-                return database_t::statement_type{};
-            }
+        if (!res.second) {
+            pfs::throw_or(perr, error{pfs::errc::unexpected_error, tr::_("key must be unique")});
+            return database_t::statement_type{};
         }
 
-        statement_t::impl d{sth, cache};
+        statement_t::impl d{sth};
         return database_t::statement_type{std::move(d)};
     }
 };

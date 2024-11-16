@@ -46,10 +46,10 @@ public:
         // NOTE: Unable to delete row using query() call. Only using prepared statement is successful.
         //this->query(sql, perr);
 
-        auto stmt = this->prepare(sql, true, & err);
+        auto stmt = this->prepare(sql, & err);
 
         if (!err) {
-            stmt.bind(0, key.c_str(), key.size(), & err);
+            stmt.bind(1, key.c_str(), key.size(), & err);
 
             if (!err)
                 stmt.exec(& err);
@@ -68,12 +68,12 @@ public:
             remove(key, perr);
 
         error err;
-        std::string sql =  fmt::format("INSERT OR REPLACE INTO '{}' (key, value) VALUES (?, ?)", _table_name);
-        auto stmt = this->prepare(sql, true, & err);
+        std::string sql = fmt::format("INSERT OR REPLACE INTO '{}' (key, value) VALUES (?, ?)", _table_name);
+        auto stmt = this->prepare(sql, & err);
 
         if (!err) {
-            stmt.bind(0, key.c_str(), key.size(), & err)
-                && stmt.bind(1, data, len, & err);
+            stmt.bind(1, key.c_str(), key.size(), & err)
+                && stmt.bind(2, data, len, & err);
 
             if (!err)
                 stmt.exec(& err);
@@ -92,19 +92,23 @@ public:
     {
         error err;
         std::string sql = fmt::format("SELECT value FROM '{}' WHERE key=?", _table_name);
-        auto stmt = this->prepare(sql, true, & err);
+        auto stmt = this->prepare(sql, & err);
 
         if (!err) {
-            stmt.bind(0, key.c_str(), key.size(), & err);
+            stmt.bind(1, key.c_str(), key.size(), & err);
 
             if (!err) {
                 auto res = stmt.exec(& err);
 
                 if (!err) {
-                    if (res.has_more())
-                        return res.get<T>(0, & err);
+                    if (res.has_more()) {
+                        auto opt = res.get<T>(0, & err);
 
-                    err = error {errc::key_not_found, tr::f_("key not found: '{}'", key)};
+                        if (opt)
+                            return *opt;
+                    } else {
+                        err = error {errc::key_not_found, tr::f_("key not found: '{}'", key)};
+                    }
                 }
             }
         }
@@ -135,7 +139,7 @@ void keyvalue_database_t::set_arithmetic (key_type const & key, std::int64_t val
     char buf[sizeof(fixed_packer<std::int64_t>)];
     auto p = new (buf) fixed_packer<std::int64_t>{};
     p->value = value;
-    _d->put(key, buf, size, perr);
+    _d->put(key, buf, sizeof(std::int64_t), perr);
 }
 
 template <>
