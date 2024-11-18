@@ -36,10 +36,8 @@ public:
     ~impl ()
     {
         if (_sth != nullptr) {
-            // if (!_cached)
-            //     sqlite3_finalize(_sth);
-            // else
-                sqlite3_reset(_sth);
+            sqlite3_reset(_sth);
+            sqlite3_finalize(_sth);
         }
 
         _sth = nullptr;
@@ -51,8 +49,7 @@ public:
         return _sth;
     }
 
-    statement_t::result_type exec (error * perr);
+    statement_t::result_type exec (bool move_handle_ownership, error * perr);
 };
 
 DEBBY__NAMESPACE_END
-

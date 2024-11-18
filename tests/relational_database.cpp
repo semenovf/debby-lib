@@ -50,7 +50,7 @@ void check (RelationalDatabaseType & db_opened)
     db = std::move(db_opened);
 
     db.remove_all();
-    
+
     REQUIRE_FALSE(db.exists("one"));
     REQUIRE_FALSE(db.exists("two"));
     REQUIRE_FALSE(db.exists("three"));
@@ -59,6 +59,24 @@ void check (RelationalDatabaseType & db_opened)
     db.query(CREATE_TABLE_ONE);
     db.query(CREATE_TABLE_TWO);
     db.query(CREATE_TABLE_THREE);
+
+    db.query("INSERT INTO one (col) VALUES (42)");
+    db.query("INSERT INTO one (col) VALUES (43)");
+    db.query("INSERT INTO one (col) VALUES (44)");
+
+    {
+        auto res = db.exec("SELECT * from one");
+
+        int value = 42;
+
+        while (res.has_more()) {
+            auto x = res.template get<int>(0);
+            CHECK_EQ(*x, value++);
+            res.next();
+        }
+
+        // result destroyed here, so database not locked
+    }
 
     REQUIRE(db.exists("one"));
     REQUIRE(db.exists("two"));

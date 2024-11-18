@@ -7,6 +7,7 @@
 //      2024.11.13 Initial version (moved from relational_database.cpp).
 ////////////////////////////////////////////////////////////////////////////////
 #include "statement_impl.hpp"
+#include "result_impl.hpp"
 #include "debby/relational_database.hpp"
 #include "sqlite3.h"
 #include "utils.hpp"
@@ -64,6 +65,20 @@ public:
         }
 
         return true;
+    }
+
+    database_t::result_type exec (std::string const & sql, error * perr)
+    {
+        struct sqlite3_stmt * sth {nullptr};
+
+        auto rc = sqlite3_prepare_v2(_dbh, sql.c_str(), static_cast<int>(sql.size()), & sth, nullptr);
+
+        if (SQLITE_OK != rc) {
+            pfs::throw_or(perr, error{errc::sql_error, sqlite3::build_errstr(rc, _dbh), sql});
+            return database_t::result_type{};
+        }
+
+        return statement_t::impl{sth}.exec(true, perr);
     }
 
     database_t::statement_type prepare (std::string const & sql, error * perr)

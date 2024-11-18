@@ -23,14 +23,12 @@
 DEBBY__NAMESPACE_BEGIN
 
 template <backend_enum Backend>
-class relational_database;
-
-template <backend_enum Backend>
 class relational_database
 {
 public:
     class impl;
     using statement_type = statement<Backend>;
+    using result_type = result<Backend>;
 
 private:
     std::unique_ptr<impl> _d;
@@ -70,6 +68,13 @@ public:
      * @throw debby::error on error.
      */
     DEBBY__EXPORT void query (std::string const & sql, error * perr = nullptr);
+
+    /**
+     * Executes SQL query and return result.
+     *
+     * @throw debby::error on error if @a perr equals to @c nullptr.
+     */
+    DEBBY__EXPORT result_type exec (std::string const & sql, error * perr = nullptr);
 
     /**
      * Lists available tables at database by pattern.

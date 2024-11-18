@@ -35,12 +35,17 @@ public:
     int column_count {0};
     mutable std::unordered_map<std::string, int> column_mapping;
 
+private:
+    bool _handle_owned {false};
+
 public:
-    impl (handle_type h, status s) noexcept
+    impl (handle_type & h, status s, bool own_handle) noexcept
         : sth(h)
         , state(s)
+        , _handle_owned(own_handle)
     {
         column_count =  sqlite3_column_count(sth);
+        h = nullptr;
     }
 
     impl (impl && other) noexcept
@@ -50,13 +55,25 @@ public:
         error_code = other.error_code;
         column_count = other.column_count;
         column_mapping = std::move(other.column_mapping);
+        _handle_owned = other._handle_owned;
 
         other.sth = nullptr;
+        other._handle_owned = false;
+    }
+
+    ~impl ()
+    {
+        if (sth != nullptr && _handle_owned) {
+            sqlite3_reset(sth);
+            sqlite3_finalize(sth);
+        }
+
+        sth = nullptr;
     }
 
 public:
     /**
-     * @return Column index started from 0 and -1 if column not found 
+     * @return Column index started from 0 and -1 if column not found
      */
     int column_index (std::string const & column_name)
     {
@@ -75,4 +92,3 @@ public:
 };
 
 DEBBY__NAMESPACE_END
-

@@ -18,7 +18,7 @@
 
 DEBBY__NAMESPACE_BEGIN
 
-statement_t::result_type statement_t::impl::exec (error * perr)
+statement_t::result_type statement_t::impl::exec (bool move_handle_ownership, error * perr)
 {
     std::error_code ec;
     result_t::impl::status status {result_t::impl::INITIAL};
@@ -65,7 +65,7 @@ statement_t::result_type statement_t::impl::exec (error * perr)
     if (rc != SQLITE_ROW)
         sqlite3_reset(_sth);
 
-    return result_t{result_t::impl{_sth, status}};
+    return result_t{result_t::impl{_sth, status, move_handle_ownership}};
 }
 
 template <>
@@ -259,7 +259,7 @@ bool statement_t::bind (char const * placeholder, char const * ptr, std::size_t 
 template <>
 statement_t::result_type statement_t::exec (error * perr)
 {
-    return _d->exec(perr);
+    return _d->exec(false, perr);
 }
 
 DEBBY__NAMESPACE_END
