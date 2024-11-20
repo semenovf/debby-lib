@@ -7,20 +7,14 @@
 #       2021.11.24 Initial version.
 #       2021.12.10 Refactored for using portable_target `ADD_TEST`.
 #       2024.10.27 Removed `portable_target` dependency.
+#       2024.11.20 Removed obsolete tests.
 ################################################################################
 project(debby-TESTS CXX C)
 
 list(APPEND TESTS
     keyvalue_database
-    # psql_affinity
-    # psql_cast_traits
     relational_database
-    # sqlite3_affinity
-    # sqlite3_cast_traits
-    statement
-    # cached_statement
-    # unified_value
-)
+    statement)
 
 foreach (target ${TESTS})
     add_executable(${target} ${target}.cpp)
