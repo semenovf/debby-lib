@@ -50,7 +50,7 @@ private:
 
 public:
     DEBBY__EXPORT result ();
-    DEBBY__EXPORT result (impl && d);
+    DEBBY__EXPORT result (impl && d) noexcept;
     DEBBY__EXPORT result (result && other) noexcept;
     DEBBY__EXPORT ~result ();
 

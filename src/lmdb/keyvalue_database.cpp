@@ -7,7 +7,7 @@
 //      2023.07.13 Initial version.
 //      2024.11.04 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../kv_common.hpp"
+#include "../keyvalue_database_common.hpp"
 #include "debby/keyvalue_database.hpp"
 #include "debby/lmdb.hpp"
 #include "lib/lmdb.h"

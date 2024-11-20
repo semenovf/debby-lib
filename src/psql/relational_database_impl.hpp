@@ -7,6 +7,7 @@
 //      2024.11.14 Initial version (moved from relational_database.cpp).
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/relational_database.hpp"
+#include "result_impl.hpp"
 #include "statement_impl.hpp"
 #include "utils.hpp"
 #include <pfs/i18n.hpp>
@@ -48,7 +49,7 @@ public:
     }
 
 public:
-    bool query (std::string const & sql, error * perr)
+    database_t::result_type exec (std::string const & sql, error * perr)
     {
         PGresult * res = PQexec(_dbh, sql.c_str());
 
@@ -58,13 +59,11 @@ public:
                 , tr::f_("query execution failure: {}: {}", sql, psql::build_errstr(_dbh))
             });
 
-            return false;
+            return database_t::result_type{};
         }
 
         ExecStatusType status = PQresultStatus(res);
-        bool r = (status == PGRES_COMMAND_OK);
-
-        PQclear(res);
+        bool r = (status == PGRES_COMMAND_OK || status == PGRES_TUPLES_OK);
 
         if (!r) {
             if (status == PGRES_FATAL_ERROR) {
@@ -79,10 +78,18 @@ public:
                 });
             }
 
-            return false;
+            PQclear(res);
+            return database_t::result_type{};
         }
 
-        return true;
+        result_type::impl d{res};
+        return database_t::result_type{std::move(d)};
+    }
+
+    bool query (std::string const & sql, error * perr)
+    {
+        auto res = this->exec(sql, perr);
+        return !!res;
     }
 
     database_t::statement_type prepare (std::string const & sql, error * perr)
@@ -90,29 +97,26 @@ public:
         if (_dbh == nullptr)
             return database_t::statement_type{};
 
-        // Check already prepared
-        // if (cache) {
-            auto res = PQdescribePrepared(_dbh, sql.c_str());
+        auto res = PQdescribePrepared(_dbh, sql.c_str());
 
-            if (res) {
-                ExecStatusType status = PQresultStatus(res);
+        if (res) {
+            ExecStatusType status = PQresultStatus(res);
 
-                if (status == PGRES_COMMAND_OK) {
-                    statement_t::impl d{_dbh, sql};
-                    return database_t::statement_type {std::move(d)};
-                }
-            } else {
-                pfs::throw_or(perr, error {
-                      errc::backend_error
-                    , tr::f_("check prepared statement existence failure: {}: {}"
-                        , sql, psql::build_errstr(_dbh))
-                });
-
-                return database_t::statement_type{};
+            if (status == PGRES_COMMAND_OK) {
+                statement_t::impl d{_dbh, sql};
+                return database_t::statement_type {std::move(d)};
             }
-        // }
+        } else {
+            pfs::throw_or(perr, error {
+                  errc::backend_error
+                , tr::f_("check prepared statement existence failure: {}: {}"
+                    , sql, psql::build_errstr(_dbh))
+            });
 
-        PGresult * sth = PQprepare(_dbh, sql.c_str() /*cache ? sql.c_str() : ""*/, sql.c_str(), 0, nullptr);
+            return database_t::statement_type{};
+        }
+
+        PGresult * sth = PQprepare(_dbh, sql.c_str(), sql.c_str(), 0, nullptr);
 
         if (sth == nullptr) {
             pfs::throw_or(perr, error {

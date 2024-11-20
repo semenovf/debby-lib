@@ -7,7 +7,7 @@
 //      2023.02.06 Initial version.
 //      2024.11.10 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../kv_common.hpp"
+#include "../keyvalue_database_common.hpp"
 #include "debby/keyvalue_database.hpp"
 #include "debby/mdbx.hpp"
 #include "lib/mdbx.h"
@@ -134,7 +134,7 @@ public:
 
             if (rc != MDBX_SUCCESS)
                 break;
-        
+
             //rc = mdbx_env_set_maxdbs(rep.env, sizeof(DB_NAMES) / sizeof(DB_NAMES[0]));
             //if (rc != MDBX_SUCCESS)
             //    break;
@@ -165,12 +165,12 @@ public:
         if (rc != MDBX_SUCCESS) {
             if (txn)
                 mdbx_txn_abort(txn);
-        
+
             if (dbh) {
                 mdbx_dbi_close(env, dbh);
                 dbh = 0;
             }
-        
+
             if (env != nullptr) {
                 mdbx_env_close(env);
                 env = nullptr;

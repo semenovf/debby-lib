@@ -132,7 +132,7 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
 
         auto result = stmt.exec();
         REQUIRE(result.is_done());
-        // REQUIRE_EQ(db.rows_count(TABLE_NAME), 1); // FIXME UNCOMMENT
+        REQUIRE_EQ(db.rows_count(TABLE_NAME), 1);
     }
 
     {
@@ -193,8 +193,8 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
             CHECK_EQ(result.template get_or<std::int64_t>("int", 0), -42);
             CHECK_EQ(result.template get_or<std::uint64_t>("uint", 0), 42);
 
-            CHECK(std::abs(result.template get_or<float>("float", 0) - static_cast<float>(3.14159)) < float{0.001});
-            CHECK(std::abs(result.template get_or<double>("double", 0) - static_cast<double>(3.14159)) < double(0.001));
+            CHECK(std::abs(result.template get_or<float>("float", 0) - float{3.14159}) < float{0.001});
+            CHECK(std::abs(result.template get_or<double>("double", 0) - double{3.14159}) < double{0.001});
             CHECK_EQ(result.template get_or<std::string>("text", ""), std::string{"Hello"});
 
             result.next();
@@ -237,7 +237,7 @@ TEST_CASE("sqlite3") {
     auto db = database_t::make(db_path);
 
     REQUIRE(db);
-    
+
     check(db, INSERT_SQLITE3);
     prepared_select(db, SELECT_SQLITE3);
 

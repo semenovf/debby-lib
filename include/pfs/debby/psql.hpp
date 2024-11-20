@@ -10,6 +10,7 @@
 #include "error.hpp"
 #include "exports.hpp"
 #include "namespace.hpp"
+#include "keyvalue_database.hpp"
 #include "relational_database.hpp"
 
 DEBBY__NAMESPACE_BEGIN
@@ -83,6 +84,18 @@ make (ForwardIt first, ForwardIt last, notice_processor_type proc, error * perr 
 DEBBY__EXPORT
 bool wipe (std::string const & db_name, std::string const & conninfo, error * perr);
 
+DEBBY__EXPORT
+keyvalue_database<backend_enum::psql>
+make_kv (std::string const & conninfo, std::string const & table_name, error * perr = nullptr);
+
+template <typename ForwardIt>
+inline keyvalue_database<backend_enum::psql>
+make_kv (ForwardIt first, ForwardIt last, std::string const & table_name, error * perr = nullptr)
+{
+    auto conninfo = build_conninfo(first, last);
+    return make_kv(conninfo, table_name, perr);
+}
+
 } // namespace psql
 
 template<>
@@ -100,5 +113,12 @@ inline bool relational_database<backend_enum::psql>::wipe (Args &&... args)
     return psql::wipe(std::forward<Args>(args)...);
 }
 
-DEBBY__NAMESPACE_END
+template<>
+template <typename ...Args>
+inline keyvalue_database<backend_enum::psql>
+keyvalue_database<backend_enum::psql>::make (Args &&... args)
+{
+    return keyvalue_database<backend_enum::psql>{psql::make_kv(std::forward<Args>(args)...)};
+}
 
+DEBBY__NAMESPACE_END

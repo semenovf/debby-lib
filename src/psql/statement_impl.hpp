@@ -96,7 +96,7 @@ public:
         _param_transient_values[index] = std::to_string(value);
         _param_values[index] = nullptr; // nullptr -> expected transient value
         _param_lengths[index] = _param_transient_values[index].size();
-        _param_formats[index] = 0;
+        _param_formats[index] = 0; // text format
         return true;
     }
 
@@ -108,7 +108,7 @@ public:
         ensure_capacity(index);
         _param_values[index] = nullptr;
         _param_lengths[index] = 0;
-        _param_formats[index] = 1;
+        _param_formats[index] = 1; // binary format (no matter)
         return true;
     }
 
@@ -121,7 +121,20 @@ public:
         _param_transient_values[index] = std::move(value);
         _param_values[index] = nullptr; // nullptr -> expected transient value
         _param_lengths[index] = _param_transient_values[index].size();
-        _param_formats[index] = 0;
+        _param_formats[index] = 0; // text format
+        return true;
+    }
+
+    bool bind_helper (int index, char const * data, std::size_t const len)
+    {
+        // Bind indexing started from 1
+        --index;
+
+        ensure_capacity(index);
+        _param_transient_values[index] = std::move(std::string(data, len));
+        _param_values[index] = nullptr; // nullptr -> expected transient value
+        _param_lengths[index] = _param_transient_values[index].size();
+        _param_formats[index] = 1; // binary format
         return true;
     }
 

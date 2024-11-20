@@ -6,7 +6,7 @@
 // Changelog:
 //      2024.11.04 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../kv_common.hpp"
+#include "../keyvalue_database_common.hpp"
 #include <pfs/assert.hpp>
 #include <pfs/variant.hpp>
 #include <mutex>

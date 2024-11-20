@@ -23,7 +23,7 @@ template <>
 result_t::result () {}
 
 template <>
-result_t::result (impl && d)
+result_t::result (impl && d) noexcept
 {
     _d = new impl(std::move(d));
 }

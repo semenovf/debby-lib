@@ -9,8 +9,10 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "oid_enum.hpp"
 #include "result_impl.hpp"
+#include <pfs/endian.hpp>
 #include <pfs/i18n.hpp>
 #include <pfs/integer.hpp>
+#include <pfs/real.hpp>
 //
 DEBBY__NAMESPACE_BEGIN
 
@@ -18,7 +20,7 @@ template <>
 result_t::result () = default;
 
 template <>
-result_t::result (impl && d)
+result_t::result (impl && d) noexcept
 {
     _d = new impl(std::move(d));
 }
@@ -42,7 +44,7 @@ result_t::~result ()
 template <>
 int result_t::rows_affected () const
 {
-    char * str = PQcmdTuples(_d->sth);
+    char const * str = PQcmdTuples(_d->sth);
 
     if (str == nullptr)
         return 0;
@@ -86,7 +88,7 @@ bool result_t::is_error () const noexcept
 template <>
 int result_t::column_count () const noexcept
 {
-    return _d->field_count;
+    return _d->column_count;
 }
 
 template <>
@@ -106,69 +108,244 @@ void result_t::next ()
     }
 }
 
-inline char * ensure_capacity (char * buffer, std::size_t size, std::size_t requred_size)
-{
-    if (size < requred_size) {
-        buffer = new char[requred_size];
-        return buffer;
-    }
+#define CHECK_COLUMN_INDEX_BOILERPLATE                                           \
+    if (column < 0 || column >= _d->column_count) {                             \
+        pfs::throw_or(perr, error {                                             \
+              errc::column_not_found                                            \
+            , tr::f_("bad column index: {}, expected greater or equal to 0 and" \
+                " less than {}", column, _d->column_count)                      \
+        });                                                                     \
+        return pfs::nullopt;                                                    \
+    }                                                                           \
+    auto is_null = PQgetisnull(_d->sth, _d->row_index, column) != 0;            \
+    if (is_null)                                                                \
+        return pfs::nullopt;
 
-    return buffer;
-}
+
+#define UNSUITABLE_ERROR_BOILERPLATE \
+    pfs::throw_or(perr, error {errc::bad_value, tr::f_("unsuitable column type at index {}", column)});
 
 template <>
-std::pair<char *, std::size_t>
-result_t::fetch (int column, char * buffer, std::size_t initial_size, error & err) const
+pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
 {
-    if (column < 0 || column >= _d->field_count) {
-        err = error {
-              errc::column_not_found
-            , tr::f_("bad column: {}, expected greater or equal to 0 and"
-                " less than {}", column, _d->field_count)
-        };
+    CHECK_COLUMN_INDEX_BOILERPLATE
 
-        return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
-    }
-
-    auto is_null = PQgetisnull(_d->sth, _d->row_index, column) != 0;
-
-    if (is_null)
-        return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
-
-    //auto column_type = static_cast<psql::oid_enum>(PQftype(_d->sth, column));
-    auto raw_data = reinterpret_cast<char const *>(PQgetvalue(_d->sth, _d->row_index, column));
     int size = PQgetlength(_d->sth, _d->row_index, column);
 
-    buffer = ensure_capacity(buffer, initial_size, size);
-    std::memcpy(buffer, raw_data, size);
-    return std::make_pair(buffer, size);
+    if (size == 0)
+        return pfs::nullopt;
+
+    auto t = static_cast<psql::oid_enum>(PQftype(_d->sth, column));
+
+    switch (t) {
+        case psql::oid_enum::int16:
+        case psql::oid_enum::int32:
+        case psql::oid_enum::int64: {
+            std::error_code ec;
+            auto raw_data = PQgetvalue(_d->sth, _d->row_index, column);
+            auto x = pfs::to_integer<std::int64_t>(raw_data, raw_data + size, ec);
+
+            if (ec) {
+                pfs::throw_or(perr, error {errc::bad_value, tr::f_("parse integer stored at column {} failure: {}"
+                    , column, ec.message())});
+                return pfs::nullopt;
+            }
+
+            return x;
+        }
+
+        case psql::oid_enum::boolean: {
+            auto raw_data = PQgetvalue(_d->sth, _d->row_index, column);
+            return raw_data[0] == 't' ? static_cast<std::int64_t>(true) : static_cast<std::int64_t>(false);
+        }
+
+        // Typically used by key/value database
+        case psql::oid_enum::blob: {
+            std::error_code ec;
+            auto raw_data = PQgetvalue(_d->sth, _d->row_index, column);
+            auto is_suitable = (size > 2 && size % 2 == 0 && raw_data[0] == '\\' && raw_data[1] == 'x');
+
+            if (!is_suitable)
+                break;
+
+            auto x = pfs::to_integer<std::uint64_t>(raw_data + 2, raw_data + size, 16, ec);
+            x = static_cast<std::int64_t>(pfs::to_native_order(x));
+
+            if (ec) {
+                pfs::throw_or(perr, error {errc::bad_value, tr::f_("parse integer stored at column {} failure: {}"
+                    , column, ec.message())});
+                return pfs::nullopt;
+            }
+
+            return x;
+        }
+
+        default:
+            break;
+    }
+
+    UNSUITABLE_ERROR_BOILERPLATE
+    return pfs::nullopt;
 }
 
 template <>
-std::pair<char *, std::size_t>
-result_t::fetch (std::string const & column_name, char * buffer, std::size_t initial_size, error & err) const
+pfs::optional<double> result_t::get_double (int column, error * perr)
 {
-    int column = -1;
+    CHECK_COLUMN_INDEX_BOILERPLATE
 
-    for (int i = 0; i < _d->field_count; i++) {
-        auto name = PQfname(_d->sth, i);
+    int size = PQgetlength(_d->sth, _d->row_index, column);
 
-        if (column_name == name) {
-            column = i;
-            break;
+    if (size == 0)
+        return pfs::nullopt;
+
+    auto t = static_cast<psql::oid_enum>(PQftype(_d->sth, column));
+
+    switch (t) {
+        case psql::oid_enum::float32:
+        case psql::oid_enum::float64: {
+            auto raw_data = PQgetvalue(_d->sth, _d->row_index, column);
+            auto opt = pfs::to_real<double>(raw_data, raw_data + size, '.');
+            return opt;
         }
+
+        // Typically used by key/value database
+        case psql::oid_enum::blob: {
+            std::error_code ec;
+            auto raw_data = PQgetvalue(_d->sth, _d->row_index, column);
+            auto is_suitable = (size > 2 && size % 2 == 0 && raw_data[0] == '\\' && raw_data[1] == 'x');
+
+            if (!is_suitable)
+                break;
+
+            static_assert(sizeof(double) == sizeof(std::int64_t), "Expected sizeof double equals to 64-bit integer");
+
+            union {
+                double f;
+                std::uint64_t i;
+            } n;
+
+            n.i = pfs::to_integer<std::uint64_t>(raw_data + 2, raw_data + size, 16, ec);
+            n.i = pfs::to_native_order(n.i);
+
+            if (ec) {
+                pfs::throw_or(perr, error {errc::bad_value, tr::f_("parse integer stored at column {} failure: {}"
+                    , column, ec.message())});
+                return pfs::nullopt;
+            }
+
+            return n.f;
+        }
+
+        default:
+            break;
     }
 
-    if (column < 0) {
-        err = error {
-            errc::column_not_found
-            , tr::f_("bad column name: {}", column_name)
-        };
+    UNSUITABLE_ERROR_BOILERPLATE
+    return pfs::nullopt;
+}
 
-        return std::make_pair(static_cast<char *>(nullptr), std::size_t{0});
+inline int from_hex_char (char ch)
+{
+    if (ch >= '0' && ch <= '9')
+        return int{ch - '0'};
+
+    if (ch >= 'a' && ch <= 'f')
+        return int{ch - 'a'} + 10;
+
+    if (ch >= 'A' && ch <= 'F')
+        return int{ch - 'A'} + 10;
+
+    return -1;
+}
+
+template <>
+pfs::optional<std::string> result_t::get_string (int column, error * perr)
+{
+    CHECK_COLUMN_INDEX_BOILERPLATE
+
+    int size = PQgetlength(_d->sth, _d->row_index, column);
+
+    if (size == 0)
+        return pfs::nullopt;
+
+    auto t = static_cast<psql::oid_enum>(PQftype(_d->sth, column));
+
+    switch (t) {
+        // Typically used by key/value database
+        case psql::oid_enum::blob: {
+            std::error_code ec;
+            auto raw_data = PQgetvalue(_d->sth, _d->row_index, column);
+            auto is_suitable = (size > 2 && size % 2 == 0 && raw_data[0] == '\\' && raw_data[1] == 'x');
+
+            if (!is_suitable)
+                break;
+
+            bool success = true;
+            std::string x;
+            x.reserve(size - 2);
+
+            for (int i = 2; i < size; i += 2) {
+                auto a = from_hex_char(raw_data[i]);
+                auto b = from_hex_char(raw_data[i + 1]);
+
+                if (a < 0 || b < 0) {
+                    success = false;
+                    break;
+                }
+
+                int ch = a * 16 + b;
+                x += static_cast<char>(ch);
+            }
+
+            if (success)
+                return x;
+        }
+
+        default:
+            break;
     }
 
-    return fetch(column, buffer, initial_size, err);
+    auto raw_data = reinterpret_cast<char const *>(PQgetvalue(_d->sth, _d->row_index, column));
+    return std::string(raw_data, size);
+}
+
+template <>
+pfs::optional<std::int64_t> result_t::get_int64 (std::string const & column_name, error * perr)
+{
+    auto index = _d->column_index(column_name);
+
+    if (index < 0) {
+        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        return 0;
+    }
+
+    return get_int64(index, perr);
+}
+
+template <>
+pfs::optional<double> result_t::get_double (std::string const & column_name, error * perr)
+{
+    auto index = _d->column_index(column_name);
+
+    if (index < 0) {
+        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        return 0;
+    }
+
+    return get_double(index, perr);
+}
+
+template <>
+pfs::optional<std::string> result_t::get_string (std::string const & column_name, error * perr)
+{
+    auto index = _d->column_index(column_name);
+
+    if (index < 0) {
+        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        return std::string{};
+    }
+
+    return get_string(index, perr);
 }
 
 DEBBY__NAMESPACE_END

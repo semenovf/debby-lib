@@ -38,10 +38,10 @@
 #   include "pfs/debby/rocksdb.hpp"
 #endif
 
-// #if DEBBY__PSQL_ENABLED
-// #   include "pfs/debby/backend/psql/database.hpp"
-// #   include "psql_support.hpp"
-// #endif
+#if DEBBY__PSQL_ENABLED
+#   include "pfs/debby/psql.hpp"
+#   include "psql_support.hpp"
+#endif
 
 namespace fs = pfs::filesystem;
 
@@ -214,29 +214,27 @@ TEST_CASE("rocksdb set/get") {
 
 #if DEBBY__SQLITE3_ENABLED
  TEST_CASE("sqlite3 set/get") {
-     using database_t = debby::keyvalue_database<debby::backend_enum::sqlite3>;
-     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3-kv.db");
-     auto db = database_t::make(db_path, "test-kv", true);
-     db.clear();
-     check(std::move(db));
+    using database_t = debby::keyvalue_database<debby::backend_enum::sqlite3>;
+    auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-sqlite3-kv.db");
+    auto db = database_t::make(db_path, "test-kv", true);
+    db.clear();
+    check(std::move(db));
 }
 #endif
 
 #if DEBBY__PSQL_ENABLED
 TEST_CASE("PostgreSQL set/get") {
-    // using database_t = debby::keyvalue_database<debby::backend::psql::database>;
-    // using settings_t = debby::settings<debby::backend::psql::database>;
-    //
-    // auto conninfo = psql_conninfo();
-    // auto db = database_t::make("debby-kv", conninfo.cbegin(), conninfo.cend());
-    //
-    // if (!db) {
-    //     MESSAGE(preconditions_notice);
-    // }
-    //
-    // REQUIRE(db);
-    //
-    // check_keyvalue_database(db);
-    // // check_persistance_storage<debby::backend::sqlite3::database>(db_path);
+    using database_t = debby::keyvalue_database<debby::backend_enum::psql>;
+    auto conninfo = psql_conninfo();
+    auto db = database_t::make(conninfo.cbegin(), conninfo.cend(), "debby-kv");
+
+    if (!db) {
+        MESSAGE(preconditions_notice);
+    }
+
+    REQUIRE(db);
+
+    db.clear();
+    check(std::move(db));
 }
 #endif

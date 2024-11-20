@@ -34,7 +34,8 @@ inline error make_key_not_found_error (std::string const & key)
 }
 
 template <backend_enum Backend>
-keyvalue_database<Backend>::keyvalue_database () = default;
+keyvalue_database<Backend>::keyvalue_database ()
+{}
 
 template <backend_enum Backend>
 keyvalue_database<Backend>::keyvalue_database (impl && d) noexcept
@@ -47,7 +48,7 @@ keyvalue_database<Backend>::keyvalue_database (keyvalue_database && other) noexc
 {}
 
 template <backend_enum Backend>
-keyvalue_database<Backend>::~keyvalue_database () 
+keyvalue_database<Backend>::~keyvalue_database ()
 {};
 
 template <backend_enum Backend>

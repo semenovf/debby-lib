@@ -4,21 +4,22 @@
 // This file is part of `debby-lib`.
 //
 // Changelog:
-//      2024.11.04 Initial version.
+//      2024.11.20 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../keyvalue_database_common.hpp"
 #include "../keyvalue_database_impl.hpp"
 #include "relational_database_impl.hpp"
-#include "debby/sqlite3.hpp"
+#include "debby/keyvalue_database.hpp"
+#include "debby/psql.hpp"
 #include <pfs/fmt.hpp>
 
 DEBBY__NAMESPACE_BEGIN
 
-using keyvalue_database_t = keyvalue_database<backend_enum::sqlite3>;
+using keyvalue_database_t = keyvalue_database<backend_enum::psql>;
 
-template<> char const * keyvalue_database_t::impl::REMOVE_SQL = R"(DELETE FROM "{}" WHERE key=?)";
-template<> char const * keyvalue_database_t::impl::PUT_SQL = R"(INSERT OR REPLACE INTO "{}" (key, value) VALUES (?, ?))";
-template<> char const * keyvalue_database_t::impl::GET_SQL = R"(SELECT value FROM "{}" WHERE key=?)";
+template<> char const * keyvalue_database_t::impl::REMOVE_SQL = R"(DELETE FROM "{}" WHERE key=$1)";
+template<> char const * keyvalue_database_t::impl::PUT_SQL = R"(INSERT INTO "{}" (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET key=$1, value=$2)";
+template<> char const * keyvalue_database_t::impl::GET_SQL = R"(SELECT value FROM "{}" WHERE key=$1)";
 
 template keyvalue_database_t::keyvalue_database ();
 template keyvalue_database_t::keyvalue_database (impl && d) noexcept;
@@ -35,21 +36,13 @@ template std::int64_t keyvalue_database_t::get_int64 (key_type const & key, erro
 template double keyvalue_database_t::get_double (key_type const & key, error * perr);
 template std::string keyvalue_database_t::get_string (key_type const & key, error * perr);
 
-namespace sqlite3 {
+namespace psql {
 
-keyvalue_database<backend_enum::sqlite3>
-make_kv (pfs::filesystem::path const & path, std::string const & table_name, bool create_if_missing
-    , error * perr)
-{
-    return make_kv(path, table_name, create_if_missing, preset_enum::DEFAULT_PRESET, perr);
-}
-
-keyvalue_database<backend_enum::sqlite3>
-make_kv (pfs::filesystem::path const & path, std::string const & table_name, bool create_if_missing
-    , preset_enum preset, error * perr)
+keyvalue_database_t
+make_kv (std::string const & conninfo, std::string const & table_name, error * perr)
 {
     error err;
-    auto db = make(path, create_if_missing, preset, & err);
+    auto db = make(conninfo, & err);
 
     if (err) {
         pfs::throw_or(perr, std::move(err));
@@ -57,8 +50,7 @@ make_kv (pfs::filesystem::path const & path, std::string const & table_name, boo
     }
 
     std::string sql = fmt::format("CREATE TABLE IF NOT EXISTS \"{}\""
-        " (key TEXT NOT NULL UNIQUE, value BLOB"
-        " , PRIMARY KEY(key)) WITHOUT ROWID", table_name);
+        " (key TEXT NOT NULL UNIQUE, value BYTEA, PRIMARY KEY(key))", table_name);
 
     db.query(sql, & err);
 
@@ -71,6 +63,6 @@ make_kv (pfs::filesystem::path const & path, std::string const & table_name, boo
     return keyvalue_database_t{std::move(d)};
 }
 
-} // namespace backend::sqlite3
+} // namespace backend::psql
 
 DEBBY__NAMESPACE_END

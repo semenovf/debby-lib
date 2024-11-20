@@ -11,7 +11,8 @@
 DEBBY__NAMESPACE_BEGIN
 
 template <backend_enum Backend>
-relational_database<Backend>::relational_database () = default;
+relational_database<Backend>::relational_database ()
+{}
 
 template <backend_enum Backend>
 relational_database<Backend>::relational_database (impl && d) noexcept
@@ -24,7 +25,8 @@ relational_database<Backend>::relational_database (relational_database && other)
 {}
 
 template <backend_enum Backend>
-relational_database<Backend>::~relational_database () = default;
+relational_database<Backend>::~relational_database ()
+{}
 
 template <backend_enum Backend>
 relational_database<Backend> & relational_database<Backend>::operator = (relational_database && other) noexcept
@@ -40,23 +42,19 @@ relational_database<Backend>::rows_count (std::string const & table_name, error 
     std::size_t count = 0;
     std::string sql = fmt::format("SELECT COUNT(1) as count FROM \"{}\"", table_name);
 
-    statement_type stmt = prepare(sql, perr);
+    auto res = exec(sql, perr);
 
-    if (stmt) {
-        auto res = stmt.exec();
+    if (res) {
+        if (res.has_more()) {
+            count = *res.template get<std::size_t>(0);
 
-        if (res) {
-            if (res.has_more()) {
-                count = *res.template get<std::size_t>(0);
-
-                // May be `sql_error` exception
-                res.next();
-            }
+            // May be `sql_error` exception
+            res.next();
         }
-
-        // Expecting done
-        PFS__ASSERT(res.is_done(), "expecting done");
     }
+
+    // Expecting done
+    PFS__ASSERT(res.is_done(), "expecting done");
 
     return count;
 }

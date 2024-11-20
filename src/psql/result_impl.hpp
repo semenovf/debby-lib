@@ -25,22 +25,22 @@ public:
 
 public:
     mutable handle_type sth {nullptr};
-    int field_count {0}; // Number of fields
-    int row_count {0};  // Total number of tuples
+    int column_count {0}; // Number of fields
+    int row_count {0};    // Total number of tuples
     int row_index {0};
 
 public:
     impl (handle_type h)
         : sth(h)
     {
-        field_count = PQnfields(sth);
+        column_count = PQnfields(sth);
         row_count = PQntuples(sth);
     }
 
     impl (impl && other)
     {
         sth = other.sth;
-        field_count = other.field_count;
+        column_count = other.column_count;
         row_count  = other.row_count;
         row_index  = other.row_index;
 
@@ -53,6 +53,19 @@ public:
             PQclear(sth);
 
         sth = nullptr;
+    }
+
+public:
+    int column_index (std::string const & column_name)
+    {
+        for (int i = 0; i < column_count; i++) {
+            auto name = PQfname(sth, i);
+
+            if (column_name == name)
+                return i;
+        }
+
+        return -1;
     }
 };
 

@@ -61,4 +61,3 @@ else()
         message(FATAL_ERROR "Unsupported build system for ${PROJECT_NAME} (TODO: need to implement)")
     endif()
 endif()
-

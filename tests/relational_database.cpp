@@ -26,15 +26,15 @@ namespace fs = pfs::filesystem;
 
 namespace {
 std::string const CREATE_TABLE_ONE {
-    R"(CREATE TABLE IF NOT EXISTS one (col INTEGER))"
+    R"(CREATE TABLE IF NOT EXISTS one (i16 SMALLINT, i32 INTEGER, i64 BIGINT))"
 };
 
 std::string const CREATE_TABLE_TWO {
-    R"(CREATE TABLE IF NOT EXISTS "two" ("col" INTEGER))"
+    R"(CREATE TABLE IF NOT EXISTS two (f32 REAL, f64 DOUBLE PRECISION))"
 };
 
 std::string const CREATE_TABLE_THREE {
-    R"(CREATE TABLE IF NOT EXISTS "three" ("col" INTEGER))"
+    R"(CREATE TABLE IF NOT EXISTS three (col INTEGER))"
 };
 } // namespace
 
@@ -60,28 +60,50 @@ void check (RelationalDatabaseType & db_opened)
     db.query(CREATE_TABLE_TWO);
     db.query(CREATE_TABLE_THREE);
 
-    db.query("INSERT INTO one (col) VALUES (42)");
-    db.query("INSERT INTO one (col) VALUES (43)");
-    db.query("INSERT INTO one (col) VALUES (44)");
-
-    {
-        auto res = db.exec("SELECT * from one");
-
-        int value = 42;
-
-        while (res.has_more()) {
-            auto x = res.template get<int>(0);
-            CHECK_EQ(*x, value++);
-            res.next();
-        }
-
-        // result destroyed here, so database not locked
-    }
-
     REQUIRE(db.exists("one"));
     REQUIRE(db.exists("two"));
     REQUIRE(db.exists("three"));
     REQUIRE_FALSE(db.exists("four"));
+
+    db.query("INSERT INTO one (i16, i32, i64) VALUES (42, 100042, 10000000042)");
+    db.query("INSERT INTO one (i16, i32, i64) VALUES (43, 100043, 10000000043)");
+    db.query("INSERT INTO one (i16, i32, i64) VALUES (44, 100044, 10000000044)");
+
+    {
+        auto res = db.exec("SELECT * from one");
+
+        std::int16_t i16 = 42;
+        std::int32_t i32 = 100042;
+        std::int64_t i64 = 10000000042L;
+
+        while (res.has_more()) {
+            auto x = res.template get<std::int16_t>(0);
+            auto y = res.template get<std::int32_t>(1);
+            auto z = res.template get<std::int64_t>(2);
+            CHECK_EQ(*x, i16++);
+            CHECK_EQ(*y, i32++);
+            CHECK_EQ(*z, i64++);
+            res.next();
+        }
+
+        // result destroyed here, so database not locked (for SQLite)
+    }
+
+    db.query("INSERT INTO two (f32, f64) VALUES (3.14159, 3.14159)");
+
+    {
+        auto res = db.exec("SELECT * from two");
+
+        while (res.has_more()) {
+            auto x = res.template get<float>(0);
+            auto y = res.template get<double>(1);
+            CHECK_EQ(*x, float{3.14159});
+            CHECK_EQ(*y, double{3.14159});
+            res.next();
+        }
+
+        // result destroyed here, so database not locked (for SQLite)
+    }
 
     {
         auto tables = db.tables();

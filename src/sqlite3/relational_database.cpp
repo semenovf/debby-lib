@@ -10,9 +10,9 @@
 //      2023.02.07 Applied new API.
 //      2024.10.29 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
+#include "../relational_database_common.hpp"
 #include "relational_database_impl.hpp"
 #include "debby/sqlite3.hpp"
-#include "../database_common.hpp"
 #include <pfs/assert.hpp>
 #include <regex>
 
@@ -62,7 +62,7 @@ void database_t::rollback (error * perr)
 template <>
 database_t::statement_type database_t::prepare (std::string const & sql, error * perr)
 {
-    if (_d == nullptr)
+    if (!_d)
         return database_t::statement_type{};
 
     return _d->prepare(sql, perr);
@@ -71,7 +71,7 @@ database_t::statement_type database_t::prepare (std::string const & sql, error *
 template <>
 std::vector<std::string> database_t::tables (std::string const & pattern, error * perr)
 {
-    if (_d == nullptr)
+    if (!_d)
         return std::vector<std::string>{};
 
     std::string sql = std::string{"SELECT name FROM sqlite_master"

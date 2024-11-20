@@ -17,7 +17,7 @@ DEBBY__NAMESPACE_BEGIN
 
 statement_t::result_type statement_t::impl::exec (error * perr)
 {
-    int result_in_binary_format = 1;
+    int result_in_text_format = 0;
 
     for (int i = 0; i < _param_transient_values.size(); i++) {
         if (_param_lengths[i] > 0) {
@@ -33,7 +33,7 @@ statement_t::result_type statement_t::impl::exec (error * perr)
         , _param_values.data()
         , _param_lengths.data()
         , _param_formats.data()
-        , result_in_binary_format);
+        , result_in_text_format);
 
     if (sth == nullptr) {
         pfs::throw_or(perr, error {
@@ -108,6 +108,12 @@ template <>
 bool statement_t::bind (int index, std::string && value, error *)
 {
     return _d->bind_helper(index, std::move(value));
+}
+
+template <>
+bool statement_t::bind (int index, char const * data, std::size_t len, error *)
+{
+    return _d->bind_helper(index, data, len);
 }
 
 template <>

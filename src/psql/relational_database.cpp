@@ -7,9 +7,9 @@
 //      2023.11.25 Initial version.
 //      2024.11.02 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
+#include "../relational_database_common.hpp"
 #include "relational_database_impl.hpp"
 #include "debby/psql.hpp"
-#include "../database_common.hpp"
 #include <pfs/fmt.hpp>
 #include <regex>
 #include <vector>
@@ -28,6 +28,12 @@ template <>
 void database_t::query (std::string const & sql, error * perr)
 {
     _d->query(sql, perr);
+}
+
+template <>
+database_t::result_type database_t::exec (std::string const & sql, error * perr)
+{
+    return _d->exec(sql, perr);
 }
 
 template <>
@@ -70,34 +76,31 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
         " AND (pg_class.relname !~ '^pg_')"
         " AND (pg_namespace.nspname != 'information_schema');";
 
-    auto stmt = prepare(sql, perr);
     std::vector<std::string> list;
 
-    if (stmt) {
-        auto res = stmt.exec(perr);
+    auto res = this->exec(sql, perr);
 
-        if (res) {
-            std::regex rx {pattern.empty() ? ".*" : pattern};
+    if (res) {
+        std::regex rx {pattern.empty() ? ".*" : pattern};
 
-            while (res.has_more()) {
-                auto name = res.get<std::string>(0);
+        while (res.has_more()) {
+            auto opt_name = res.get<std::string>(0);
 
-                if (pattern.empty()) {
-                    list.push_back(name);
-                } else {
-                    if (std::regex_search(name, rx))
-                        list.push_back(name);
-                }
-
-                // May be `sql_error` exception
-                res.next();
+            if (pattern.empty()) {
+                list.push_back(*opt_name);
+            } else {
+                if (std::regex_search(*opt_name, rx))
+                    list.push_back(*opt_name);
             }
-        }
 
-        if (!res.is_done()) {
-            pfs::throw_or(perr, error {pfs::errc::unexpected_error, tr::_("expecting done")});
-            return std::vector<std::string>{};
+            // May be `sql_error` exception
+            res.next();
         }
+    }
+
+    if (!res.is_done()) {
+        pfs::throw_or(perr, error {pfs::errc::unexpected_error, tr::_("expecting done")});
+        return std::vector<std::string>{};
     }
 
     return list;
@@ -106,7 +109,7 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
 template <>
 void database_t::clear (std::string const & table, error * perr)
 {
-    query(fmt::format("DELETE FROM '{}'", table), perr);
+    query(fmt::format("DELETE FROM \"{}\"", table), perr);
 }
 
 template <>
@@ -147,14 +150,10 @@ void database_t::remove_all (error * perr)
 template <>
 bool database_t::exists (std::string const & name, error * perr)
 {
-    auto stmt = prepare(fmt::format("SELECT relname FROM pg_class WHERE relname='{}'", name), perr);
+    auto res = this->exec(fmt::format("SELECT relname FROM pg_class WHERE relname='{}'", name), perr);
 
-    if (stmt) {
-        auto res = stmt.exec();
-
-        if (res.has_more())
-            return true;
-    }
+    if (res.has_more())
+        return true;
 
     return false;
 }
@@ -201,7 +200,7 @@ static PGconn * connect (std::string const & conninfo, error * perr)
 
     // CONNECTION_OK
     return dbh;
-}    
+}
 
 database_t make (std::string const & conninfo, error * perr)
 {
