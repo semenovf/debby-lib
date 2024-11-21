@@ -26,6 +26,9 @@ template <backend_enum Backend>
 class relational_database
 {
 public:
+    static constexpr backend_enum backend_value = Backend;
+
+public:
     class impl;
     using statement_type = statement<Backend>;
     using result_type = result<Backend>;

@@ -36,7 +36,9 @@ if (MSVC)
     target_compile_definitions(debby PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
-list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp)
+list(APPEND _debby__sources
+    ${CMAKE_CURRENT_LIST_DIR}/src/data_definition.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp)
 
 if (DEBBY__ENABLE_MAP OR DEBBY__ENABLE_UNORDERED_MAP)
     list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/keyvalue_database.cpp)
@@ -53,6 +55,7 @@ endif()
 if (DEBBY__ENABLE_SQLITE3)
     list(APPEND _debby__sources
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
+        ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/data_definition.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/relational_database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/keyvalue_database.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
