@@ -127,6 +127,7 @@ if (DEBBY__ENABLE_PSQL)
         include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/postgres.cmake)
 
         list(APPEND _debby__sources
+            ${CMAKE_CURRENT_LIST_DIR}/src/psql/data_definition.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/keyvalue_database.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/relational_database.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/result.cpp

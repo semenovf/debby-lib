@@ -8,7 +8,6 @@
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "backend_enum.hpp"
-// #include "error.hpp"
 #include "exports.hpp"
 #include "namespace.hpp"
 #include <bitset>
@@ -20,6 +19,9 @@ DEBBY__NAMESPACE_BEGIN
 
 using blob_t = void *;
 
+enum class sort_order { none, asc, desc };
+enum class autoincrement { no, yes };
+
 class column
 {
 private:
@@ -28,12 +30,16 @@ private:
           primary_flag
         , unique_flag
         , nullable_flag
+        , max_flag = nullable_flag
     };
 
 private:
     std::string _name;
     std::string _type;
-    std::bitset<4> _flags;
+    std::bitset<flag_bit::max_flag + 1> _flags;
+    sort_order _sort_order {sort_order::none};
+    autoincrement _autoinc {autoincrement::no};
+    std::string _constraint;
 
 public:
     DEBBY__EXPORT column (std::string && name, std::string && type);
@@ -43,10 +49,17 @@ public:
     column & operator = (column && other) = default;
 
 public:
-    // Set flag methods
-    DEBBY__EXPORT column & primary_key ();
+    /**
+     * Adds PRIMARY KEY constraint for column
+     *
+     * @param so Sort order (sqlite3 only).
+     * @param autoinc Autoincremented (sqlite3 only).
+     */
+    DEBBY__EXPORT column & primary_key (sort_order so = sort_order::none, autoincrement autoinc = autoincrement::no);
+
     DEBBY__EXPORT column & unique ();
     DEBBY__EXPORT column & nullable ();
+    DEBBY__EXPORT column & constraint (std::string text);
 
     template <backend_enum Backend>
     DEBBY__EXPORT void build (std::ostream & out);
@@ -62,9 +75,16 @@ public:
         static char const * value;
     };
 
+    enum flag_bit: std::size_t
+    {
+          temporary_flag
+        , max_flag = temporary_flag
+    };
+
 private:
     std::string _name;
     std::vector<column> _columns;
+    std::bitset<flag_bit::max_flag + 1> _flags;
 
 public:
     DEBBY__EXPORT table (std::string && name);
@@ -75,8 +95,10 @@ public:
     table & operator = (table && other) = default;
 
 public:
+    DEBBY__EXPORT table & temporary ();
+
     template <typename T = blob_t>
-    DEBBY__EXPORT column & add_column (std::string && name)
+    inline column & add_column (std::string && name)
     {
         _columns.emplace_back(std::move(name), column_type_affinity<std::decay_t<T>>::value);
         return _columns.back();

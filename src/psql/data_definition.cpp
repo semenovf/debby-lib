@@ -4,40 +4,26 @@
 // This file is part of `debby-lib`.
 //
 // Changelog:
-//      2024.11.21 Initial version.
+//      2024.11.23 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/data_definition.hpp"
 #include <sstream>
 
 DEBBY__NAMESPACE_BEGIN
 
-// [Datatypes In SQLite](https://www.sqlite.org/datatype3.html)
+// [Chapter 8. Data Types](https://www.postgresql.org/docs/current/datatype.html)
 
-using data_definition_t = data_definition<backend_enum::sqlite3>;
-using table_t = table<backend_enum::sqlite3>;
+using data_definition_t = data_definition<backend_enum::psql>;
+using table_t = table<backend_enum::psql>;
 
 template <>
-void column::build<backend_enum::sqlite3> (std::ostream & out)
+void column::build<backend_enum::psql> (std::ostream & out)
 {
     out << _name << ' ' << _type;
 
     if (_flags.test(flag_bit::primary_flag)) {
         _flags.reset(flag_bit::nullable_flag);
         out << " PRIMARY KEY";
-
-        switch (_sort_order) {
-            case sort_order::asc:
-                out << " ASC";
-                break;
-            case sort_order::desc:
-                out << " DESC";
-                break;
-            default:
-                break;
-        }
-
-        if (_autoinc == autoincrement::yes)
-            out << " AUTOINCREMENT";
     }
 
     if (_flags.test(flag_bit::unique_flag)) {
@@ -53,22 +39,22 @@ void column::build<backend_enum::sqlite3> (std::ostream & out)
         out << ' ' << _constraint;
 }
 
-template <> template <> char const * table_t::column_type_affinity<bool>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<char>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<signed char>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned char>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<short int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned short int>::value = "INTEGER";
+template <> template <> char const * table_t::column_type_affinity<bool>::value = "BOOLEAN";
+template <> template <> char const * table_t::column_type_affinity<char>::value = "SMALLINT";
+template <> template <> char const * table_t::column_type_affinity<signed char>::value = "SMALLINT";
+template <> template <> char const * table_t::column_type_affinity<unsigned char>::value = "SMALLINT";
+template <> template <> char const * table_t::column_type_affinity<short int>::value = "SMALLINT";
+template <> template <> char const * table_t::column_type_affinity<unsigned short int>::value = "SMALLINT";
 template <> template <> char const * table_t::column_type_affinity<int>::value = "INTEGER";
 template <> template <> char const * table_t::column_type_affinity<unsigned int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<long int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned long int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<long long int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned long long int>::value = "INTEGER";
+template <> template <> char const * table_t::column_type_affinity<long int>::value = "BIGINT";
+template <> template <> char const * table_t::column_type_affinity<unsigned long int>::value = "BIGINT";
+template <> template <> char const * table_t::column_type_affinity<long long int>::value = "BIGINT";
+template <> template <> char const * table_t::column_type_affinity<unsigned long long int>::value = "BIGINT";
 template <> template <> char const * table_t::column_type_affinity<float>::value = "REAL";
-template <> template <> char const * table_t::column_type_affinity<double>::value = "REAL";
+template <> template <> char const * table_t::column_type_affinity<double>::value = "DOUBLE PRECISION";
 template <> template <> char const * table_t::column_type_affinity<std::string>::value = "TEXT";
-template <> template <> char const * table_t::column_type_affinity<blob_t>::value = "BLOB";
+template <> template <> char const * table_t::column_type_affinity<blob_t>::value = "BYTEA";
 
 template <>
 table_t::table (std::string && name)
