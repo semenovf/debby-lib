@@ -257,6 +257,18 @@ bool statement_t::bind (char const * placeholder, char const * ptr, std::size_t 
 }
 
 template <>
+bool statement_t::bind (int index, pfs::universal_id uuid, error * perr)
+{
+    return bind(index, to_string(uuid), perr);
+}
+
+template <>
+bool statement_t::bind (char const * placeholder, pfs::universal_id uuid, error * perr)
+{
+    return bind(placeholder, to_string(uuid), perr);
+}
+
+template <>
 statement_t::result_type statement_t::exec (error * perr)
 {
     return _d->exec(false, perr);

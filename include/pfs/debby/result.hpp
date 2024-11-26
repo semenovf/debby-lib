@@ -18,6 +18,7 @@
 #include <pfs/i18n.hpp>
 #include <pfs/numeric_cast.hpp>
 #include <pfs/optional.hpp>
+#include <pfs/universal_id.hpp>
 #include <cstdint>
 #include <type_traits>
 #include <string>
@@ -128,6 +129,36 @@ public:
     }
 
     template <typename T, typename ColumnType>
+    inline pfs::optional<typename std::enable_if<std::is_enum<T>::value, T>::type>
+    get (ColumnType const & column, error * perr = nullptr)
+    {
+        auto opt = get_int64(column, perr);
+
+        if (opt) {
+            auto x = pfs::numeric_cast<typename std::underlying_type<T>::type>(*opt);
+            return static_cast<T>(x);
+        }
+
+        return pfs::nullopt;
+    }
+
+    template <typename T, typename ColumnType>
+    inline pfs::optional<typename std::enable_if<std::is_same<std::decay_t<T>, pfs::universal_id>::value, T>::type>
+    get (ColumnType const & column, error * perr = nullptr)
+    {
+        auto opt = get_string(column, perr);
+
+        if (opt) {
+            auto id = pfs::from_string<pfs::universal_id>(*opt);
+
+            if (id != pfs::universal_id{})
+                return pfs::make_optional(id);
+        }
+
+        return pfs::nullopt;
+    }
+
+    template <typename T, typename ColumnType>
     inline typename std::enable_if<std::is_integral<T>::value, T>::type
     get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
     {
@@ -148,7 +179,23 @@ public:
     get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
     {
         auto opt = get_string(column, perr);
-        return opt ? static_cast<T>(*opt) : default_value;
+        return opt ? *opt : default_value;
+    }
+
+    template <typename T, typename ColumnType>
+    inline typename std::enable_if<std::is_enum<T>::value, T>::type
+    get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
+    {
+        auto opt = get<T>(column, perr);
+        return opt ? *opt : default_value;
+    }
+
+    template <typename T, typename ColumnType>
+    inline typename std::enable_if<std::is_same<std::decay_t<T>, pfs::universal_id>::value, T>::type
+    get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
+    {
+        auto opt = get<pfs::universal_id>(column, perr);
+        return opt ? *opt : default_value;
     }
 };
 

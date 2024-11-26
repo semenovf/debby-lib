@@ -7,6 +7,7 @@
 //      2024.11.23 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/data_definition.hpp"
+#include <pfs/universal_id.hpp>
 #include <sstream>
 
 DEBBY__NAMESPACE_BEGIN
@@ -55,6 +56,7 @@ template <> template <> char const * table_t::column_type_affinity<float>::value
 template <> template <> char const * table_t::column_type_affinity<double>::value = "DOUBLE PRECISION";
 template <> template <> char const * table_t::column_type_affinity<std::string>::value = "TEXT";
 template <> template <> char const * table_t::column_type_affinity<blob_t>::value = "BYTEA";
+template <> template <> char const * table_t::column_type_affinity<pfs::universal_id>::value = "CHARACTER(26)";
 
 template <>
 table_t::table (std::string && name)
@@ -99,7 +101,7 @@ std::string table_t::build ()
 }
 
 template <>
-table_t data_definition_t::create_table (std::string && name)
+table_t data_definition_t::create_table (std::string name)
 {
     return table_t{std::move(name)};
 }

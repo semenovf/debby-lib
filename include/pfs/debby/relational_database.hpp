@@ -16,6 +16,7 @@
 #include "namespace.hpp"
 #include "result.hpp"
 #include "statement.hpp"
+#include <pfs/optional.hpp>
 #include <memory>
 #include <string>
 #include <vector>
@@ -131,31 +132,32 @@ public:
      */
     DEBBY__EXPORT bool exists (std::string const & name, error * perr = nullptr);
 
+    /**
+     * Do transaction with body representing by @a func().
+     *
+     * @param func transaction body with signature @c optional().
+     * @return @c nullopt on success or @c std::string containing an error description otherwise.
+     * @throws @c debby::error on failure of commit() or rollback() calls.
+     */
     template <typename TransactionBody>
-    bool transaction (TransactionBody && func, error * perr = nullptr)
+    pfs::optional<std::string> transaction (TransactionBody && func)
     {
         error err;
         begin(& err);
 
-        if (err) {
-            pfs::throw_or(perr, err);
-            return false;
-        }
+        if (err)
+            return pfs::make_optional(std::string{err.what()});
 
-        bool success = func(/*perr*/);
+        auto failure = func();
 
-        if (success) {
-            commit(& err);
+        if (failure) {
+            rollback(); // An exception should be thrown on error (inconsistency may occur)
+            return failure;
         } else {
-            rollback(& err);
+            commit(); // An exception should be thrown on error (inconsistency may occur)
         }
 
-        if (err) {
-            pfs::throw_or(perr, err);
-            return false;
-        }
-
-        return success;
+        return pfs::nullopt;
     }
 
 public:

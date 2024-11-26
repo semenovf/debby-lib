@@ -85,6 +85,7 @@ private:
     std::string _name;
     std::vector<column> _columns;
     std::bitset<flag_bit::max_flag + 1> _flags;
+    std::string _constraint;
 
 public:
     DEBBY__EXPORT table (std::string && name);
@@ -96,12 +97,53 @@ public:
 
 public:
     DEBBY__EXPORT table & temporary ();
+    DEBBY__EXPORT table & constraint (std::string text);
 
-    template <typename T = blob_t>
+    template <typename T>
     inline column & add_column (std::string && name)
     {
         _columns.emplace_back(std::move(name), column_type_affinity<std::decay_t<T>>::value);
         return _columns.back();
+    }
+
+    DEBBY__EXPORT void build (std::ostream & out);
+    DEBBY__EXPORT std::string build ();
+};
+
+template <backend_enum Backend>
+class index
+{
+private:
+    std::string _name;
+    std::string _table;
+    bool _unique {false};
+    std::vector<std::string> _columns;
+
+public:
+    DEBBY__EXPORT index (std::string && name);
+
+    index (index const & other) = delete;
+    index (index && other) = default;
+    index & operator = (index const & other) = delete;
+    index & operator = (index && other) = default;
+
+public:
+    index & on (std::string table_name)
+    {
+        _table = std::move(table_name);
+        return *this;
+    }
+
+    index & unique ()
+    {
+        _unique = true;
+        return *this;
+    }
+
+    inline index & add_column (std::string && name)
+    {
+        _columns.emplace_back(std::move(name));
+        return *this;
     }
 
     DEBBY__EXPORT void build (std::ostream & out);
@@ -121,7 +163,8 @@ public:
     data_definition & operator = (data_definition && other) noexcept = delete;
 
 public:
-    static DEBBY__EXPORT table<Backend> create_table (std::string && name);
+    static DEBBY__EXPORT table<Backend> create_table (std::string name);
+    static DEBBY__EXPORT index<Backend> create_index (std::string name);
 };
 
 DEBBY__NAMESPACE_END

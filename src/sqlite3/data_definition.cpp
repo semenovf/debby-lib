@@ -7,6 +7,7 @@
 //      2024.11.21 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/data_definition.hpp"
+#include <pfs/universal_id.hpp>
 #include <sstream>
 
 DEBBY__NAMESPACE_BEGIN
@@ -15,6 +16,7 @@ DEBBY__NAMESPACE_BEGIN
 
 using data_definition_t = data_definition<backend_enum::sqlite3>;
 using table_t = table<backend_enum::sqlite3>;
+using index_t = index<backend_enum::sqlite3>;
 
 template <>
 void column::build<backend_enum::sqlite3> (std::ostream & out)
@@ -69,6 +71,7 @@ template <> template <> char const * table_t::column_type_affinity<float>::value
 template <> template <> char const * table_t::column_type_affinity<double>::value = "REAL";
 template <> template <> char const * table_t::column_type_affinity<std::string>::value = "TEXT";
 template <> template <> char const * table_t::column_type_affinity<blob_t>::value = "BLOB";
+template <> template <> char const * table_t::column_type_affinity<pfs::universal_id>::value = "TEXT";
 
 template <>
 table_t::table (std::string && name)
@@ -79,6 +82,13 @@ template <>
 table_t & table_t::temporary ()
 {
     _flags.set(flag_bit::temporary_flag);
+    return *this;
+}
+
+template <>
+table_t & table_t::constraint (std::string text)
+{
+    _constraint = std::move(text);
     return *this;
 }
 
@@ -102,6 +112,9 @@ void table_t::build (std::ostream & out)
     }
 
     out << ')';
+
+    if (!_constraint.empty())
+        out << ' ' << _constraint;
 }
 
 template <>
@@ -113,9 +126,52 @@ std::string table_t::build ()
 }
 
 template <>
-table_t data_definition_t::create_table (std::string && name)
+index_t::index (std::string && name)
+    : _name(std::move(name))
+{}
+
+template <>
+void index_t::build (std::ostream & out)
+{
+    out << "CREATE";
+
+    if (_unique)
+        out << " UNIQUE";
+
+    out << " INDEX IF NOT EXISTS "
+        << '"' << _name << '"'
+        << " ON " << '"' << _table << '"'
+        << " (";
+
+    char const * comma = ", ";
+    char const * column_delim = "";
+
+    for (auto & c: _columns) {
+        out << column_delim << c;
+        column_delim = comma;
+    }
+
+    out << ')';
+}
+
+template <>
+std::string index_t::build ()
+{
+    std::ostringstream out;
+    build(out);
+    return out.str();
+}
+
+template <>
+table_t data_definition_t::create_table (std::string name)
 {
     return table_t{std::move(name)};
+}
+
+template <>
+index_t data_definition_t::create_index (std::string name)
+{
+    return index_t{std::move(name)};
 }
 
 DEBBY__NAMESPACE_END

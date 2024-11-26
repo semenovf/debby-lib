@@ -16,6 +16,7 @@
 #include "exports.hpp"
 #include "namespace.hpp"
 #include "result.hpp"
+#include <pfs/universal_id.hpp>
 #include <cstdint>
 #include <string>
 #include <type_traits>
@@ -123,6 +124,9 @@ public:
      * whichever occurs sooner.
      */
     DEBBY__EXPORT bool bind (char const * placeholder, char const * ptr, std::size_t len, error * perr = nullptr);
+
+    DEBBY__EXPORT bool bind (int index, pfs::universal_id uuid, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (char const * placeholder, pfs::universal_id uuid, error * perr = nullptr);
 };
 
 DEBBY__NAMESPACE_END
