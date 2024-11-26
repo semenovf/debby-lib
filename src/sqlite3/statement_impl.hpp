@@ -32,7 +32,9 @@ public:
     impl (impl && other) noexcept
     {
         _sth = other._sth;
+        _cached = other._cached;
         other._sth = nullptr;
+        other._cached = false;
     }
 
     ~impl ()
@@ -53,6 +55,7 @@ public:
         return _sth;
     }
 
+    void reset (error * perr);
     statement_t::result_type exec (bool move_handle_ownership, error * perr);
 };
 

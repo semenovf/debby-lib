@@ -44,8 +44,10 @@ public:
         , state(s)
         , _handle_owned(own_handle)
     {
-        column_count =  sqlite3_column_count(sth);
-        h = nullptr;
+        column_count = sqlite3_column_count(sth);
+
+        if (_handle_owned)
+            h = nullptr;
     }
 
     impl (impl && other) noexcept

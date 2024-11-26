@@ -56,6 +56,11 @@ public:
     }
 
     /**
+     * Resets prepared statement to its initial state, ready to be re-executed.
+     */
+    DEBBY__EXPORT void reset (error * perr = nullptr);
+
+    /**
      * Executes prepared statement
      */
     DEBBY__EXPORT result_type exec (error * perr = nullptr);

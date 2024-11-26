@@ -13,10 +13,36 @@
 #include "result_impl.hpp"
 #include "statement_impl.hpp"
 #include "utils.hpp"
+#include <pfs/i18n.hpp>
 #include <pfs/numeric_cast.hpp>
 #include <limits>
 
 DEBBY__NAMESPACE_BEGIN
+
+void statement_t::impl::reset (error * perr)
+{
+    if (_sth != nullptr) {
+        int rc = sqlite3_clear_bindings(_sth);
+
+        if (SQLITE_OK != rc) {
+            pfs::throw_or(perr, error { errc::backend_error
+                , tr::_("clear prepared statement bindings failure")
+                , sqlite3::build_errstr(rc, _sth)
+            });
+            return;
+        }
+
+        rc = sqlite3_reset(_sth);
+
+        if (!(rc == SQLITE_OK || rc == SQLITE_ROW)) {
+            pfs::throw_or(perr, error { errc::backend_error
+                , tr::_("resetting prepared statement failure")
+                , sqlite3::build_errstr(rc, _sth)
+            });
+            return;
+        }
+    }
+}
 
 statement_t::result_type statement_t::impl::exec (bool move_handle_ownership, error * perr)
 {
@@ -272,6 +298,12 @@ template <>
 statement_t::result_type statement_t::exec (error * perr)
 {
     return _d->exec(false, perr);
+}
+
+template <>
+void statement_t::reset (error * perr)
+{
+    _d->reset(perr);
 }
 
 DEBBY__NAMESPACE_END
