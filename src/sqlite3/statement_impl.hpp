@@ -21,10 +21,12 @@ public:
 
 private:
     mutable native_type _sth {nullptr};
+    bool _cached {false};
 
 public:
-    impl (native_type sth) noexcept
+    impl (native_type sth, bool cached) noexcept
         : _sth(sth)
+        , _cached(cached)
     {}
 
     impl (impl && other) noexcept
@@ -37,7 +39,9 @@ public:
     {
         if (_sth != nullptr) {
             sqlite3_reset(_sth);
-            sqlite3_finalize(_sth);
+
+            if (!_cached)
+                sqlite3_finalize(_sth);
         }
 
         _sth = nullptr;

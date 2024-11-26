@@ -36,7 +36,7 @@ void check (RelationalDatabaseType & db)
         t.template add_column<std::uint16_t>("uint16");
         t.template add_column<float>("float");
         t.template add_column<std::string>("text");
-        t.template add_column<>("blob").nullable();
+        t.template add_column<debby::blob_t>("blob").nullable();
 
         fmt::println(t.build());
     }

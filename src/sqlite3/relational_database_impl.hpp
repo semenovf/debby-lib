@@ -78,10 +78,10 @@ public:
             return database_t::result_type{};
         }
 
-        return statement_t::impl{sth}.exec(true, perr);
+        return statement_t::impl{sth, false}.exec(true, perr);
     }
 
-    database_t::statement_type prepare (std::string const & sql, error * perr)
+    database_t::statement_type prepare (std::string const & sql, bool cache_it, error * perr)
     {
         if (_dbh == nullptr)
             return database_t::statement_type{};
@@ -92,7 +92,7 @@ public:
         if (pos != _cache.end()) {
             sqlite3_reset(pos->second);
             sqlite3_clear_bindings(pos->second);
-            statement_t::impl d{pos->second};
+            statement_t::impl d{pos->second, true};
             return database_t::statement_type {std::move(d)};
         }
 
@@ -105,14 +105,16 @@ public:
             return database_t::statement_type{};
         }
 
-        auto res = _cache.emplace(sql, sth);
+        if (cache_it) {
+            auto res = _cache.emplace(sql, sth);
 
-        if (!res.second) {
-            pfs::throw_or(perr, error{pfs::errc::unexpected_error, tr::_("key must be unique")});
-            return database_t::statement_type{};
+            if (!res.second) {
+                pfs::throw_or(perr, error{pfs::errc::unexpected_error, tr::_("prepared statement key for caching must be unique")});
+                return database_t::statement_type{};
+            }
         }
 
-        statement_t::impl d{sth};
+        statement_t::impl d{sth, cache_it};
         return database_t::statement_type{std::move(d)};
     }
 };

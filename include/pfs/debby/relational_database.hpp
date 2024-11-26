@@ -67,6 +67,11 @@ public:
     DEBBY__EXPORT statement_type prepare (std::string const & sql, error * perr = nullptr);
 
     /**
+     * Prepares statement and cache it.
+     */
+    DEBBY__EXPORT statement_type prepare_cached (std::string const & sql, error * perr = nullptr);
+
+    /**
      * Executes SQL query.
      *
      * @throw debby::error on error.

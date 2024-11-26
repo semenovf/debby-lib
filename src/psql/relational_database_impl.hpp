@@ -92,7 +92,7 @@ public:
         return !!res;
     }
 
-    database_t::statement_type prepare (std::string const & sql, error * perr)
+    database_t::statement_type prepare (std::string const & sql, bool cached, error * perr)
     {
         if (_dbh == nullptr)
             return database_t::statement_type{};
@@ -106,7 +106,7 @@ public:
                 statement_t::impl d{_dbh, sql};
                 return database_t::statement_type {std::move(d)};
             }
-        } else {
+        }/*  else {
             pfs::throw_or(perr, error {
                   errc::backend_error
                 , tr::f_("check prepared statement existence failure: {}: {}"
@@ -114,9 +114,11 @@ public:
             });
 
             return database_t::statement_type{};
-        }
+        } */
 
-        PGresult * sth = PQprepare(_dbh, sql.c_str(), sql.c_str(), 0, nullptr);
+        PGresult * sth = cached
+            ? PQprepare(_dbh, sql.c_str(), sql.c_str(), 0, nullptr)
+            : PQprepare(_dbh, "", sql.c_str(), 0, nullptr);;
 
         if (sth == nullptr) {
             pfs::throw_or(perr, error {

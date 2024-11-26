@@ -60,7 +60,16 @@ database_t::statement_type database_t::prepare (std::string const & sql, error *
     if (_d == nullptr)
         return database_t::statement_type{};
 
-    return _d->prepare(sql, perr);
+    return _d->prepare(sql, false, perr);
+}
+
+template <>
+database_t::statement_type database_t::prepare_cached (std::string const & sql, error * perr)
+{
+    if (_d == nullptr)
+        return database_t::statement_type{};
+
+    return _d->prepare(sql, true, perr);
 }
 
 template <>
