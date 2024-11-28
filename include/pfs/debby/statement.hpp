@@ -79,6 +79,13 @@ public:
         return bind_helper(index, static_cast<double>(value), perr);
     }
 
+    template <typename T>
+    inline typename std::enable_if<std::is_enum<T>::value, bool>::type
+    bind (int index, T value, error * perr = nullptr)
+    {
+        return bind_helper(index, static_cast<std::int64_t>(value), perr);
+    }
+
     /**
      * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
      * is thrown or an error is returned in @a *perr.
@@ -99,6 +106,13 @@ public:
     bind (char const * placeholder, T value, error * perr = nullptr)
     {
         return bind_helper(placeholder, static_cast<double>(value), perr);
+    }
+
+    template <typename T>
+    inline typename std::enable_if<std::is_enum<T>::value, bool>::type
+    bind (char const * placeholder, T value, error * perr = nullptr)
+    {
+        return bind_helper(placeholder, static_cast<std::int64_t>(value), perr);
     }
 
     DEBBY__EXPORT bool bind (int index, std::nullptr_t, error * perr = nullptr);
