@@ -295,6 +295,30 @@ bool statement_t::bind (char const * placeholder, pfs::universal_id uuid, error 
 }
 
 template <>
+bool statement_t::bind (int index, pfs::utc_time time, error * perr)
+{
+    return bind(index, time.to_millis().count(), perr);
+}
+
+template <>
+bool statement_t::bind (char const * placeholder, pfs::utc_time time, error * perr)
+{
+    return bind(placeholder, time.to_millis().count(), perr);
+}
+
+template <>
+bool statement_t::bind (int index, pfs::local_time time, error * perr)
+{
+    return bind(index, time.to_millis().count(), perr);
+}
+
+template <>
+bool statement_t::bind (char const * placeholder, pfs::local_time time, error * perr)
+{
+    return bind(placeholder, time.to_millis().count(), perr);
+}
+
+template <>
 statement_t::result_type statement_t::exec (error * perr)
 {
     return _d->exec(false, perr);

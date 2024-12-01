@@ -8,6 +8,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/data_definition.hpp"
 #include <pfs/universal_id.hpp>
+#include <pfs/time_point.hpp>
 #include <sstream>
 
 DEBBY__NAMESPACE_BEGIN
@@ -72,6 +73,8 @@ template <> template <> char const * table_t::column_type_affinity<double>::valu
 template <> template <> char const * table_t::column_type_affinity<std::string>::value = "TEXT";
 template <> template <> char const * table_t::column_type_affinity<blob_t>::value = "BLOB";
 template <> template <> char const * table_t::column_type_affinity<pfs::universal_id>::value = "TEXT";
+template <> template <> char const * table_t::column_type_affinity<pfs::utc_time>::value = "INTEGER";
+template <> template <> char const * table_t::column_type_affinity<pfs::local_time>::value = "INTEGER";
 
 template <>
 table_t::table (std::string && name)
@@ -100,7 +103,7 @@ void table_t::build (std::ostream & out)
     if (_flags.test(flag_bit::temporary_flag))
         out << " TEMPORARY";
 
-    out << " TABLE IF NOT EXISTS " << _name << " (";
+    out << " TABLE IF NOT EXISTS \"" << _name << "\" (";
 
     char const * comma = ", ";
     char const * column_delim = "";

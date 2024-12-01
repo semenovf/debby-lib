@@ -16,6 +16,7 @@
 #include "exports.hpp"
 #include "namespace.hpp"
 #include "result.hpp"
+#include <pfs/time_point.hpp>
 #include <pfs/universal_id.hpp>
 #include <cstdint>
 #include <string>
@@ -146,6 +147,11 @@ public:
 
     DEBBY__EXPORT bool bind (int index, pfs::universal_id uuid, error * perr = nullptr);
     DEBBY__EXPORT bool bind (char const * placeholder, pfs::universal_id uuid, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (int index, pfs::utc_time time, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (char const * placeholder, pfs::utc_time time, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (int index, pfs::local_time time, error * perr = nullptr);
+    DEBBY__EXPORT bool bind (char const * placeholder, pfs::local_time time, error * perr = nullptr);
+
 };
 
 DEBBY__NAMESPACE_END

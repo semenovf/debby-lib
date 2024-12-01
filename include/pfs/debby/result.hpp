@@ -19,6 +19,7 @@
 #include <pfs/numeric_cast.hpp>
 #include <pfs/optional.hpp>
 #include <pfs/universal_id.hpp>
+#include <pfs/time_point.hpp>
 #include <cstdint>
 #include <type_traits>
 #include <string>
@@ -159,6 +160,30 @@ public:
     }
 
     template <typename T, typename ColumnType>
+    inline pfs::optional<typename std::enable_if<std::is_same<std::decay_t<T>, pfs::utc_time>::value, T>::type>
+    get (ColumnType const & column, error * perr = nullptr)
+    {
+        auto opt = get_int64(column, perr);
+
+        if (opt)
+            return pfs::utc_time{std::chrono::milliseconds{*opt}};
+
+        return pfs::nullopt;
+    }
+
+    template <typename T, typename ColumnType>
+    inline pfs::optional<typename std::enable_if<std::is_same<std::decay_t<T>, pfs::local_time>::value, T>::type>
+    get (ColumnType const & column, error * perr = nullptr)
+    {
+        auto opt = get_int64(column, perr);
+
+        if (opt)
+            return pfs::local_time{std::chrono::milliseconds{*opt}};
+
+        return pfs::nullopt;
+    }
+
+    template <typename T, typename ColumnType>
     inline typename std::enable_if<std::is_integral<T>::value, T>::type
     get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
     {
@@ -195,6 +220,22 @@ public:
     get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
     {
         auto opt = get<pfs::universal_id>(column, perr);
+        return opt ? *opt : default_value;
+    }
+
+    template <typename T, typename ColumnType>
+    inline typename std::enable_if<std::is_same<std::decay_t<T>, pfs::utc_time>::value, T>::type
+    get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
+    {
+        auto opt = get<pfs::utc_time>(column, perr);
+        return opt ? *opt : default_value;
+    }
+
+    template <typename T, typename ColumnType>
+    inline typename std::enable_if<std::is_same<std::decay_t<T>, pfs::local_time>::value, T>::type
+    get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
+    {
+        auto opt = get<pfs::local_time>(column, perr);
         return opt ? *opt : default_value;
     }
 };
