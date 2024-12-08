@@ -376,6 +376,7 @@ public:
     }
 };
 
+template keyvalue_database_t::keyvalue_database ();
 template keyvalue_database_t::keyvalue_database (impl && d) noexcept;
 template keyvalue_database_t::keyvalue_database (keyvalue_database && other) noexcept;
 template keyvalue_database_t::~keyvalue_database ();
