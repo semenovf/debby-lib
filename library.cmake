@@ -12,16 +12,6 @@
 cmake_minimum_required (VERSION 3.19)
 project(debby LANGUAGES CXX C)
 
-option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
-option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
-option(DEBBY__ENABLE_SQLITE_FTS5 "Enable support for `FTS5` in `Sqlite3` backend" OFF)
-option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
-option(DEBBY__ENABLE_MDBX "Enable `libmdbx` backend" ON)
-option(DEBBY__ENABLE_LMDB "Enable `LMDB` backend" ON)
-option(DEBBY__ENABLE_PSQL "Enable `PostgreSQL` front-end backend" OFF)
-option(DEBBY__ENABLE_MAP "Enable `in-memory` map backend" ON)
-option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
-
 if (DEBBY__BUILD_SHARED)
     add_library(debby SHARED)
     target_compile_definitions(debby PRIVATE DEBBY__EXPORTS)
@@ -70,15 +60,14 @@ if (DEBBY__ENABLE_SQLITE3)
 endif()
 
 if (NOT TARGET pfs::common)
+    set(FETCHCONTENT_UPDATES_DISCONNECTED_COMMON ON)
     include(FetchContent)
-    FetchContent_Declare(common-ep
+    FetchContent_Declare(common
         GIT_REPOSITORY https://github.com/semenovf/common-lib.git
         GIT_TAG master
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/2ndparty/common
         SUBBUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/2ndparty/common)
-    FetchContent_MakeAvailable(common-ep)
-
-    #include(${CMAKE_CURRENT_LIST_DIR}/2ndparty/common/library.cmake)
+    FetchContent_MakeAvailable(common)
 endif()
 
 if (DEBBY__ENABLE_ROCKSDB)

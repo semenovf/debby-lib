@@ -17,6 +17,16 @@ option(DEBBY__BUILD_STRICT "Build with strict policies: C++ standard required, C
 option(DEBBY__BUILD_TESTS "Build tests" OFF)
 option(DEBBY__ENABLE_COVERAGE "Build tests with coverage support" OFF)
 
+option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
+option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
+option(DEBBY__ENABLE_SQLITE_FTS5 "Enable support for `FTS5` in `Sqlite3` backend" OFF)
+option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
+option(DEBBY__ENABLE_MDBX "Enable `libmdbx` backend" ON)
+option(DEBBY__ENABLE_LMDB "Enable `LMDB` backend" ON)
+option(DEBBY__ENABLE_PSQL "Enable `PostgreSQL` front-end backend" OFF)
+option(DEBBY__ENABLE_MAP "Enable `in-memory` map backend" ON)
+option(DEBBY__ENABLE_UNORDERED_MAP  "Enable `in-memory` unordered map backend" ON)
+
 if (DEBBY__BUILD_STRICT)
     if (NOT CMAKE_CXX_STANDARD)
         set(CMAKE_CXX_STANDARD 14)
