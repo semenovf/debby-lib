@@ -40,7 +40,9 @@ if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/rocksdb/CMakeLists.txt)
     if (CMAKE_COMPILER_IS_GNUCXX)
         # Disable error for g++ 11.2.0 (RocksDB v6.25.3)
         # error: ‘hostname_buf’ may be used uninitialized [-Werror=maybe-uninitialized]
-        target_compile_options(rocksdb PRIVATE "-Wno-maybe-uninitialized")
+        target_compile_options(rocksdb PRIVATE
+            "-Wno-maybe-uninitialized"
+            "-Wno-redundant-move")
 
         # For link custom shared libraries with RocksDB static library
         target_compile_options(rocksdb PRIVATE "-fPIC")

@@ -247,13 +247,17 @@ TEST_CASE("sqlite3") {
 
 #if DEBBY__PSQL_ENABLED
 TEST_CASE("PostgreSQL") {
+    debby::error err;
     using database_t = debby::relational_database<debby::backend_enum::psql>;
 
     auto conninfo = psql_conninfo();
-    auto db = database_t::make(conninfo.cbegin(), conninfo.cend());
+    auto db = database_t::make(conninfo.cbegin(), conninfo.cend(), & err);
 
     if (!db) {
+        WARN(db);
+        MESSAGE(err.what());
         MESSAGE(preconditions_notice());
+        return;
     }
 
     REQUIRE(db);

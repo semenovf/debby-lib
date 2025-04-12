@@ -104,7 +104,11 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
                         list.push_back(*opt_name);
                 }
             } else {
-                pfs::throw_or(perr, error {pfs::errc::unexpected_error, tr::_("expected table name")});
+                pfs::throw_or(perr, error {
+                      pfs::make_error_code(pfs::errc::unexpected_error)
+                    , tr::_("expected table name")
+                });
+
                 return std::vector<std::string>{};
             }
 
@@ -114,7 +118,11 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
     }
 
     if (!res.is_done()) {
-        pfs::throw_or(perr, error {pfs::errc::unexpected_error, tr::_("expecting done")});
+        pfs::throw_or(perr, error {
+              pfs::make_error_code(pfs::errc::unexpected_error)
+            , tr::_("expecting done")
+        });
+
         return std::vector<std::string>{};
     }
 
@@ -236,7 +244,7 @@ database_t make (pfs::filesystem::path const & path, bool create_if_missing, mak
         if (dbh == nullptr) {
             // Unable to allocate memory for database handler.
             // Internal error code.
-            pfs::throw_or(perr, error {errc::bad_alloc});
+            pfs::throw_or(perr, error {make_error_code(errc::bad_alloc)});
         } else {
             sqlite3_close_v2(dbh);
             dbh = nullptr;
@@ -252,7 +260,10 @@ database_t make (pfs::filesystem::path const & path, bool create_if_missing, mak
                 e = errc::backend_error;
             }
 
-            pfs::throw_or(perr, error { e, utf8_path, build_errstr(rc, dbh) });
+            pfs::throw_or(perr, error {
+                   make_error_code(e)
+                , fmt::format("{}: {}", utf8_path, build_errstr(rc, dbh))
+            });
         }
     } else {
         // NOTE what for this call ?
@@ -348,7 +359,7 @@ bool wipe (fs::path const & path, error * perr)
         fs::remove(path, ec);
 
     if (ec) {
-        pfs::throw_or(perr, ec, tr::_("wipe sqlite3 database"), fs::utf8_encode(path));
+        pfs::throw_or(perr, ec, tr::f_("wipe sqlite3 database: {}", fs::utf8_encode(path)));
         return false;
     }
 

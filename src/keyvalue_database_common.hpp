@@ -19,7 +19,7 @@ DEBBY__NAMESPACE_BEGIN
 inline error make_unsuitable_error (std::string const & key)
 {
     return error {
-          errc::bad_value
+          make_error_code(errc::bad_value)
         , tr::f_("unsuitable or corrupted data stored"
             " by key: {}, expected double precision floating point", key)
     };
@@ -28,7 +28,7 @@ inline error make_unsuitable_error (std::string const & key)
 inline error make_key_not_found_error (std::string const & key)
 {
     return error {
-          errc::key_not_found
+          make_error_code(errc::key_not_found)
         , tr::f_("key not found: '{}'", key)
     };
 }

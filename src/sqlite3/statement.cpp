@@ -25,20 +25,16 @@ void statement_t::impl::reset (error * perr)
         int rc = sqlite3_clear_bindings(_sth);
 
         if (SQLITE_OK != rc) {
-            pfs::throw_or(perr, error { errc::backend_error
-                , tr::_("clear prepared statement bindings failure")
-                , sqlite3::build_errstr(rc, _sth)
-            });
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("clear prepared statement bindings failure: {}", sqlite3::build_errstr(rc, _sth)));
             return;
         }
 
         rc = sqlite3_reset(_sth);
 
         if (!(rc == SQLITE_OK || rc == SQLITE_ROW)) {
-            pfs::throw_or(perr, error { errc::backend_error
-                , tr::_("resetting prepared statement failure")
-                , sqlite3::build_errstr(rc, _sth)
-            });
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("resetting prepared statement failure: {}", sqlite3::build_errstr(rc, _sth)));
             return;
         }
     }
@@ -63,11 +59,8 @@ statement_t::result_type statement_t::impl::exec (bool move_handle_ownership, er
         case SQLITE_ERROR: {
             status = result_t::impl::FAILURE;
 
-            pfs::throw_or(perr, error{
-                  errc::sql_error
-                , sqlite3::build_errstr(rc, _sth)
-                , sqlite3::current_sql(_sth)
-            });
+            pfs::throw_or(perr, make_error_code(errc::sql_error)
+                , fmt::format("{}: {}", sqlite3::build_errstr(rc, _sth), sqlite3::current_sql(_sth)));
 
             return result_t{};
         }
@@ -78,11 +71,8 @@ statement_t::result_type statement_t::impl::exec (bool move_handle_ownership, er
         default: {
             status = result_t::impl::FAILURE;
 
-            pfs::throw_or(perr, error{
-                  errc::sql_error
-                , sqlite3::build_errstr(rc, _sth)
-                , sqlite3::current_sql(_sth)
-            });
+            pfs::throw_or(perr, make_error_code(errc::sql_error)
+                , fmt::format("{}: {}", sqlite3::build_errstr(rc, _sth), sqlite3::current_sql(_sth)));
 
             return result_t{};
         }
@@ -119,19 +109,15 @@ statement_t::~statement ()
     _d = nullptr;
 }
 
-#define BIND_HELPER_BOILERPLATE_ON_FAILURE          \
-        pfs::throw_or(perr, error {                \
-              errc::backend_error                  \
-            , sqlite3::build_errstr(rc, sth)       \
-            , sqlite3::current_sql(sth)            \
-        });
+#define BIND_HELPER_BOILERPLATE_ON_FAILURE         \
+        pfs::throw_or(perr                         \
+            , make_error_code(errc::backend_error) \
+            , fmt::format("{}: {}", sqlite3::build_errstr(rc, sth), sqlite3::current_sql(sth)));
 
 #define BIND_HELPER_BOILERPLATE_ON_INVALID_ARG                  \
-        pfs::throw_or(perr, error {                             \
-              std::make_error_code(std::errc::invalid_argument) \
-            , std::string{"bad bind parameter name"}            \
-            , placeholder                                       \
-        });
+        pfs::throw_or(perr                                      \
+            , std::make_error_code(std::errc::invalid_argument) \
+            , tr::f_("bad bind parameter name: {}", placeholder));
 
 template <>
 bool statement_t::bind_helper (int index, std::int64_t value, error * perr)

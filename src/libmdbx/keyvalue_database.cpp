@@ -176,7 +176,8 @@ public:
                 env = nullptr;
             }
 
-            pfs::throw_or(perr, error {errc::backend_error, fs::utf8_encode(path), mdbx_strerror(rc)});
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , fmt::format("{}: {}", fs::utf8_encode(path), mdbx_strerror(rc)));
 
             return;
         }
@@ -263,12 +264,8 @@ public:
         }, MDBX_TXN_READWRITE);
 
         if (rc != MDBX_SUCCESS) {
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , tr::f_("remove failure for key: '{}'", key)
-                , mdbx_strerror(rc)
-            });
-
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("remove failure for key: {}: {}", key, mdbx_strerror(rc)));
             return;
         }
     }
@@ -280,11 +277,8 @@ public:
         }, MDBX_TXN_READWRITE);
 
         if (rc != MDBX_SUCCESS) {
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , tr::_("MDBX database cleaning failure")
-                , mdbx_strerror(rc)
-            });
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("MDBX database cleaning failure: {}", mdbx_strerror(rc)));
         }
     }
 
@@ -327,11 +321,8 @@ public:
         }, MDBX_TXN_READWRITE);
 
         if (rc != MDBX_SUCCESS) {
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , tr::f_("write failure for key: '{}'", key)
-                , mdbx_strerror(rc)
-            });
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("write failure for key: {}: {}", key, mdbx_strerror(rc)));
 
             return false;
         }
@@ -366,14 +357,11 @@ public:
             } else {
                 error err {
                       rc == MDBX_NOTFOUND
-                        ? errc::key_not_found
-                        : errc::backend_error
+                        ? make_error_code(errc::key_not_found)
+                        : make_error_code(errc::backend_error)
                     , rc == MDBX_NOTFOUND
-                        ? tr::f_("key not found: '{}'", key)
-                        : tr::f_("read failure for key: '{}'", key)
-                    , rc == MDBX_NOTFOUND
-                        ? ""
-                        : mdbx_strerror(rc)
+                        ? tr::f_("key not found: {}", key)
+                        : tr::f_("read failure for key: {}: {}", key, mdbx_strerror(rc))
                 };
 
                 pfs::throw_or(perr, std::move(err));
@@ -429,9 +417,9 @@ bool wipe (fs::path const & path, error * perr)
 
     if (ec1 || ec2) {
         if (ec1)
-            pfs::throw_or(perr, ec1, tr::_("wipe MDBX database failure"), fs::utf8_encode(path));
+            pfs::throw_or(perr, ec1, tr::f_("wipe MDBX database failure: {}", fs::utf8_encode(path)));
         else if (ec2)
-            pfs::throw_or(perr, ec2, tr::_("wipe MDBX database failure"), fs::utf8_encode(lck_path));
+            pfs::throw_or(perr, ec2, tr::f_("wipe MDBX database failure: {}", fs::utf8_encode(lck_path)));
 
         return false;
     }

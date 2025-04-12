@@ -54,10 +54,8 @@ public:
         PGresult * res = PQexec(_dbh, sql.c_str());
 
         if (res == nullptr) {
-            pfs::throw_or(perr, error {
-                  errc::sql_error
-                , tr::f_("query execution failure: {}: {}", sql, psql::build_errstr(_dbh))
-            });
+            pfs::throw_or(perr, make_error_code(errc::sql_error)
+                , tr::f_("query execution failure: {}: {}", sql, psql::build_errstr(_dbh)));
 
             return database_t::result_type{};
         }
@@ -67,15 +65,11 @@ public:
 
         if (!r) {
             if (status == PGRES_FATAL_ERROR) {
-                pfs::throw_or(perr, error {
-                      errc::backend_error
-                    , tr::f_("query failure : {}", psql::build_errstr(_dbh))
-                });
+                pfs::throw_or(perr, make_error_code(errc::backend_error)
+                    , tr::f_("query failure : {}", psql::build_errstr(_dbh)));
             } else {
-                pfs::throw_or(perr, error {
-                      errc::sql_error
-                    , tr::f_("query failure: query request should not return any data")
-                });
+                pfs::throw_or(perr, make_error_code(errc::sql_error)
+                    , tr::f_("query failure: query request should not return any data"));
             }
 
             PQclear(res);
@@ -121,10 +115,8 @@ public:
             : PQprepare(_dbh, "", sql.c_str(), 0, nullptr);;
 
         if (sth == nullptr) {
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , tr::f_("prepare statement failure: {}: {}", sql, psql::build_errstr(_dbh))
-            });
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("prepare statement failure: {}: {}", sql, psql::build_errstr(_dbh)));
 
             return database_t::statement_type{};
         }
@@ -135,10 +127,8 @@ public:
         PQclear(sth);
 
         if (!r) {
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , tr::f_("query failure : {}", psql::build_errstr(_dbh))
-            });
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("query failure : {}", psql::build_errstr(_dbh)));
 
             return database_t::statement_type{};
         }

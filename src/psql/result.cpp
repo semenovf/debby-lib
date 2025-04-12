@@ -57,7 +57,7 @@ int result_t::rows_affected () const
 
     if (ec) {
         throw error {
-              pfs::errc::unexpected_error
+              make_error_code(pfs::errc::unexpected_error)
             , tr::f_("unexpected string value returned by `PQcmdTuples`"
                 " represented the number of affected rows: {}", str)
         };
@@ -108,13 +108,11 @@ void result_t::next ()
     }
 }
 
-#define CHECK_COLUMN_INDEX_BOILERPLATE                                           \
+#define CHECK_COLUMN_INDEX_BOILERPLATE                                          \
     if (column < 0 || column >= _d->column_count) {                             \
-        pfs::throw_or(perr, error {                                             \
-              errc::column_not_found                                            \
+        pfs::throw_or(perr, make_error_code(errc::column_not_found)             \
             , tr::f_("bad column index: {}, expected greater or equal to 0 and" \
-                " less than {}", column, _d->column_count)                      \
-        });                                                                     \
+                " less than {}", column, _d->column_count));                    \
         return pfs::nullopt;                                                    \
     }                                                                           \
     auto is_null = PQgetisnull(_d->sth, _d->row_index, column) != 0;            \
@@ -123,7 +121,7 @@ void result_t::next ()
 
 
 #define UNSUITABLE_ERROR_BOILERPLATE \
-    pfs::throw_or(perr, error {errc::bad_value, tr::f_("unsuitable column type at index {}", column)});
+    pfs::throw_or(perr, make_error_code(errc::bad_value), tr::f_("unsuitable column type at index {}", column));
 
 template <>
 pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
@@ -146,8 +144,8 @@ pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
             auto x = pfs::to_integer<std::int64_t>(raw_data, raw_data + size, ec);
 
             if (ec) {
-                pfs::throw_or(perr, error {errc::bad_value, tr::f_("parse integer stored at column {} failure: {}"
-                    , column, ec.message())});
+                pfs::throw_or(perr, make_error_code(errc::bad_value)
+                    , tr::f_("parse integer stored at column {} failure: {}", column, ec.message()));
                 return pfs::nullopt;
             }
 
@@ -172,8 +170,8 @@ pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
             x = static_cast<std::int64_t>(pfs::to_native_order(x));
 
             if (ec) {
-                pfs::throw_or(perr, error {errc::bad_value, tr::f_("parse integer stored at column {} failure: {}"
-                    , column, ec.message())});
+                pfs::throw_or(perr, make_error_code(errc::bad_value)
+                    , tr::f_("parse integer stored at column {} failure: {}", column, ec.message()));
                 return pfs::nullopt;
             }
 
@@ -228,8 +226,8 @@ pfs::optional<double> result_t::get_double (int column, error * perr)
             n.i = pfs::to_native_order(n.i);
 
             if (ec) {
-                pfs::throw_or(perr, error {errc::bad_value, tr::f_("parse integer stored at column {} failure: {}"
-                    , column, ec.message())});
+                pfs::throw_or(perr, make_error_code(errc::bad_value)
+                    , tr::f_("parse integer stored at column {} failure: {}", column, ec.message()));
                 return pfs::nullopt;
             }
 
@@ -315,7 +313,7 @@ pfs::optional<std::int64_t> result_t::get_int64 (std::string const & column_name
     auto index = _d->column_index(column_name);
 
     if (index < 0) {
-        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
         return 0;
     }
 
@@ -328,7 +326,7 @@ pfs::optional<double> result_t::get_double (std::string const & column_name, err
     auto index = _d->column_index(column_name);
 
     if (index < 0) {
-        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
         return 0;
     }
 
@@ -341,7 +339,7 @@ pfs::optional<std::string> result_t::get_string (std::string const & column_name
     auto index = _d->column_index(column_name);
 
     if (index < 0) {
-        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
         return std::string{};
     }
 

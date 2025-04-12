@@ -60,7 +60,11 @@ public:
         int rc = sqlite3_exec(_dbh, sql.c_str(), nullptr, nullptr, nullptr);
 
         if (SQLITE_OK != rc) {
-            pfs::throw_or(perr, error {errc::sql_error, sqlite3::build_errstr(rc, _dbh), sql});
+            pfs::throw_or(perr, error {
+                  make_error_code(errc::sql_error)
+                , fmt::format("{}: {}", sqlite3::build_errstr(rc, _dbh), sql)
+            });
+
             return false;
         }
 
@@ -74,7 +78,11 @@ public:
         auto rc = sqlite3_prepare_v2(_dbh, sql.c_str(), static_cast<int>(sql.size()), & sth, nullptr);
 
         if (SQLITE_OK != rc) {
-            pfs::throw_or(perr, error{errc::sql_error, sqlite3::build_errstr(rc, _dbh), sql});
+            pfs::throw_or(perr, error {
+                  make_error_code(errc::sql_error)
+                , fmt::format("{}: {}", sqlite3::build_errstr(rc, _dbh), sql)
+            });
+
             return database_t::result_type{};
         }
 
@@ -101,7 +109,11 @@ public:
         auto rc = sqlite3_prepare_v2(_dbh, sql.c_str(), static_cast<int>(sql.size()), & sth, nullptr);
 
         if (SQLITE_OK != rc) {
-            pfs::throw_or(perr, error{errc::sql_error, sqlite3::build_errstr(rc, _dbh), sql});
+            pfs::throw_or(perr, error{
+                  make_error_code(errc::sql_error)
+                , fmt::format("{}: {}", sqlite3::build_errstr(rc, _dbh), sql)
+            });
+
             return database_t::statement_type{};
         }
 
@@ -109,7 +121,11 @@ public:
             auto res = _cache.emplace(sql, sth);
 
             if (!res.second) {
-                pfs::throw_or(perr, error{pfs::errc::unexpected_error, tr::_("prepared statement key for caching must be unique")});
+                pfs::throw_or(perr, error {
+                      pfs::make_error_code(pfs::errc::unexpected_error)
+                    , tr::_("prepared statement key for caching must be unique")
+                });
+
                 return database_t::statement_type{};
             }
         }

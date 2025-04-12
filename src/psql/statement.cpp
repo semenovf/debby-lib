@@ -36,10 +36,8 @@ statement_t::result_type statement_t::impl::exec (error * perr)
         , result_in_text_format);
 
     if (sth == nullptr) {
-        pfs::throw_or(perr, error {
-              errc::backend_error
-            , tr::f_("statement execution failure: {}", psql::build_errstr(_dbh))
-        });
+        pfs::throw_or(perr, make_error_code(errc::backend_error)
+            , tr::f_("statement execution failure: {}", psql::build_errstr(_dbh)));
 
         return result_t{};
     }
@@ -50,10 +48,8 @@ statement_t::result_type statement_t::impl::exec (error * perr)
     if (!r) {
         PQclear(sth);
 
-        pfs::throw_or(perr, error {
-              errc::backend_error
-            , tr::f_("statement execution failure: {}: {}", _name, psql::build_errstr(_dbh))
-        });
+        pfs::throw_or(perr, make_error_code(errc::backend_error)
+            , tr::f_("statement execution failure: {}: {}", _name, psql::build_errstr(_dbh)));
 
         return result_t{};
     }

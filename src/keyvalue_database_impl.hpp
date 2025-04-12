@@ -107,10 +107,10 @@ public:
                             return *opt;
                         } else {
                             if (!std::is_same<std::string, typename std::decay<T>::type>::value)
-                                err = error {errc::bad_value, tr::f_("value is null for key: '{}'", key)};
+                                err = error {make_error_code(errc::bad_value), tr::f_("value is null for key: '{}'", key)};
                         }
                     } else {
-                        err = error {errc::key_not_found, tr::f_("key not found: '{}'", key)};
+                        err = error {make_error_code(errc::key_not_found), tr::f_("key not found: '{}'", key)};
                     }
                 }
             }

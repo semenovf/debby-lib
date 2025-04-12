@@ -93,7 +93,7 @@ public:
             return v;
 
         if (err.code() == make_error_code(errc::key_not_found)) {
-            err = error {errc::success};
+            err = error {};
             set(key, default_value, & err);
 
             if (!err)

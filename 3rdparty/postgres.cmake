@@ -20,7 +20,12 @@ else()
         list(APPEND _postgres_configure_opts --without-readline
             --with-pgport=5432
             --disable-debug
-            --disable-cassert)
+            --disable-cassert
+            --without-zlib)
+
+        if (NOT PFS__ENABLE_ICU)
+            list(APPEND _postgres_configure_opts --without-icu)
+        endif()
 
         if (DEBBY__BUILD_SHARED)
             list(APPEND _postgres_configure_opts "CFLAGS=-fPIC")

@@ -61,16 +61,37 @@ endif()
 
 if (NOT TARGET pfs::common)
     set(FETCHCONTENT_UPDATES_DISCONNECTED_COMMON ON)
+    message(STATUS "Fetching common ...")
     include(FetchContent)
     FetchContent_Declare(common
         GIT_REPOSITORY https://github.com/semenovf/common-lib.git
         GIT_TAG master
+        GIT_SHALLOW 1
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/2ndparty/common
         SUBBUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/2ndparty/common)
     FetchContent_MakeAvailable(common)
+    message(STATUS "Fetching common complete")
 endif()
 
 if (DEBBY__ENABLE_ROCKSDB)
+    set(FETCHCONTENT_UPDATES_DISCONNECTED_ROCKSDB ON)
+    message(STATUS "Fetching RocksDB ...")
+    include(FetchContent)
+    FetchContent_Declare(rocksdb
+        GIT_REPOSITORY https://github.com/facebook/rocksdb.git
+        GIT_TAG v6.29.5  # Last version compatible with C++11
+        GIT_SHALLOW 1
+        PATCH_COMMAND git apply --ignore-space-change --ignore-whitespace
+            "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb-v6.29.5.patch"
+
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb
+        SUBBUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/rocksdb)
+
+    if (NOT rocksdb_POPULATED)
+        FetchContent_Populate(rocksdb)
+    endif()
+    message(STATUS "Fetching RocksDB complete")
+
     include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb.cmake)
 
     if (TARGET rocksdb)
@@ -102,6 +123,20 @@ if (DEBBY__ENABLE_LMDB)
 endif(DEBBY__ENABLE_LMDB)
 
 if (DEBBY__ENABLE_PSQL)
+    set(FETCHCONTENT_UPDATES_DISCONNECTED_PSQL ON)
+    message(STATUS "Fetching postgres ...")
+    include(FetchContent)
+    FetchContent_Declare(postgres
+        GIT_REPOSITORY https://github.com/postgres/postgres.git
+        GIT_TAG REL_16_1
+        GIT_SHALLOW 1
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/postgres)
+
+    if (NOT psql_POPULATED)
+        FetchContent_Populate(postgres)
+    endif()
+    message(STATUS "Fetching postgresql complete")
+
     set(_postgres_dir ${CMAKE_CURRENT_LIST_DIR}/3rdparty/postgres)
 
     if (EXISTS ${_postgres_dir} AND EXISTS ${_postgres_dir}/README)

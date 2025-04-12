@@ -117,7 +117,7 @@ public:
             e = errc::key_not_found;
         }
 
-        pfs::throw_or(perr, error {e});
+        pfs::throw_or(perr, error {make_error_code(e)});
         return T{};
     }
 };

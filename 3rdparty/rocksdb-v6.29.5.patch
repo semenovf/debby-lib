@@ -1,0 +1,49 @@
+diff --git a/include/rocksdb/utilities/checkpoint.h b/include/rocksdb/utilities/checkpoint.h
+index 7fb9d489a..a9da23d46 100644
+--- a/include/rocksdb/utilities/checkpoint.h
++++ b/include/rocksdb/utilities/checkpoint.h
+@@ -10,6 +10,8 @@
+ 
+ #include <string>
+ #include <vector>
++#include <stdint.h>
++
+ #include "rocksdb/status.h"
+ 
+ namespace ROCKSDB_NAMESPACE {
+diff --git a/table/block_based/data_block_hash_index.h b/table/block_based/data_block_hash_index.h
+index f356395f3..6c39a1344 100644
+--- a/table/block_based/data_block_hash_index.h
++++ b/table/block_based/data_block_hash_index.h
+@@ -7,6 +7,7 @@
+ 
+ #include <string>
+ #include <vector>
++#include <stdint.h>
+ 
+ #include "rocksdb/slice.h"
+ 
+diff --git a/third-party/folly/folly/synchronization/detail/ProxyLockable-inl.h b/third-party/folly/folly/synchronization/detail/ProxyLockable-inl.h
+index 573330ceb..06d45cf91 100644
+--- a/third-party/folly/folly/synchronization/detail/ProxyLockable-inl.h
++++ b/third-party/folly/folly/synchronization/detail/ProxyLockable-inl.h
+@@ -13,6 +13,7 @@
+ #include <memory>
+ #include <mutex>
+ #include <stdexcept>
++#include <system_error>
+ #include <utility>
+ 
+ namespace folly {
+diff --git a/util/string_util.h b/util/string_util.h
+index 7794dbb06..76b521b53 100644
+--- a/util/string_util.h
++++ b/util/string_util.h
+@@ -10,6 +10,7 @@
+ #include <string>
+ #include <unordered_map>
+ #include <vector>
++#include <stdint.h>
+ 
+ #include "rocksdb/rocksdb_namespace.h"
+ 

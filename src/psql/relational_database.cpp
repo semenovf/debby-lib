@@ -108,7 +108,7 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
     }
 
     if (!res.is_done()) {
-        pfs::throw_or(perr, error {pfs::errc::unexpected_error, tr::_("expecting done")});
+        pfs::throw_or(perr, pfs::make_error_code(pfs::errc::unexpected_error));
         return std::vector<std::string>{};
     }
 
@@ -188,10 +188,8 @@ static PGconn * connect (std::string const & conninfo, error * perr)
     PGconn * dbh = PQconnectdb(conninfo.c_str());
 
     if (!dbh) {
-        pfs::throw_or(perr, error {
-            errc::bad_alloc
-            , tr::f_("bad connection parameters or database URI: {}", conninfo)
-        });
+        pfs::throw_or(perr, make_error_code(errc::bad_alloc)
+            , tr::f_("bad connection parameters or database URI: {}", conninfo));
 
         return nullptr;
     } else if (PQstatus(dbh) != CONNECTION_OK) {
@@ -199,10 +197,8 @@ static PGconn * connect (std::string const & conninfo, error * perr)
 
         PQfinish(dbh);
 
-        pfs::throw_or(perr, error {
-            errc::backend_error
-            , tr::f_("database connection failure: {}: {}", conninfo, psql::build_errstr(dbh))
-        });
+        pfs::throw_or(perr, make_error_code(errc::backend_error)
+            , tr::f_("database connection failure: {}: {}", conninfo, psql::build_errstr(dbh)));
 
         return nullptr;
     }
@@ -214,7 +210,7 @@ static PGconn * connect (std::string const & conninfo, error * perr)
 database_t make (std::string const & conninfo, error * perr)
 {
     auto dbh = connect(conninfo, perr);
-    return database_t{database_t::impl{dbh}};
+    return dbh == nullptr ? database_t{} : database_t{database_t::impl{dbh}};
 }
 
 database_t make (std::string const & conninfo, notice_processor_type proc , error * perr)
@@ -224,7 +220,7 @@ database_t make (std::string const & conninfo, notice_processor_type proc , erro
 
     if (err) {
         pfs::throw_or(perr, std::move(err));
-        database_t{};
+        return database_t{};
     }
 
     PQsetNoticeProcessor(dbh, proc, nullptr);

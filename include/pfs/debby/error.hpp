@@ -1,19 +1,15 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021,2022 Vladislav Trifochkin
+// Copyright (c) 2021-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2021.12.14 Initial version.
+//      2025.04.12 Refactored.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "exports.hpp"
-#include "pfs/error.hpp"
-#include "pfs/filesystem.hpp"
-#include <functional>
-#include <string>
-#include <system_error>
-#include <cstdio>
+#include <pfs/error.hpp>
 
 namespace debby {
 
@@ -48,23 +44,6 @@ inline std::error_code make_error_code (errc e)
 class error: public pfs::error
 {
 public:
-    error () : pfs::error() {}
-
-    error (errc ec)
-        : pfs::error(make_error_code(ec))
-    {}
-
-    error (errc ec
-        , std::string const & description
-        , std::string const & cause)
-        : pfs::error(make_error_code(ec), description, cause)
-    {}
-
-    error (errc ec
-        , std::string const & description)
-        : pfs::error(make_error_code(ec), description)
-    {}
-
     using pfs::error::error;
 };
 

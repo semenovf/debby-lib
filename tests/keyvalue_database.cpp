@@ -224,12 +224,16 @@ TEST_CASE("rocksdb set/get") {
 
 #if DEBBY__PSQL_ENABLED
 TEST_CASE("PostgreSQL set/get") {
+    debby::error err;
     using database_t = debby::keyvalue_database<debby::backend_enum::psql>;
     auto conninfo = psql_conninfo();
-    auto db = database_t::make(conninfo.cbegin(), conninfo.cend(), "debby-kv");
+    auto db = database_t::make(conninfo.cbegin(), conninfo.cend(), "debby-kv", & err);
 
     if (!db) {
-        MESSAGE(preconditions_notice);
+        WARN(db);
+        MESSAGE(err.what());
+        MESSAGE(preconditions_notice());
+        return;
     }
 
     REQUIRE(db);

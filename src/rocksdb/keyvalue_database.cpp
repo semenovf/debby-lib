@@ -10,7 +10,7 @@
 //      2023.02.08 Applied new API.
 //      2024.11.10 V2 started.
 ////////////////////////////////////////////////////////////////////////////////
-#include "../kv_common.hpp"
+#include "../keyvalue_database_common.hpp"
 #include "debby/keyvalue_database.hpp"
 #include "debby/rocksdb.hpp"
 #include <pfs/filesystem.hpp>
@@ -83,7 +83,8 @@ private:
         auto status = dbh->CreateColumnFamily(::rocksdb::ColumnFamilyOptions(), CFNAME, & cf);
 
         if (!status.ok()) {
-            pfs::throw_or(perr, error { errc::backend_error, fs::utf8_encode(path), status.ToString()});
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , fmt::format("{}: {}", fs::utf8_encode(path), status.ToString()));
             return nullptr;
         }
 
@@ -111,30 +112,30 @@ public:
             o.IncreaseParallelism();
             o.OptimizeLevelStyleCompaction();
         }
-        
+
         // Use this if your DB is very small (like under 1GB) and you don't want to
         // spend lots of memory for memtables.
         if (opts.small_db)
             o.OptimizeForSmallDb();
-        
+
         // If true, the database will be created if it is missing.
         // Default: false
         o.create_if_missing = create_if_missing;
-        
+
         // Aggressively check consistency of the data.
         o.paranoid_checks = true;
-        
+
         // Maximal info log files to be kept.
         // Default: 1000
         o.keep_log_file_num = opts.keep_log_file_num;
-        
+
         // If true, missing column families will be automatically created.
         // Default: false
         o.create_missing_column_families = true;
 
         if (fs::exists(path))
             o.create_if_missing = false;
-        
+
         // NOTE
         // Rocks's `CreateDirIfMissing()` regardless of `options.create_if_missing`
         // value.
@@ -155,7 +156,7 @@ public:
         //
         // ATTENTION! ROCKSDB_LITE causes a segmentaion fault while open the database
         //::rocksdb::Status status = ::rocksdb::DB::Open(o, fs::utf8_encode(path), & dbh);
-        
+
         std::vector<::rocksdb::ColumnFamilyHandle *> handles;
         std::vector<::rocksdb::ColumnFamilyDescriptor> column_families;
         column_families.emplace_back(::rocksdb::kDefaultColumnFamilyName, ::rocksdb::ColumnFamilyOptions());
@@ -163,7 +164,8 @@ public:
         auto status = ::rocksdb::DB::Open(o, fs::utf8_encode(path), column_families, & handles, & dbh);
 
         if (!status.ok()) {
-            pfs::throw_or(perr, error { errc::backend_error, fs::utf8_encode(path), status.ToString()});
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , fmt::format("{}: {}", fs::utf8_encode(path), status.ToString()));
             return;
         }
 
@@ -199,12 +201,12 @@ public:
             }
 
             _handles.clear();
-        
+
             _dbh->Close();
             delete _dbh;
             _dbh = nullptr;
         }
-        
+
         _path.clear();
     }
 
@@ -227,14 +229,11 @@ public:
         ::rocksdb::WriteOptions write_opts;
         write_opts.sync = true;
         ::rocksdb::Status status = _dbh->Delete(write_opts, _handles[1], key);
-        
+
         if (!status.ok()) {
             if (!status.IsNotFound()) {
-                pfs::throw_or(perr, error {
-                      errc::backend_error
-                    , tr::f_("remove failure for key: '{}'", key)
-                    , status.ToString()
-                });
+                pfs::throw_or(perr, make_error_code(errc::backend_error)
+                    , tr::f_("remove failure for key: {}: {}", key, status.ToString()));
 
                 return;
             }
@@ -244,22 +243,24 @@ public:
    void clear (error * perr = nullptr)
    {
         if (_dbh == nullptr)
-            return; 
+            return;
 
         if (_handles[1] == nullptr)
-            return; 
+            return;
 
         auto status = _dbh->DropColumnFamily(_handles[1]);
 
         if (!status.ok()) {
-            pfs::throw_or(perr, error {errc::backend_error, tr::_("clear failure (drop column family)"), status.ToString()});
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("clear failure (drop column family): {}", status.ToString()));
             return;
         }
 
         status = _dbh->DestroyColumnFamilyHandle(_handles[1]);
 
         if (!status.ok()) {
-            pfs::throw_or(perr, error {errc::backend_error, tr::_("clear failure (destroy column family)"), status.ToString()});
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("clear failure (destroy column family): {}", status.ToString()));
             return;
         }
 
@@ -298,12 +299,8 @@ public:
         auto status = _dbh->Put(::rocksdb::WriteOptions(), _handles[1], key, ::rocksdb::Slice(data, size));
 
         if (!status.ok()) {
-            pfs::throw_or(perr, error {
-                  errc::backend_error
-                , tr::f_("write failure for key: '{}'", key)
-                , status.ToString()
-            });
-
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("write failure for key: {}: {}", key, status.ToString()));
             return false;
         }
 
@@ -327,17 +324,13 @@ public:
                 return T{};
             }
         } else {
-            pfs::throw_or(perr, error {
+            pfs::throw_or(perr, make_error_code(
                 status.IsNotFound()
                     ? errc::key_not_found
-                    : errc::backend_error
+                    : errc::backend_error)
                 , status.IsNotFound()
-                    ? tr::f_("key not found: '{}'", key)
-                    : tr::f_("read failure for key: '{}'", key)
-                , status.IsNotFound()
-                    ? ""
-                    : status.ToString()
-            });
+                    ? tr::f_("key not found: {}", key)
+                    : tr::f_("read failure for key: {}: {}", key, status.ToString()));
 
             return T{};
         }
@@ -345,6 +338,8 @@ public:
         return result;
     }
 };
+
+constexpr char const * keyvalue_database<backend_enum::rocksdb>::impl::CFNAME;
 
 template keyvalue_database<backend_enum::rocksdb>::keyvalue_database (impl && d);
 template keyvalue_database<backend_enum::rocksdb>::keyvalue_database (keyvalue_database && other) noexcept;
@@ -375,7 +370,7 @@ make_kv (fs::path const & path, bool create_if_missing, error * perr)
 bool wipe (fs::path const & path, error * perr)
 {
     std::error_code ec;
-        
+
     if (path.empty())
         return false;
 
@@ -384,12 +379,12 @@ bool wipe (fs::path const & path, error * perr)
 
     if (fs::exists(path, ec) && fs::is_directory(path, ec))
         fs::remove_all(path, ec);
-        
+
     if (ec) {
-        pfs::throw_or(perr, ec, tr::_("wipe RocksDB database"), fs::utf8_encode(path));
+        pfs::throw_or(perr, ec, tr::f_("wipe RocksDB database: {}", fs::utf8_encode(path)));
         return false;
     }
-        
+
     return true;
 }
 

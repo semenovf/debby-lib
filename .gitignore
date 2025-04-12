@@ -10,9 +10,10 @@
 ################################################################################
 
 /3rdparty/*
+!/3rdparty/CMakeLists.txt
 !/3rdparty/README.md
 !/3rdparty/*.cmake
-!/3rdparty/CMakeLists.txt
+!/3rdparty/*.patch
 
 /2ndparty/
 

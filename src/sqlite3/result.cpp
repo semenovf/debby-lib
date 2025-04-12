@@ -107,9 +107,9 @@ void result_t::next ()
             _d->state = impl::FAILURE;
 
             throw error {
-                  errc::sql_error
-                , sqlite3::build_errstr(rc, _d->sth)
-                , sqlite3::current_sql(_d->sth)
+                  make_error_code(errc::sql_error)
+                , fmt::format("{}: {}", sqlite3::build_errstr(rc, _d->sth)
+                    , sqlite3::current_sql(_d->sth))
             };
 
             break;
@@ -122,9 +122,9 @@ void result_t::next ()
             _d->state = impl::FAILURE;
 
             throw error {
-                  errc::sql_error
-                , sqlite3::build_errstr(rc, _d->sth)
-                , sqlite3::current_sql(_d->sth)
+                  make_error_code(errc::sql_error)
+                , fmt::format("{} :{}", sqlite3::build_errstr(rc, _d->sth)
+                    , sqlite3::current_sql(_d->sth))
             };
 
             break;
@@ -135,10 +135,10 @@ void result_t::next ()
         sqlite3_reset(_d->sth);
 }
 
-#define CHECK_COLUMN_INDEX_BOILERPLATE                                           \
+#define CHECK_COLUMN_INDEX_BOILERPLATE                                          \
     if (column < 0 || column >= _d->column_count) {                             \
         pfs::throw_or(perr, error {                                             \
-              errc::column_not_found                                            \
+              make_error_code(errc::column_not_found)                           \
             , tr::f_("bad column index: {}, expected greater or equal to 0 and" \
                 " less than {}", column, _d->column_count)                      \
         });                                                                     \
@@ -146,7 +146,8 @@ void result_t::next ()
     }
 
 #define UNSUITABLE_ERROR_BOILERPLATE \
-    pfs::throw_or(perr, error {errc::bad_value, tr::f_("unsuitable column type at index {}", column)});
+    pfs::throw_or(perr, error {make_error_code(errc::bad_value)                 \
+        , tr::f_("unsuitable column type at index {}", column)});
 
 template <>
 pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
@@ -248,7 +249,7 @@ pfs::optional<std::int64_t> result_t::get_int64 (std::string const & column_name
     auto index = _d->column_index(column_name);
 
     if (index < 0) {
-        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
         return 0;
     }
 
@@ -261,7 +262,7 @@ pfs::optional<double> result_t::get_double (std::string const & column_name, err
     auto index = _d->column_index(column_name);
 
     if (index < 0) {
-        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
         return 0;
     }
 
@@ -274,7 +275,7 @@ pfs::optional<std::string> result_t::get_string (std::string const & column_name
     auto index = _d->column_index(column_name);
 
     if (index < 0) {
-        pfs::throw_or(perr, error {errc::column_not_found, tr::f_("bad column name: {}", column_name)});
+        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
         return std::string{};
     }
 
