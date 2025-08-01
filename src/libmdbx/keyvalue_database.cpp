@@ -10,9 +10,9 @@
 #include "../keyvalue_database_common.hpp"
 #include "debby/keyvalue_database.hpp"
 #include "debby/mdbx.hpp"
-#include "lib/mdbx.h"
 #include <pfs/filesystem.hpp>
 #include <pfs/i18n.hpp>
+#include <mdbx.h>
 #include <utility>
 
 namespace fs = pfs::filesystem;
@@ -108,8 +108,8 @@ public:
                   MDBX_NOSUBDIR    // in a filesystem we have the pair of MDBX-files
                                    // which names derived from given pathname by
                                    // appending predefined suffixes.
-                | MDBX_COALESCE    // will aims to coalesce items while recycling
-                                   // a Garbage Collection
+                // | MDBX_COALESCE    // will aims to coalesce items while recycling
+                //                    // a Garbage Collection (DEPRECTED)
                 | MDBX_LIFORECLAIM // MDBX_LIFORECLAIM flag turns on LIFO policy
                                    // for recycling a Garbage Collection items,
                                    // instead of FIFO by default. On systems with
@@ -139,7 +139,7 @@ public:
             //if (rc != MDBX_SUCCESS)
             //    break;
 
-            rc = mdbx_env_open(env, fs::utf8_encode(path).c_str(), static_cast<MDBX_env_flags_t>(opts.env), 0600);
+            rc = mdbx_env_open(env, pfs::utf8_encode_path(path).c_str(), static_cast<MDBX_env_flags_t>(opts.env), 0600);
 
             if (rc != MDBX_SUCCESS)
                 break;
@@ -177,7 +177,7 @@ public:
             }
 
             pfs::throw_or(perr, make_error_code(errc::backend_error)
-                , fmt::format("{}: {}", fs::utf8_encode(path), mdbx_strerror(rc)));
+                , fmt::format("{}: {}", pfs::utf8_encode_path(path), mdbx_strerror(rc)));
 
             return;
         }
@@ -417,9 +417,9 @@ bool wipe (fs::path const & path, error * perr)
 
     if (ec1 || ec2) {
         if (ec1)
-            pfs::throw_or(perr, ec1, tr::f_("wipe MDBX database failure: {}", fs::utf8_encode(path)));
+            pfs::throw_or(perr, ec1, tr::f_("wipe MDBX database failure: {}", pfs::utf8_encode_path(path)));
         else if (ec2)
-            pfs::throw_or(perr, ec2, tr::f_("wipe MDBX database failure: {}", fs::utf8_encode(lck_path)));
+            pfs::throw_or(perr, ec2, tr::f_("wipe MDBX database failure: {}", pfs::utf8_encode_path(lck_path)));
 
         return false;
     }

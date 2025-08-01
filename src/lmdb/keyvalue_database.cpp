@@ -10,9 +10,9 @@
 #include "../keyvalue_database_common.hpp"
 #include "debby/keyvalue_database.hpp"
 #include "debby/lmdb.hpp"
-#include "lib/lmdb.h"
 #include <pfs/assert.hpp>
 #include <pfs/i18n.hpp>
+#include <lmdb.h>
 #include <algorithm>
 
 namespace fs = pfs::filesystem;
@@ -129,7 +129,8 @@ public:
             //if (rc != MDB_SUCCESS)
             //    break;
 
-            rc = mdb_env_open(env, fs::utf8_encode(path).c_str(), static_cast<unsigned int>(opts.env), 0600);
+            rc = mdb_env_open(env, pfs::utf8_encode_path(path).c_str()
+                , static_cast<unsigned int>(opts.env), 0600);
 
             if (rc != MDB_SUCCESS)
                 break;
@@ -167,7 +168,7 @@ public:
             }
 
             pfs::throw_or(perr, make_error_code(errc::backend_error)
-                , fmt::format("{}: {}", fs::utf8_encode(path), mdb_strerror(rc)));
+                , fmt::format("{}: {}", pfs::utf8_encode_path(path), mdb_strerror(rc)));
 
             return;
         }
@@ -405,10 +406,13 @@ bool wipe (fs::path const & path, error * perr)
         fs::remove(lck_path, ec2);
 
     if (ec1 || ec2) {
-        if (ec1)
-            pfs::throw_or(perr, ec1, tr::f_("wipe LMDB database failure: {}", fs::utf8_encode(path)));
-        else if (ec2)
-            pfs::throw_or(perr, ec2, tr::f_("wipe LMDB database failure: {}", fs::utf8_encode(lck_path)));
+        if (ec1) {
+            pfs::throw_or(perr, ec1, tr::f_("wipe LMDB database failure: {}"
+                , pfs::utf8_encode_path(path)));
+        } else if (ec2) {
+            pfs::throw_or(perr, ec2, tr::f_("wipe LMDB database failure: {}"
+                , pfs::utf8_encode_path(lck_path)));
+        }
 
         return false;
     }

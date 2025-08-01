@@ -21,29 +21,30 @@ else()
 endif()
 
 add_library(pfs::debby ALIAS debby)
+target_link_libraries(debby PUBLIC pfs::common)
 
 if (MSVC)
     target_compile_definitions(debby PRIVATE _CRT_SECURE_NO_WARNINGS)
 endif()
 
-list(APPEND _debby__sources
+target_sources(debby PRIVATE
     ${CMAKE_CURRENT_LIST_DIR}/src/data_definition.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/error.cpp)
 
 if (DEBBY__ENABLE_MAP OR DEBBY__ENABLE_UNORDERED_MAP)
-    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/keyvalue_database.cpp)
+    target_sources(debby PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/in_memory/keyvalue_database.cpp)
 
     if (DEBBY__ENABLE_MAP)
-        list(APPEND _debby__definitions "DEBBY__MAP_ENABLED=1")
+        target_compile_definitions(debby PUBLIC "DEBBY__MAP_ENABLED=1")
     endif()
 
     if (DEBBY__ENABLE_UNORDERED_MAP)
-        list(APPEND _debby__definitions "DEBBY__UNORDERED_MAP_ENABLED=1")
+        target_compile_definitions(debby PUBLIC "DEBBY__UNORDERED_MAP_ENABLED=1")
     endif()
 endif()
 
 if (DEBBY__ENABLE_SQLITE3)
-    list(APPEND _debby__sources
+    target_sources(debby PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/sqlite3.c
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/data_definition.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/relational_database.cpp
@@ -51,7 +52,7 @@ if (DEBBY__ENABLE_SQLITE3)
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/result.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/sqlite3/statement.cpp)
 
-    list(APPEND _debby__definitions "DEBBY__SQLITE3_ENABLED=1")
+    target_compile_definitions(debby PUBLIC "DEBBY__SQLITE3_ENABLED=1")
 
     # Enable full-text search (FTS) functionality in sqlite3
     if (DEBBY__ENABLE_SQLITE_FTS5)
@@ -59,112 +60,52 @@ if (DEBBY__ENABLE_SQLITE3)
     endif()
 endif()
 
-if (NOT TARGET pfs::common)
-    set(FETCHCONTENT_UPDATES_DISCONNECTED_COMMON ON)
-    message(STATUS "Fetching common ...")
-    include(FetchContent)
-    FetchContent_Declare(common
-        GIT_REPOSITORY https://github.com/semenovf/common-lib.git
-        GIT_TAG master
-        GIT_SHALLOW 1
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/2ndparty/common
-        SUBBUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/2ndparty/common)
-    FetchContent_MakeAvailable(common)
-    message(STATUS "Fetching common complete")
-endif()
-
 if (DEBBY__ENABLE_ROCKSDB)
-    set(FETCHCONTENT_UPDATES_DISCONNECTED_ROCKSDB ON)
-    message(STATUS "Fetching RocksDB ...")
-    include(FetchContent)
-    FetchContent_Declare(rocksdb
-        GIT_REPOSITORY https://github.com/facebook/rocksdb.git
-        GIT_TAG v6.29.5  # Last version compatible with C++11
-        GIT_SHALLOW 1
-        PATCH_COMMAND git apply --ignore-space-change --ignore-whitespace
-            "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb-v6.29.5.patch"
-
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb
-        SUBBUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/rocksdb)
-
-    if (NOT rocksdb_POPULATED)
-        FetchContent_Populate(rocksdb)
-    endif()
-    message(STATUS "Fetching RocksDB complete")
-
-    include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/rocksdb.cmake)
-
     if (TARGET rocksdb)
-        list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/keyvalue_database.cpp)
-        list(APPEND _debby__definitions "DEBBY__ROCKSDB_ENABLED=1")
+        target_sources(debby PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/rocksdb/keyvalue_database.cpp)
+        target_compile_definitions(debby PUBLIC "DEBBY__ROCKSDB_ENABLED=1")
 
         target_link_libraries(debby PRIVATE rocksdb)
     else()
-        message(WARNING "No RocksDB target found, may be need to download it (run ${CMAKE_CURRENT_LIST_DIR}/3rdparty/download.sh)")
+        message(WARNING "No RocksDB target found, RocksDB support disabled")
     endif()
 endif(DEBBY__ENABLE_ROCKSDB)
 
 if (DEBBY__ENABLE_MDBX)
-    set(MDBX_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Enable/disable build shared `libmdbx` library")
-    set(MDBX_BUILD_TOOLS OFF CACHE BOOL "Disable build `libmdbx` tools")
-    set(MDBX_BUILD_CXX OFF CACHE BOOL "Disable build `libmdbx` with C++ support")
-
-    add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/lib EXCLUDE_FROM_ALL)
-    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/keyvalue_database.cpp)
-    list(APPEND _debby__definitions "DEBBY__MDBX_ENABLED=1")
-    target_link_libraries(debby PRIVATE mdbx-static)
+    if (TARGET mdbx-static)
+        target_sources(debby PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/libmdbx/keyvalue_database.cpp)
+        target_compile_definitions(debby PUBLIC "DEBBY__MDBX_ENABLED=1")
+        target_link_libraries(debby PRIVATE mdbx-static)
+    else()
+        message(WARNING "No MDBX target found, MDBX support disabled")
+    endif()
 endif(DEBBY__ENABLE_MDBX)
 
 if (DEBBY__ENABLE_LMDB)
-    list(APPEND _debby__sources ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/keyvalue_database.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/lib/mdb.c
-        ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/lib/midl.c)
-    list(APPEND _debby__definitions "DEBBY__LMDB_ENABLED=1")
+    if (TARGET mdbx-static)
+        target_sources(debby PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/keyvalue_database.cpp)
+        target_compile_definitions(debby PUBLIC "DEBBY__LMDB_ENABLED=1")
+        target_link_libraries(debby PRIVATE lmdb-static)
+    else()
+        message(WARNING "No LMDB target found, LMDB support disabled")
+    endif()
 endif(DEBBY__ENABLE_LMDB)
 
 if (DEBBY__ENABLE_PSQL)
-    set(FETCHCONTENT_UPDATES_DISCONNECTED_PSQL ON)
-    message(STATUS "Fetching postgres ...")
-    include(FetchContent)
-    FetchContent_Declare(postgres
-        GIT_REPOSITORY https://github.com/postgres/postgres.git
-        GIT_TAG REL_16_1
-        GIT_SHALLOW 1
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/postgres)
-
-    if (NOT psql_POPULATED)
-        FetchContent_Populate(postgres)
-    endif()
-    message(STATUS "Fetching postgresql complete")
-
-    set(_postgres_dir ${CMAKE_CURRENT_LIST_DIR}/3rdparty/postgres)
-
-    if (EXISTS ${_postgres_dir} AND EXISTS ${_postgres_dir}/README)
-        list(APPEND _debby__definitions "DEBBY__PSQL_ENABLED=1")
-        list(APPEND _debby__include_dirs
-            $<TARGET_PROPERTY:pgcommon,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:pgport,INTERFACE_INCLUDE_DIRECTORIES>
-            $<TARGET_PROPERTY:pq-static,INTERFACE_INCLUDE_DIRECTORIES>)
-
-        list(APPEND _debby__private_libs pq-static pgport pgcommon)
-
-        include(${CMAKE_CURRENT_LIST_DIR}/3rdparty/postgres.cmake)
-
-        list(APPEND _debby__sources
+    if (TARGET pgcommon)
+        target_compile_definitions(debby PUBLIC "DEBBY__PSQL_ENABLED=1")
+        target_link_libraries(debby PRIVATE pq-static pgport pgcommon)
+        target_sources(debby PRIVATE
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/data_definition.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/keyvalue_database.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/relational_database.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/result.cpp
             ${CMAKE_CURRENT_LIST_DIR}/src/psql/statement.cpp)
     else()
-        message(WARNING "PostgreSQL source directory not found: ${_postgres_dir}")
-        set(DEBBY__ENABLE_PSQL FALSE)
+        message(WARNING "No PostgreSQL target found, PostgreSQL support disabled")
     endif()
 endif()
 
-target_sources(debby PRIVATE ${_debby__sources})
-target_compile_definitions(debby PUBLIC ${_debby__definitions})
 target_include_directories(debby
     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
     PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include/pfs)
-target_link_libraries(debby PUBLIC pfs::common PRIVATE ${_debby__private_libs})

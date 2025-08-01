@@ -77,14 +77,15 @@ private:
     fs::path _path;
 
 private:
-    static ::rocksdb::ColumnFamilyHandle * create_column_family (::rocksdb::DB * dbh, fs::path const & path, error * perr)
+    static ::rocksdb::ColumnFamilyHandle * create_column_family (::rocksdb::DB * dbh
+        , fs::path const & path, error * perr)
     {
         ::rocksdb::ColumnFamilyHandle * cf = nullptr;
         auto status = dbh->CreateColumnFamily(::rocksdb::ColumnFamilyOptions(), CFNAME, & cf);
 
         if (!status.ok()) {
             pfs::throw_or(perr, make_error_code(errc::backend_error)
-                , fmt::format("{}: {}", fs::utf8_encode(path), status.ToString()));
+                , fmt::format("{}: {}", pfs::utf8_encode_path(path), status.ToString()));
             return nullptr;
         }
 
@@ -147,7 +148,7 @@ public:
         // `Status DBImpl::Open(const DBOptions& db_options...`.
         // Need to use workaround:
         if (!fs::exists(path) && !o.create_if_missing) {
-            pfs::throw_or(perr, error {make_error_code(errc::database_not_found), fs::utf8_encode(path)});
+            pfs::throw_or(perr, make_error_code(errc::database_not_found), pfs::utf8_encode_path(path));
             return;
         }
 
@@ -161,11 +162,11 @@ public:
         std::vector<::rocksdb::ColumnFamilyDescriptor> column_families;
         column_families.emplace_back(::rocksdb::kDefaultColumnFamilyName, ::rocksdb::ColumnFamilyOptions());
         column_families.emplace_back(CFNAME, ::rocksdb::ColumnFamilyOptions());
-        auto status = ::rocksdb::DB::Open(o, fs::utf8_encode(path), column_families, & handles, & dbh);
+        auto status = ::rocksdb::DB::Open(o, pfs::utf8_encode_path(path), column_families, & handles, & dbh);
 
         if (!status.ok()) {
             pfs::throw_or(perr, make_error_code(errc::backend_error)
-                , fmt::format("{}: {}", fs::utf8_encode(path), status.ToString()));
+                , fmt::format("{}: {}", pfs::utf8_encode_path(path), status.ToString()));
             return;
         }
 
@@ -381,7 +382,7 @@ bool wipe (fs::path const & path, error * perr)
         fs::remove_all(path, ec);
 
     if (ec) {
-        pfs::throw_or(perr, ec, tr::f_("wipe RocksDB database: {}", fs::utf8_encode(path)));
+        pfs::throw_or(perr, ec, tr::f_("wipe RocksDB database: {}", pfs::utf8_encode_path(path)));
         return false;
     }
 

@@ -236,7 +236,7 @@ database_t make (pfs::filesystem::path const & path, bool create_if_missing, mak
 
     PFS__TERMINATE(sqlite3_enable_shared_cache(0) == SQLITE_OK, "");
 
-    auto utf8_path = fs::utf8_encode(path);
+    auto utf8_path = pfs::utf8_encode_path(path);
 
     int rc = sqlite3_open_v2(utf8_path.c_str(), & dbh, flags, default_vfs);
 
@@ -359,7 +359,7 @@ bool wipe (fs::path const & path, error * perr)
         fs::remove(path, ec);
 
     if (ec) {
-        pfs::throw_or(perr, ec, tr::f_("wipe sqlite3 database: {}", fs::utf8_encode(path)));
+        pfs::throw_or(perr, ec, tr::f_("wipe sqlite3 database: {}", pfs::utf8_encode_path(path)));
         return false;
     }
 
