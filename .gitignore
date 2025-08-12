@@ -8,14 +8,16 @@
 ##      2023.11.25 Removed useless (rare) rules.
 ##      2024.11.10 Added Visual Studio rules.
 ################################################################################
+!.gitignore
+
+/2ndparty/*
+!/2ndparty/CMakeLists.txt
 
 /3rdparty/*
 !/3rdparty/CMakeLists.txt
 !/3rdparty/README.md
 !/3rdparty/*.cmake
 !/3rdparty/*.patch
-
-/2ndparty/
 
 ### KDevelop ###
 *.kdev4
