@@ -82,7 +82,7 @@ if (DEBBY__ENABLE_MDBX)
 endif(DEBBY__ENABLE_MDBX)
 
 if (DEBBY__ENABLE_LMDB)
-    if (TARGET mdbx-static)
+    if (TARGET lmdb-static)
         target_sources(debby PRIVATE ${CMAKE_CURRENT_LIST_DIR}/src/lmdb/keyvalue_database.cpp)
         target_compile_definitions(debby PUBLIC "DEBBY__LMDB_ENABLED=1")
         target_link_libraries(debby PRIVATE lmdb-static)
