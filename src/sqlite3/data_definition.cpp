@@ -56,25 +56,22 @@ void column::build<backend_enum::sqlite3> (std::ostream & out)
         out << ' ' << _constraint;
 }
 
-template <> template <> char const * table_t::column_type_affinity<bool>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<char>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<signed char>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned char>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<short int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned short int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<long int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned long int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<long long int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned long long int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<float>::value = "REAL";
-template <> template <> char const * table_t::column_type_affinity<double>::value = "REAL";
-template <> template <> char const * table_t::column_type_affinity<std::string>::value = "TEXT";
-template <> template <> char const * table_t::column_type_affinity<blob_t>::value = "BLOB";
-template <> template <> char const * table_t::column_type_affinity<pfs::universal_id>::value = "TEXT";
-template <> template <> char const * table_t::column_type_affinity<pfs::utc_time>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<pfs::local_time>::value = "INTEGER";
+template <> char const * column_type_affinity<backend_enum::sqlite3, bool>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, char>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, signed char>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, unsigned char>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, short int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, unsigned short int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, unsigned int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, long int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, unsigned long int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, long long int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, unsigned long long int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, float>::type () {return "REAL";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, double>::type () {return "REAL";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, std::string>::type () {return "TEXT";}
+template <> char const * column_type_affinity<backend_enum::sqlite3, blob_t>::type () {return "BLOB";}
 
 template <>
 table_t::table (std::string && name)

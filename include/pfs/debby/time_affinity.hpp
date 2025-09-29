@@ -7,10 +7,37 @@
 //      2025.09.29 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "affinity_traits.hpp"
+#include "backend_enum.hpp"
+#include "error.hpp"
 #include <pfs/time_point.hpp>
 #include <cstdint>
 
 DEBBY__NAMESPACE_BEGIN
+
+template <>
+inline char const * column_type_affinity<backend_enum::sqlite3, pfs::utc_time>::type ()
+{
+    return "INTEGER";
+}
+
+template <>
+inline char const * column_type_affinity<backend_enum::sqlite3, pfs::local_time>::type ()
+{
+    return "INTEGER";
+}
+
+template <>
+inline char const * column_type_affinity<backend_enum::psql, pfs::utc_time>::type ()
+{
+    return "INTEGER";
+}
+
+template <>
+inline char const * column_type_affinity<backend_enum::psql, pfs::local_time>::type ()
+{
+    return "INTEGER";
+}
 
 template <>
 struct keyvalue_affinity<pfs::utc_time>

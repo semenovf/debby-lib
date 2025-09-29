@@ -41,25 +41,22 @@ void column::build<backend_enum::psql> (std::ostream & out)
         out << ' ' << _constraint;
 }
 
-template <> template <> char const * table_t::column_type_affinity<bool>::value = "BOOLEAN";
-template <> template <> char const * table_t::column_type_affinity<char>::value = "SMALLINT";
-template <> template <> char const * table_t::column_type_affinity<signed char>::value = "SMALLINT";
-template <> template <> char const * table_t::column_type_affinity<unsigned char>::value = "SMALLINT";
-template <> template <> char const * table_t::column_type_affinity<short int>::value = "SMALLINT";
-template <> template <> char const * table_t::column_type_affinity<unsigned short int>::value = "SMALLINT";
-template <> template <> char const * table_t::column_type_affinity<int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<unsigned int>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<long int>::value = "BIGINT";
-template <> template <> char const * table_t::column_type_affinity<unsigned long int>::value = "BIGINT";
-template <> template <> char const * table_t::column_type_affinity<long long int>::value = "BIGINT";
-template <> template <> char const * table_t::column_type_affinity<unsigned long long int>::value = "BIGINT";
-template <> template <> char const * table_t::column_type_affinity<float>::value = "REAL";
-template <> template <> char const * table_t::column_type_affinity<double>::value = "DOUBLE PRECISION";
-template <> template <> char const * table_t::column_type_affinity<std::string>::value = "TEXT";
-template <> template <> char const * table_t::column_type_affinity<blob_t>::value = "BYTEA";
-template <> template <> char const * table_t::column_type_affinity<pfs::universal_id>::value = "CHARACTER(26)";
-template <> template <> char const * table_t::column_type_affinity<pfs::utc_time>::value = "INTEGER";
-template <> template <> char const * table_t::column_type_affinity<pfs::local_time>::value = "INTEGER";
+template <> char const * column_type_affinity<backend_enum::psql, bool>::type () {return "BOOLEAN";}
+template <> char const * column_type_affinity<backend_enum::psql, char>::type () {return "SMALLINT";}
+template <> char const * column_type_affinity<backend_enum::psql, signed char>::type () {return "SMALLINT";}
+template <> char const * column_type_affinity<backend_enum::psql, unsigned char>::type () {return "SMALLINT";}
+template <> char const * column_type_affinity<backend_enum::psql, short int>::type () {return "SMALLINT";}
+template <> char const * column_type_affinity<backend_enum::psql, unsigned short int>::type () {return "SMALLINT";}
+template <> char const * column_type_affinity<backend_enum::psql, int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::psql, unsigned int>::type () {return "INTEGER";}
+template <> char const * column_type_affinity<backend_enum::psql, long int>::type () {return "BIGINT";}
+template <> char const * column_type_affinity<backend_enum::psql, unsigned long int>::type () {return "BIGINT";}
+template <> char const * column_type_affinity<backend_enum::psql, long long int>::type () {return "BIGINT";}
+template <> char const * column_type_affinity<backend_enum::psql, unsigned long long int>::type () {return "BIGINT";}
+template <> char const * column_type_affinity<backend_enum::psql, float>::type () {return "REAL";}
+template <> char const * column_type_affinity<backend_enum::psql, double>::type () {return "DOUBLE PRECISION";}
+template <> char const * column_type_affinity<backend_enum::psql, std::string>::type () {return "TEXT";}
+template <> char const * column_type_affinity<backend_enum::psql, blob_t>::type () {return "BYTEA";}
 
 template <>
 table_t::table (std::string && name)

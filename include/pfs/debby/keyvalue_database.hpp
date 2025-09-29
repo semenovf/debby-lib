@@ -12,6 +12,7 @@
 //                 Added support for custom types.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "affinity_traits.hpp"
 #include "backend_enum.hpp"
 #include "error.hpp"
 #include "exports.hpp"
@@ -25,9 +26,6 @@
 #include <type_traits>
 
 DEBBY__NAMESPACE_BEGIN
-
-template <typename T>
-struct keyvalue_affinity;
 
 template <backend_enum Backend>
 class keyvalue_database

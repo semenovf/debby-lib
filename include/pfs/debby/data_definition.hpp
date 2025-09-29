@@ -7,6 +7,7 @@
 //      2024.11.21 Initial version.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "affinity_traits.hpp"
 #include "backend_enum.hpp"
 #include "exports.hpp"
 #include "namespace.hpp"
@@ -69,12 +70,6 @@ template <backend_enum Backend>
 class table
 {
 public:
-    template <typename T>
-    struct column_type_affinity
-    {
-        static char const * value;
-    };
-
     enum flag_bit: std::size_t
     {
           temporary_flag
@@ -102,7 +97,7 @@ public:
     template <typename T>
     inline column & add_column (std::string && name)
     {
-        _columns.emplace_back(std::move(name), column_type_affinity<std::decay_t<T>>::value);
+        _columns.emplace_back(std::move(name), column_type_affinity<Backend, std::decay_t<T>>::type());
         return _columns.back();
     }
 

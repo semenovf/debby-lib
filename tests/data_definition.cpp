@@ -9,6 +9,8 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 #include "pfs/debby/data_definition.hpp"
+#include "pfs/debby/time_affinity.hpp"
+#include "pfs/debby/universal_id_affinity.hpp"
 #include <pfs/filesystem.hpp>
 
 #if DEBBY__SQLITE3_ENABLED
@@ -29,7 +31,7 @@ void check (RelationalDatabaseType & db)
 
     {
         auto t = data_definition_t::create_table("table1");
-        t.template add_column<std::uint32_t>("bool")
+        t.template add_column<std::uint32_t>("id")
             .primary_key().unique();
         t.template add_column<bool>("bool");
         t.template add_column<std::int8_t>("int8");
@@ -37,6 +39,9 @@ void check (RelationalDatabaseType & db)
         t.template add_column<float>("float");
         t.template add_column<std::string>("text");
         t.template add_column<debby::blob_t>("blob").nullable();
+        t.template add_column<pfs::universal_id>("uid").nullable();
+        t.template add_column<pfs::utc_time>("utc_time").nullable();
+        t.template add_column<pfs::local_time>("utc_time").nullable();
 
         fmt::println(t.build());
     }
