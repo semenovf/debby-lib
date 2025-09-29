@@ -16,7 +16,6 @@
 #include "namespace.hpp"
 #include <pfs/endian.hpp>
 #include <pfs/i18n.hpp>
-#include <pfs/numeric_cast.hpp>
 #include <pfs/optional.hpp>
 #include <pfs/universal_id.hpp>
 #include <pfs/time_point.hpp>
@@ -110,7 +109,7 @@ public:
     get (ColumnType const & column, error * perr = nullptr)
     {
         auto opt = get_int64(column, perr);
-        return opt ? pfs::make_optional(pfs::numeric_cast<T>(*opt)) : pfs::nullopt;
+        return opt ? pfs::make_optional(static_cast<T>(*opt)) : pfs::nullopt;
     }
 
     template <typename T, typename ColumnType>
@@ -136,7 +135,7 @@ public:
         auto opt = get_int64(column, perr);
 
         if (opt) {
-            auto x = pfs::numeric_cast<typename std::underlying_type<T>::type>(*opt);
+            auto x = static_cast<typename std::underlying_type<T>::type>(*opt);
             return static_cast<T>(x);
         }
 
@@ -188,7 +187,7 @@ public:
     get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
     {
         auto opt = get_int64(column, perr);
-        return opt ? pfs::numeric_cast<T>(*opt) : default_value;
+        return opt ? static_cast<T>(*opt) : default_value;
     }
 
     template <typename T, typename ColumnType>

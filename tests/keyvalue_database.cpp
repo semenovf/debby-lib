@@ -127,46 +127,46 @@ void check_settings (debby::settings<Backend> & db)
     try {
         REQUIRE(db);
 
-        // db.set("bool.value"  , true);
-        // db.set("char.value"  , 'W');
-        // db.set("int8.value"  , std::numeric_limits<std::int8_t>::min());
-        // db.set("uint8.value" , std::numeric_limits<std::uint8_t>::max());
-        // db.set("int16.value" , std::numeric_limits<std::int16_t>::min());
-        // db.set("uint16.value", std::numeric_limits<std::uint16_t>::max());
-        // db.set("int32.value" , std::numeric_limits<std::int32_t>::min());
-        // db.set("uint32.value", std::numeric_limits<std::uint32_t>::max());
-        // db.set("int64.value" , std::numeric_limits<std::int64_t>::min());
-        // db.set("uint64.value", std::numeric_limits<std::uint64_t>::max());
-        // db.set("float.value" , static_cast<float>(3.14159));
-        // db.set("double.value", static_cast<double>(3.14159));
-        // db.set("text.value"  , std::string{"Hello"});
-        // db.set("empty.value" , std::string{""});
-        // db.set("cstr.value"  , "World");
-        //
-        // REQUIRE_EQ(db.template get<int>("unknown", -1), -1);
-        //
-        // REQUIRE_EQ(db.template get<bool>("bool.value")            , true);
-        // REQUIRE_EQ(db.template get<char>("char.value")            , 'W');
-        // REQUIRE_EQ(db.template get<std::int8_t>("int8.value")     , std::numeric_limits<std::int8_t>::min());
-        // REQUIRE_EQ(db.template get<std::uint8_t>("uint8.value")   , std::numeric_limits<std::uint8_t>::max());
-        // REQUIRE_EQ(db.template get<std::int16_t>("int16.value")   , std::numeric_limits<std::int16_t>::min());
-        // REQUIRE_EQ(db.template get<std::uint16_t>("uint16.value") , std::numeric_limits<std::uint16_t>::max());
-        // REQUIRE_EQ(db.template get<std::int32_t>("int32.value")   , std::numeric_limits<std::int32_t>::min());
-        // REQUIRE_EQ(db.template get<std::uint32_t>("uint32.value") , std::numeric_limits<std::uint32_t>::max());
-        // REQUIRE_EQ(db.template get<std::int64_t>("int64.value")   , std::numeric_limits<std::int64_t>::min());
-        // REQUIRE_EQ(db.template get<std::uint64_t>("uint64.value") , std::numeric_limits<std::uint64_t>::max());
-        // REQUIRE(std::abs(db.template get<float>("float.value") - static_cast<float>(3.14159)) < float{0.001});
-        // REQUIRE(std::abs(db.template get<double>("double.value") - static_cast<double>(3.14159)) < double(0.001));
-        //
-        // REQUIRE_EQ(db.template get<std::string>("text.value"), std::string{"Hello"});
-        // REQUIRE(db.template get<std::string>("empty.value").empty());
-        //
-        // db.remove("text.value");
-        //
-        // REQUIRE(db.template get<std::string>("text.value", "").empty());
-        //
-        // db.template take<std::string>("text.value", "Hello, World!");
-        // REQUIRE_EQ(db.template get<std::string>("text.value", ""), std::string{"Hello, World!"});
+        db.set("bool.value"  , true);
+        db.set("char.value"  , 'W');
+        db.set("int8.value"  , std::numeric_limits<std::int8_t>::min());
+        db.set("uint8.value" , std::numeric_limits<std::uint8_t>::max());
+        db.set("int16.value" , std::numeric_limits<std::int16_t>::min());
+        db.set("uint16.value", std::numeric_limits<std::uint16_t>::max());
+        db.set("int32.value" , std::numeric_limits<std::int32_t>::min());
+        db.set("uint32.value", std::numeric_limits<std::uint32_t>::max());
+        db.set("int64.value" , std::numeric_limits<std::int64_t>::min());
+        db.set("uint64.value", std::numeric_limits<std::uint64_t>::max());
+        db.set("float.value" , static_cast<float>(3.14159));
+        db.set("double.value", static_cast<double>(3.14159));
+        db.set("text.value"  , std::string{"Hello"});
+        db.set("empty.value" , std::string{""});
+        db.set("cstr.value"  , "World");
+
+        REQUIRE_EQ(db.template get<int>("unknown", -1), -1);
+
+        REQUIRE_EQ(db.template get<bool>("bool.value")            , true);
+        REQUIRE_EQ(db.template get<char>("char.value")            , 'W');
+        REQUIRE_EQ(db.template get<std::int8_t>("int8.value")     , std::numeric_limits<std::int8_t>::min());
+        REQUIRE_EQ(db.template get<std::uint8_t>("uint8.value")   , std::numeric_limits<std::uint8_t>::max());
+        REQUIRE_EQ(db.template get<std::int16_t>("int16.value")   , std::numeric_limits<std::int16_t>::min());
+        REQUIRE_EQ(db.template get<std::uint16_t>("uint16.value") , std::numeric_limits<std::uint16_t>::max());
+        REQUIRE_EQ(db.template get<std::int32_t>("int32.value")   , std::numeric_limits<std::int32_t>::min());
+        REQUIRE_EQ(db.template get<std::uint32_t>("uint32.value") , std::numeric_limits<std::uint32_t>::max());
+        REQUIRE_EQ(db.template get<std::int64_t>("int64.value")   , std::numeric_limits<std::int64_t>::min());
+        REQUIRE_EQ(db.template get<std::uint64_t>("uint64.value") , std::numeric_limits<std::uint64_t>::max());
+        REQUIRE_EQ(db.template get<float>("float.value"), static_cast<float>(3.14159));
+        REQUIRE_EQ(db.template get<double>("double.value"), static_cast<double>(3.14159));
+
+        REQUIRE_EQ(db.template get<std::string>("text.value"), std::string{"Hello"});
+        REQUIRE(db.template get<std::string>("empty.value").empty());
+
+        db.remove("text.value");
+
+        REQUIRE(db.template get<std::string>("text.value", "").empty());
+
+        db.template take<std::string>("text.value", "Hello, World!");
+        REQUIRE_EQ(db.template get<std::string>("text.value", ""), std::string{"Hello, World!"});
     } catch (debby::error ex) {
         REQUIRE_MESSAGE(false, ex.what());
     }
