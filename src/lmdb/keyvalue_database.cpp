@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021-2024 Vladislav Trifochkin
+// Copyright (c) 2023-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -43,28 +43,11 @@ decltype(MDB_val::mv_data) mv_data_cast (T p)
 }
 
 template <typename T>
-bool assign (T & result, MDB_val const & val);
-
-template <>
-inline bool assign<std::int64_t> (std::int64_t & result, MDB_val const & val)
+std::enable_if_t<std::is_arithmetic<T>::value, bool>
+assign (T & result, MDB_val const & val)
 {
-    if (val.mv_size > sizeof(std::int64_t))
-        return false;
-
-    fixed_packer<std::int64_t> p;
+    fixed_packer<T> p;
     std::memset(p.bytes, 0, sizeof(p.bytes));
-    std::memcpy(p.bytes/* + (sizeof(std::int64_t) - val.mv_size)*/, val.mv_data, val.mv_size);
-    result = p.value;
-    return true;
-}
-
-template <>
-inline bool assign<double> (double & result, MDB_val const & val)
-{
-    if (val.mv_size != sizeof(double))
-        return false;
-
-    fixed_packer<double> p;
     std::memcpy(p.bytes, val.mv_data, val.mv_size);
 
     if (std::isnan(p.value))
@@ -74,8 +57,9 @@ inline bool assign<double> (double & result, MDB_val const & val)
     return true;
 }
 
-template <>
-inline bool assign<std::string> (std::string & result, MDB_val const & val)
+template <typename T>
+inline std::enable_if_t<std::is_same<std::decay_t<T>, std::string>::value, bool>
+assign (std::string & result, MDB_val const & val)
 {
     result = std::string(static_cast< char const *>(val.mv_data), val.mv_size);
     return true;
@@ -241,6 +225,18 @@ private:
     }
 
 public:
+    void clear (error * perr = nullptr)
+    {
+        auto rc = perform_transaction([this] (MDB_txn * txn) -> int {
+            return mdb_drop(txn, _dbh, 0);
+        }, 0);
+
+        if (rc != MDB_SUCCESS) {
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("LMDB database cleaning failure: {}", mdb_strerror(rc)));
+        }
+    }
+
     /**
      * Removes value for @a key.
      */
@@ -258,18 +254,6 @@ public:
             pfs::throw_or(perr, make_error_code(errc::backend_error)
                 , tr::f_("remove failure for key: {}: {}", key, mdb_strerror(rc)));
             return;
-        }
-    }
-
-    void clear (error * perr = nullptr)
-    {
-        auto rc = perform_transaction([this] (MDB_txn * txn) -> int {
-            return mdb_drop(txn, _dbh, 0);
-        }, 0);
-
-        if (rc != MDB_SUCCESS) {
-            pfs::throw_or(perr, make_error_code(errc::backend_error)
-                , tr::f_("LMDB database cleaning failure: {}", mdb_strerror(rc)));
         }
     }
 
@@ -373,8 +357,39 @@ template keyvalue_database_t & keyvalue_database_t::operator = (keyvalue_databas
 template <>
 void keyvalue_database_t::clear (error * perr)
 {
-    if (_d != nullptr)
-        _d->clear(perr);
+    _d->clear(perr);
+}
+
+template <>
+void keyvalue_database_t::remove (key_type const & key, error * perr)
+{
+    _d->remove(key, perr);
+}
+
+template <>
+void keyvalue_database_t::set (key_type const & key, char const * value, std::size_t len
+    , error * perr)
+{
+    _d->put(key, value, len, perr);
+}
+
+template <>
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value, void>
+keyvalue_database_t::set (key_type const & key, T value, error * perr)
+{
+    char buf[sizeof(fixed_packer<T>)];
+    auto p = new (buf) fixed_packer<T>{};
+    p->value = value;
+    _d->put(key, buf, sizeof(T), perr);
+}
+
+template <>
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
+keyvalue_database_t::get (key_type const & key, error * perr)
+{
+    return _d->template get<std::decay_t<T>>(key, perr);
 }
 
 namespace lmdb {
@@ -422,62 +437,41 @@ bool wipe (fs::path const & path, error * perr)
 
 } // namespace lmdb
 
-template <>
-void keyvalue_database_t::set_arithmetic (key_type const & key, std::int64_t value, std::size_t size, error * perr)
-{
-    if (_d != nullptr) {
-        char buf[sizeof(fixed_packer<std::int64_t>)];
-        auto p = new (buf) fixed_packer<std::int64_t>{};
-        p->value = value;
-        _d->put(key, buf, size, perr);
-    }
-}
+#define DEBBY__LMDB_SET(t) \
+    template void keyvalue_database_t::set<t> (key_type const & key, t value, error * perr);
 
-template <>
-void keyvalue_database_t::set_arithmetic (key_type const & key, double value, std::size_t /*size*/, error * perr)
-{
-    if (_d != nullptr) {
-        char buf[sizeof(fixed_packer<double>)];
-        auto p = new (buf) fixed_packer<double>{};
-        p->value = value;
-        _d->put(key, buf, sizeof(fixed_packer<double>), perr);
-    }
-}
+#define DEBBY__LMDB_GET(t) \
+    template t keyvalue_database_t::get<t> (key_type const & key, error * perr);
 
-template <>
-void keyvalue_database_t::set_chars (key_type const & key, char const * data, std::size_t size, error * perr)
-{
-    if (_d != nullptr)
-        _d->put(key, data, size, perr);
-}
+DEBBY__LMDB_SET(bool)
+DEBBY__LMDB_SET(char)
+DEBBY__LMDB_SET(signed char)
+DEBBY__LMDB_SET(unsigned char)
+DEBBY__LMDB_SET(short int)
+DEBBY__LMDB_SET(unsigned short int)
+DEBBY__LMDB_SET(int)
+DEBBY__LMDB_SET(unsigned int)
+DEBBY__LMDB_SET(long int)
+DEBBY__LMDB_SET(unsigned long int)
+DEBBY__LMDB_SET(long long int)
+DEBBY__LMDB_SET(unsigned long long int)
+DEBBY__LMDB_SET(float)
+DEBBY__LMDB_SET(double)
 
-template <>
-void
-keyvalue_database_t::remove (key_type const & key, error * perr)
-{
-    if (_d != nullptr)
-        _d->remove(key, perr);
-}
-
-template <>
-std::int64_t keyvalue_database_t::get_int64 (key_type const & key, error * perr)
-{
-    PFS__TERMINATE(_d != nullptr, "");
-    return _d->get<std::int64_t>(key, perr);
-}
-
-template <>
-double keyvalue_database_t::get_double (key_type const & key, error * perr)
-{
-    PFS__TERMINATE(_d != nullptr, "");
-    return _d->get<double>(key, perr);
-}
-
-template <>
-std::string keyvalue_database_t::get_string (key_type const & key, error * perr)
-{
-    PFS__TERMINATE(_d != nullptr, "");
-    return _d->get<std::string>(key, perr);
-}
+DEBBY__LMDB_GET(bool)
+DEBBY__LMDB_GET(char)
+DEBBY__LMDB_GET(signed char)
+DEBBY__LMDB_GET(unsigned char)
+DEBBY__LMDB_GET(short int)
+DEBBY__LMDB_GET(unsigned short int)
+DEBBY__LMDB_GET(int)
+DEBBY__LMDB_GET(unsigned int)
+DEBBY__LMDB_GET(long int)
+DEBBY__LMDB_GET(unsigned long int)
+DEBBY__LMDB_GET(long long int)
+DEBBY__LMDB_GET(unsigned long long int)
+DEBBY__LMDB_GET(float)
+DEBBY__LMDB_GET(double)
+DEBBY__LMDB_GET(std::string)
 
 DEBBY__NAMESPACE_END

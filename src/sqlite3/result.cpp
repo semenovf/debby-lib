@@ -164,14 +164,43 @@ pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
         case SQLITE_BLOB: { // Used by key/value database
             auto bytes = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
             int size = sqlite3_column_bytes(_d->sth, column);
-            fixed_packer<std::int64_t> fx;
 
-            if (size != sizeof(fx.bytes))
-                break;
+            switch (size) {
+                case 1: {
+                    fixed_packer<std::int8_t> fx;
+                    std::memset(fx.bytes, 0, sizeof(fx.bytes));
+                    std::memcpy(fx.bytes, bytes, size);
+                    return static_cast<std::int64_t>(fx.value);
+                }
 
-            std::memcpy(fx.bytes, bytes, size);
-            return fx.value;
+                case 2: {
+                    fixed_packer<std::int16_t> fx;
+                    std::memset(fx.bytes, 0, sizeof(fx.bytes));
+                    std::memcpy(fx.bytes, bytes, size);
+                    return static_cast<std::int64_t>(fx.value);
+                }
+
+                case 4: {
+                    fixed_packer<std::int32_t> fx;
+                    std::memset(fx.bytes, 0, sizeof(fx.bytes));
+                    std::memcpy(fx.bytes, bytes, size);
+                    return static_cast<std::int64_t>(fx.value);
+                }
+
+                case 8: {
+                    fixed_packer<std::int64_t> fx;
+                    std::memset(fx.bytes, 0, sizeof(fx.bytes));
+                    std::memcpy(fx.bytes, bytes, size);
+                    return fx.value;
+                }
+
+                default:
+                    break;
+            }
+
+            break;
         }
+
         default:
             break;
     }
@@ -195,14 +224,22 @@ pfs::optional<double> result_t::get_double (int column, error * perr)
         case SQLITE_BLOB: { // Used by key/value database
             auto bytes = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
             int size = sqlite3_column_bytes(_d->sth, column);
-            fixed_packer<double> fx;
 
-            if (size != sizeof(fx.bytes))
-                break;
+            if (size == sizeof(float)) {
+                fixed_packer<float> fx;
+                std::memset(fx.bytes, 0, sizeof(fx.bytes));
+                std::memcpy(fx.bytes, bytes, size);
+                return static_cast<double>(fx.value);
+            } else if (size == sizeof(double)) {
+                fixed_packer<double> fx;
+                std::memset(fx.bytes, 0, sizeof(fx.bytes));
+                std::memcpy(fx.bytes, bytes, size);
+                return fx.value;
+            }
 
-            std::memcpy(fx.bytes, bytes, size);
-            return fx.value;
+            break;
         }
+
         default:
             break;
     }

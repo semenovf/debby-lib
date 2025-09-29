@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021,2022 Vladislav Trifochkin
+// Copyright (c) 2021-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -8,6 +8,8 @@
 //      2021.12.16 Reimplemented with new error handling.
 //      2022.03.12 Refactored.
 //      2024.11.04 V2 started.
+//      2025.09.29 Changed set/get implementation.
+//                 Added support for custom types.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "backend_enum.hpp"
@@ -24,6 +26,9 @@
 
 DEBBY__NAMESPACE_BEGIN
 
+template <typename T>
+struct keyvalue_affinity;
+
 template <backend_enum Backend>
 class keyvalue_database
 {
@@ -36,15 +41,6 @@ public:
 
 private:
     std::unique_ptr<impl> _d;
-
-private:
-    DEBBY__EXPORT void set_arithmetic (key_type const & key, std::int64_t value, std::size_t size, error * perr = nullptr);
-    DEBBY__EXPORT void set_arithmetic (key_type const & key, double value, std::size_t size, error * perr = nullptr);
-    DEBBY__EXPORT void set_chars (key_type const & key, char const * data, std::size_t size, error * perr = nullptr);
-
-    DEBBY__EXPORT std::int64_t get_int64 (key_type const & key, error * perr = nullptr);
-    DEBBY__EXPORT double get_double (key_type const & key, error * perr = nullptr);
-    DEBBY__EXPORT std::string get_string (key_type const & key, error * perr = nullptr);
 
 public:
     DEBBY__EXPORT keyvalue_database ();
@@ -72,20 +68,32 @@ public:
     DEBBY__EXPORT void clear (error * perr = nullptr);
 
     /**
+     * Removes entry associated with @a key from database.
+     *
+     * @throw debby::error()
+     */
+    DEBBY__EXPORT void remove (key_type const & key, error * perr = nullptr);
+
+    /**
+     * Stores character sequence @a value with length @a len associated
+     * with @a key into database.
+     */
+    DEBBY__EXPORT void set (key_type const & key, char const * value, std::size_t len
+        , error * perr = nullptr);
+
+    /**
      * Stores arithmetic type @a value associated with @a key into database.
      */
     template <typename T>
-    typename std::enable_if<std::is_integral<T>::value, void>::type
-    set (key_type const & key, T value, error * perr = nullptr)
-    {
-        set_arithmetic(key, static_cast<std::int64_t>(value), sizeof(T), perr);
-    }
+    DEBBY__EXPORT
+    std::enable_if_t<std::is_arithmetic<T>::value, void>
+    set (key_type const & key, T value, error * perr = nullptr);
 
     template <typename T>
-    typename std::enable_if<std::is_floating_point<T>::value, void>::type
-    set (key_type const & key, T value, error * perr = nullptr)
+    std::enable_if_t<!std::is_arithmetic<T>::value, void>
+    set (key_type const & key, T const & value, error * perr = nullptr)
     {
-        set_arithmetic(key, value, sizeof(T), perr);
+        set(key, keyvalue_affinity<std::decay_t<T>>::cast(value), perr);
     }
 
     /**
@@ -93,7 +101,7 @@ public:
      */
     void set (key_type const & key, std::string const & value, error * perr = nullptr)
     {
-        set_chars(key, value.c_str(), value.size(), perr);
+        set(key, value.data(), value.size(), perr);
     }
 
     /**
@@ -101,16 +109,7 @@ public:
      */
     void set (key_type const & key, string_view value, error * perr = nullptr)
     {
-        set_chars(key, value.data(), value.size(), perr);
-    }
-
-    /**
-     * Stores character sequence @a value with length @a len associated
-     * with @a key into database.
-     */
-    void set (key_type const & key, char const * value, std::size_t len, error * perr = nullptr)
-    {
-        set_chars(key, value, len, perr);
+        set(key, value.data(), value.size(), perr);
     }
 
     /**
@@ -118,28 +117,28 @@ public:
      */
     void set (key_type const & key, char const * value, error * perr = nullptr)
     {
-        set_chars(key, value, std::strlen(value), perr);
+        set(key, value, std::strlen(value), perr);
     }
 
     template <typename T>
-    typename std::enable_if<std::is_integral<T>::value, T>::type
-    get (key_type const & key, error * perr = nullptr)
-    {
-        return static_cast<T>(get_int64(key, perr));
-    }
+    DEBBY__EXPORT
+    std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
+    get (key_type const & key, error * perr = nullptr);
 
     template <typename T>
-    typename std::enable_if<std::is_floating_point<T>::value, T>::type
+    std::enable_if_t<!std::is_arithmetic<T>::value && !std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
     get (key_type const & key, error * perr = nullptr)
     {
-        return static_cast<T>(get_double(key, perr));
-    }
+        using affinity_type = typename keyvalue_affinity<std::decay_t<T>>::affinity_type;
+        error err;
+        auto affinity_value = this->template get<affinity_type>(key, & err);
 
-    template <typename T>
-    typename std::enable_if<std::is_same<typename std::decay<T>::type, std::string>::value, T>::type
-    get (key_type const & key, error * perr = nullptr)
-    {
-        return get_string(key, perr);
+        if (err) {
+            pfs::throw_or(perr, std::move(err));
+            return T{};
+        }
+
+        return keyvalue_affinity<std::decay_t<T>>::cast(affinity_value, perr);
     }
 
     template <typename T>
@@ -160,13 +159,6 @@ public:
         pfs::throw_or(perr, std::move(err));
         return default_value;
     }
-
-    /**
-     * Removes entry associated with @a key from database.
-     *
-     * @throw debby::error()
-     */
-    DEBBY__EXPORT void remove (key_type const & key, error * perr = nullptr);
 
 public:
     template <typename ...Args>

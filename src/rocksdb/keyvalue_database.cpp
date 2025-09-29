@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021-2024 Vladislav Trifochkin
+// Copyright (c) 2021-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -9,6 +9,7 @@
 //      2022.03.12 Refactored.
 //      2023.02.08 Applied new API.
 //      2024.11.10 V2 started.
+//      2025.09.29 Changed set/get implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../keyvalue_database_common.hpp"
 #include "debby/keyvalue_database.hpp"
@@ -27,30 +28,45 @@ DEBBY__NAMESPACE_BEGIN
 
 using keyvalue_database_t = keyvalue_database<backend_enum::rocksdb>;
 
+// template <typename T>
+// bool assign (T & result, std::string && data);
+//
+// template <>
+// inline bool assign<std::int64_t> (std::int64_t & result, std::string && data)
+// {
+//     if (data.size() > sizeof(std::int64_t))
+//         return false;
+//
+//     fixed_packer<std::int64_t> p;
+//     std::memset(p.bytes, 0, sizeof(p.bytes));
+//     std::memcpy(p.bytes, data.data(), data.size());
+//     result = p.value;
+//     return true;
+// }
+//
+// template <>
+// inline bool assign<double> (double & result, std::string && data)
+// {
+//     if (data.size() != sizeof(double))
+//         return false;
+//
+//     fixed_packer<double> p;
+//     std::memcpy(p.bytes, data.data(), data.size());
+//
+//     if (std::isnan(p.value))
+//         return false;
+//
+//     result = p.value;
+//     return true;
+// }
+
 template <typename T>
-bool assign (T & result, std::string && data);
-
-template <>
-inline bool assign<std::int64_t> (std::int64_t & result, std::string && data)
+std::enable_if_t<std::is_arithmetic<T>::value, bool>
+assign (T & result, std::string && val)
 {
-    if (data.size() > sizeof(std::int64_t))
-        return false;
-
-    fixed_packer<std::int64_t> p;
+    fixed_packer<T> p;
     std::memset(p.bytes, 0, sizeof(p.bytes));
-    std::memcpy(p.bytes, data.data(), data.size());
-    result = p.value;
-    return true;
-}
-
-template <>
-inline bool assign<double> (double & result, std::string && data)
-{
-    if (data.size() != sizeof(double))
-        return false;
-
-    fixed_packer<double> p;
-    std::memcpy(p.bytes, data.data(), data.size());
+    std::memcpy(p.bytes, val.data(), val.size());
 
     if (std::isnan(p.value))
         return false;
@@ -59,8 +75,9 @@ inline bool assign<double> (double & result, std::string && data)
     return true;
 }
 
-template <>
-inline bool assign<std::string> (std::string & result, std::string && data)
+template <typename T>
+inline std::enable_if_t<std::is_same<std::decay_t<T>, std::string>::value, bool>
+assign (std::string & result, std::string && data)
 {
     result = std::move(data);
     return true;
@@ -212,6 +229,33 @@ public:
     }
 
 public:
+   void clear (error * perr = nullptr)
+   {
+        if (_dbh == nullptr)
+            return;
+
+        if (_handles[1] == nullptr)
+            return;
+
+        auto status = _dbh->DropColumnFamily(_handles[1]);
+
+        if (!status.ok()) {
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("clear failure (drop column family): {}", status.ToString()));
+            return;
+        }
+
+        status = _dbh->DestroyColumnFamilyHandle(_handles[1]);
+
+        if (!status.ok()) {
+            pfs::throw_or(perr, make_error_code(errc::backend_error)
+                , tr::f_("clear failure (destroy column family): {}", status.ToString()));
+            return;
+        }
+
+        _handles[1] = create_column_family(_dbh, _path, perr);
+   }
+
     /**
     * Removes value for @a key.
     */
@@ -240,33 +284,6 @@ public:
             }
         }
     }
-
-   void clear (error * perr = nullptr)
-   {
-        if (_dbh == nullptr)
-            return;
-
-        if (_handles[1] == nullptr)
-            return;
-
-        auto status = _dbh->DropColumnFamily(_handles[1]);
-
-        if (!status.ok()) {
-            pfs::throw_or(perr, make_error_code(errc::backend_error)
-                , tr::f_("clear failure (drop column family): {}", status.ToString()));
-            return;
-        }
-
-        status = _dbh->DestroyColumnFamilyHandle(_handles[1]);
-
-        if (!status.ok()) {
-            pfs::throw_or(perr, make_error_code(errc::backend_error)
-                , tr::f_("clear failure (destroy column family): {}", status.ToString()));
-            return;
-        }
-
-        _handles[1] = create_column_family(_dbh, _path, perr);
-   }
 
     /**
     * Writes @c data into database by @a key.
@@ -350,8 +367,39 @@ template keyvalue_database<backend_enum::rocksdb> & keyvalue_database<backend_en
 template <>
 void keyvalue_database_t::clear (error * perr)
 {
-    if (_d != nullptr)
-        _d->clear(perr);
+    _d->clear(perr);
+}
+
+template <>
+void keyvalue_database_t::remove (key_type const & key, error * perr)
+{
+    _d->remove(key, perr);
+}
+
+template <>
+void keyvalue_database_t::set (key_type const & key, char const * value, std::size_t len
+    , error * perr)
+{
+    _d->put(key, value, len, perr);
+}
+
+template <>
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value, void>
+keyvalue_database_t::set (key_type const & key, T value, error * perr)
+{
+    char buf[sizeof(fixed_packer<T>)];
+    auto p = new (buf) fixed_packer<T>{};
+    p->value = value;
+    _d->put(key, buf, sizeof(T), perr);
+}
+
+template <>
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
+keyvalue_database_t::get (key_type const & key, error * perr)
+{
+    return _d->template get<std::decay_t<T>>(key, perr);
 }
 
 namespace rocksdb {
@@ -391,62 +439,41 @@ bool wipe (fs::path const & path, error * perr)
 
 } // namespace rocksdb
 
-template <>
-void keyvalue_database_t::set_arithmetic (key_type const & key, std::int64_t value, std::size_t size, error * perr)
-{
-    if (_d != nullptr) {
-        char buf[sizeof(fixed_packer<std::int64_t>)];
-        auto p = new (buf) fixed_packer<std::int64_t>{};
-        p->value = value;
-        _d->put(key, buf, size, perr);
-    }
-}
+#define DEBBY__ROCKSDB_SET(t) \
+    template void keyvalue_database_t::set<t> (key_type const & key, t value, error * perr);
 
-template <>
-void keyvalue_database_t::set_arithmetic (key_type const & key, double value, std::size_t /*size*/, error * perr)
-{
-    if (_d != nullptr) {
-        char buf[sizeof(fixed_packer<double>)];
-        auto p = new (buf) fixed_packer<double>{};
-        p->value = value;
-        _d->put(key, buf, sizeof(fixed_packer<double>), perr);
-    }
-}
+#define DEBBY__ROCKSDB_GET(t) \
+    template t keyvalue_database_t::get<t> (key_type const & key, error * perr);
 
-template <>
-void keyvalue_database_t::set_chars (key_type const & key, char const * data, std::size_t size, error * perr)
-{
-    if (_d != nullptr)
-        _d->put(key, data, size, perr);
-}
+DEBBY__ROCKSDB_SET(bool)
+DEBBY__ROCKSDB_SET(char)
+DEBBY__ROCKSDB_SET(signed char)
+DEBBY__ROCKSDB_SET(unsigned char)
+DEBBY__ROCKSDB_SET(short int)
+DEBBY__ROCKSDB_SET(unsigned short int)
+DEBBY__ROCKSDB_SET(int)
+DEBBY__ROCKSDB_SET(unsigned int)
+DEBBY__ROCKSDB_SET(long int)
+DEBBY__ROCKSDB_SET(unsigned long int)
+DEBBY__ROCKSDB_SET(long long int)
+DEBBY__ROCKSDB_SET(unsigned long long int)
+DEBBY__ROCKSDB_SET(float)
+DEBBY__ROCKSDB_SET(double)
 
-template <>
-void
-keyvalue_database_t::remove (key_type const & key, error * perr)
-{
-    if (_d != nullptr)
-        _d->remove(key, perr);
-}
-
-template <>
-std::int64_t keyvalue_database_t::get_int64 (key_type const & key, error * perr)
-{
-    PFS__TERMINATE(_d != nullptr, "");
-    return _d->get<std::int64_t>(key, perr);
-}
-
-template <>
-double keyvalue_database_t::get_double (key_type const & key, error * perr)
-{
-    PFS__TERMINATE(_d != nullptr, "");
-    return _d->get<double>(key, perr);
-}
-
-template <>
-std::string keyvalue_database_t::get_string (key_type const & key, error * perr)
-{
-    PFS__TERMINATE(_d != nullptr, "");
-    return _d->get<std::string>(key, perr);
-}
+DEBBY__ROCKSDB_GET(bool)
+DEBBY__ROCKSDB_GET(char)
+DEBBY__ROCKSDB_GET(signed char)
+DEBBY__ROCKSDB_GET(unsigned char)
+DEBBY__ROCKSDB_GET(short int)
+DEBBY__ROCKSDB_GET(unsigned short int)
+DEBBY__ROCKSDB_GET(int)
+DEBBY__ROCKSDB_GET(unsigned int)
+DEBBY__ROCKSDB_GET(long int)
+DEBBY__ROCKSDB_GET(unsigned long int)
+DEBBY__ROCKSDB_GET(long long int)
+DEBBY__ROCKSDB_GET(unsigned long long int)
+DEBBY__ROCKSDB_GET(float)
+DEBBY__ROCKSDB_GET(double)
+DEBBY__ROCKSDB_GET(std::string)
 
 DEBBY__NAMESPACE_END

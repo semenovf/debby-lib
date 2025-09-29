@@ -1,16 +1,16 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2024 Vladislav Trifochkin
+// Copyright (c) 2024-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2024.11.20 Initial version.
+//      2025.09.29 Changed set/get implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
 #include "debby/keyvalue_database.hpp"
 #include "debby/relational_database.hpp"
 #include "fixed_packer.hpp"
-#include "debby/namespace.hpp"
 #include <pfs/i18n.hpp>
 
 DEBBY__NAMESPACE_BEGIN
@@ -126,8 +126,7 @@ public:
 template <backend_enum Backend>
 void keyvalue_database<Backend>::clear (error * perr)
 {
-    if (_d != nullptr)
-        _d->clear(_d->table_name(), perr);
+    _d->clear(_d->table_name(), perr);
 }
 
 template <backend_enum Backend>
@@ -137,45 +136,29 @@ void keyvalue_database<Backend>::remove (key_type const & key, error * perr)
 }
 
 template <backend_enum Backend>
-void keyvalue_database<Backend>::set_arithmetic (key_type const & key, std::int64_t value, std::size_t size, error * perr)
+void keyvalue_database<Backend>::set (key_type const & key, char const * value, std::size_t len
+    , error * perr)
 {
-    char buf[sizeof(fixed_packer<std::int64_t>)];
-    auto p = new (buf) fixed_packer<std::int64_t>{};
+    _d->put(key, value, len, perr);
+}
+
+template <backend_enum Backend>
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value, void>
+keyvalue_database<Backend>::set (key_type const & key, T value, error * perr)
+{
+    char buf[sizeof(fixed_packer<T>)];
+    auto p = new (buf) fixed_packer<T>{};
     p->value = value;
-    _d->put(key, buf, sizeof(std::int64_t), perr);
+    _d->put(key, buf, sizeof(T), perr);
 }
 
 template <backend_enum Backend>
-void keyvalue_database<Backend>::set_arithmetic (key_type const & key, double value, std::size_t size, error * perr)
+template <typename T>
+std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
+keyvalue_database<Backend>::get (key_type const & key, error * perr)
 {
-    char buf[sizeof(fixed_packer<double>)];
-    auto p = new (buf) fixed_packer<double>{};
-    p->value = value;
-    _d->put(key, buf, sizeof(double), perr);
-}
-
-template <backend_enum Backend>
-void keyvalue_database<Backend>::set_chars (key_type const & key, char const * data, std::size_t size, error * perr)
-{
-    _d->put(key, data, size, perr);
-}
-
-template <backend_enum Backend>
-std::int64_t keyvalue_database<Backend>::get_int64 (key_type const & key, error * perr)
-{
-    return _d->template get<std::int64_t>(key, perr);
-}
-
-template <backend_enum Backend>
-double keyvalue_database<Backend>::get_double (key_type const & key, error * perr)
-{
-    return _d->template get<double>(key, perr);
-}
-
-template <backend_enum Backend>
-std::string keyvalue_database<Backend>::get_string (key_type const & key, error * perr)
-{
-    return _d->template get<std::string>(key, perr);
+    return _d->template get<std::decay_t<T>>(key, perr);
 }
 
 DEBBY__NAMESPACE_END

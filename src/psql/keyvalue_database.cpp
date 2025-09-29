@@ -1,13 +1,14 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2024 Vladislav Trifochkin
+// Copyright (c) 2024-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2024.11.20 Initial version.
+//      2025.09.29 Changed set/get implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #include "../keyvalue_database_common.hpp"
-#include "../keyvalue_database_impl.hpp"
+#include "../keyvalue_relational_database_impl.hpp"
 #include "relational_database_impl.hpp"
 #include "debby/keyvalue_database.hpp"
 #include "debby/psql.hpp"
@@ -29,12 +30,45 @@ template keyvalue_database_t & keyvalue_database_t::operator = (keyvalue_databas
 
 template void keyvalue_database_t::clear (error * perr);
 template void keyvalue_database_t::remove (key_type const & key, error * perr);
-template void keyvalue_database_t::set_arithmetic (key_type const & key, std::int64_t value, std::size_t size, error * perr);
-template void keyvalue_database_t::set_arithmetic (key_type const & key, double value, std::size_t size, error * perr);
-template void keyvalue_database_t::set_chars (key_type const & key, char const * data, std::size_t size, error * perr);
-template std::int64_t keyvalue_database_t::get_int64 (key_type const & key, error * perr);
-template double keyvalue_database_t::get_double (key_type const & key, error * perr);
-template std::string keyvalue_database_t::get_string (key_type const & key, error * perr);
+template void keyvalue_database_t::set (key_type const & key, char const * value
+    , std::size_t len, error * perr);
+
+#define DEBBY__PSQL_SET(t) \
+    template void keyvalue_database<backend_enum::psql>::set<t> (key_type const & key, t value, error * perr);
+
+#define DEBBY__PSQL_GET(t) \
+    template t keyvalue_database<backend_enum::psql>::get<t> (key_type const & key, error * perr);
+
+DEBBY__PSQL_SET(bool)
+DEBBY__PSQL_SET(char)
+DEBBY__PSQL_SET(signed char)
+DEBBY__PSQL_SET(unsigned char)
+DEBBY__PSQL_SET(short int)
+DEBBY__PSQL_SET(unsigned short int)
+DEBBY__PSQL_SET(int)
+DEBBY__PSQL_SET(unsigned int)
+DEBBY__PSQL_SET(long int)
+DEBBY__PSQL_SET(unsigned long int)
+DEBBY__PSQL_SET(long long int)
+DEBBY__PSQL_SET(unsigned long long int)
+DEBBY__PSQL_SET(float)
+DEBBY__PSQL_SET(double)
+
+DEBBY__PSQL_GET(bool)
+DEBBY__PSQL_GET(char)
+DEBBY__PSQL_GET(signed char)
+DEBBY__PSQL_GET(unsigned char)
+DEBBY__PSQL_GET(short int)
+DEBBY__PSQL_GET(unsigned short int)
+DEBBY__PSQL_GET(int)
+DEBBY__PSQL_GET(unsigned int)
+DEBBY__PSQL_GET(long int)
+DEBBY__PSQL_GET(unsigned long int)
+DEBBY__PSQL_GET(long long int)
+DEBBY__PSQL_GET(unsigned long long int)
+DEBBY__PSQL_GET(float)
+DEBBY__PSQL_GET(double)
+DEBBY__PSQL_GET(std::string)
 
 namespace psql {
 
