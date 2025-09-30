@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021-2024 Vladislav Trifochkin
+// Copyright (c) 2021-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -9,6 +9,7 @@
 //      2022.03.12 Refactored.
 //      2024.10.29 V2 started.
 //      2024.10.30 V2 implemented.
+//      2025.09.30 Changed bind implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #include "result_impl.hpp"
 #include "statement_impl.hpp"
@@ -109,136 +110,102 @@ statement_t::~statement ()
     _d = nullptr;
 }
 
-#define BIND_HELPER_BOILERPLATE_ON_FAILURE         \
+#define BIND_BOILERPLATE_ON_FAILURE                \
         pfs::throw_or(perr                         \
             , make_error_code(errc::backend_error) \
             , fmt::format("{}: {}", sqlite3::build_errstr(rc, sth), sqlite3::current_sql(sth)));
 
-#define BIND_HELPER_BOILERPLATE_ON_INVALID_ARG                  \
+#define BIND_BOILERPLATE_ON_INVALID_ARG                         \
         pfs::throw_or(perr                                      \
             , std::make_error_code(std::errc::invalid_argument) \
             , tr::f_("bad bind parameter name: {}", placeholder));
 
-template <>
-bool statement_t::bind_helper (int index, std::int64_t value, error * perr)
+bool statement_t::impl::bind_int64 (int index, std::int64_t value, error * perr)
 {
-    auto sth = _d->native();
+    auto sth = native();
 
     // In sqlite3 index must be started from 1
     auto rc = sqlite3_bind_int64(sth, index, static_cast<sqlite3_int64>(value));
 
     if (SQLITE_OK != rc) {
-        BIND_HELPER_BOILERPLATE_ON_FAILURE
+        BIND_BOILERPLATE_ON_FAILURE
         return false;
     }
 
     return true;
 }
 
-template <>
-bool statement_t::bind_helper (int index, double value, error * perr)
+bool statement_t::impl::bind_int64 (char const * placeholder, std::int64_t value, error * perr)
 {
-    auto sth = _d->native();
+    auto sth = native();
+    int index = sqlite3_bind_parameter_index(sth, placeholder);
+
+    if (index == 0) {
+        BIND_BOILERPLATE_ON_INVALID_ARG
+        return false;
+    }
+
+    return bind_int64(index, value, perr);
+}
+
+bool statement_t::impl::bind_double (int index, double value, error * perr)
+{
+    auto sth = native();
 
     // In sqlite3 index must be started from 1
     auto rc = sqlite3_bind_double(sth, index, value);
 
     if (SQLITE_OK != rc) {
-        BIND_HELPER_BOILERPLATE_ON_FAILURE
+        BIND_BOILERPLATE_ON_FAILURE
         return false;
     }
 
     return true;
 }
 
-template <>
-bool statement_t::bind_helper (char const * placeholder, std::int64_t value, error * perr)
+bool statement_t::impl::bind_double (char const * placeholder, double value, error * perr)
 {
-    auto sth = _d->native();
+    auto sth = native();
     int index = sqlite3_bind_parameter_index(sth, placeholder);
 
     if (index == 0) {
-        BIND_HELPER_BOILERPLATE_ON_INVALID_ARG
+        BIND_BOILERPLATE_ON_INVALID_ARG
         return false;
     }
 
-    return bind_helper(index, value, perr);
+    return bind_double(index, value, perr);
 }
 
-template <>
-bool statement_t::bind_helper (char const * placeholder, double value, error * perr)
+bool statement_t::impl::bind_string (int index, char const * ptr, std::size_t len, error * perr)
 {
-    auto sth = _d->native();
-    int index = sqlite3_bind_parameter_index(sth, placeholder);
-
-    if (index == 0) {
-        BIND_HELPER_BOILERPLATE_ON_INVALID_ARG
-        return false;
-    }
-
-    return bind_helper(index, value, perr);
-}
-
-template <>
-bool statement_t::bind (int index, std::nullptr_t, error * perr)
-{
-    auto sth = _d->native();
-    auto rc = sqlite3_bind_null(sth, index);
+    auto sth = native();
+    auto rc = sqlite3_bind_text(sth, index, ptr, pfs::numeric_cast<int>(len), SQLITE_TRANSIENT);
 
     if (SQLITE_OK != rc) {
-        BIND_HELPER_BOILERPLATE_ON_FAILURE
+        BIND_BOILERPLATE_ON_FAILURE
         return false;
     }
 
     return true;
 }
 
-template <>
-bool statement_t::bind (char const * placeholder, std::nullptr_t, error * perr)
+bool statement_t::impl::bind_string (char const * placeholder, char const * ptr, std::size_t len
+    , error * perr)
 {
-    auto sth = _d->native();
+    auto sth = native();
     int index = sqlite3_bind_parameter_index(sth, placeholder);
 
     if (index == 0) {
-        BIND_HELPER_BOILERPLATE_ON_INVALID_ARG
+        BIND_BOILERPLATE_ON_INVALID_ARG
         return false;
     }
 
-    return bind(index, nullptr, perr);
+    return bind_string(index, ptr, len, perr);
 }
 
-template <>
-bool statement_t::bind (int index, std::string && value, error * perr)
+bool statement_t::impl::bind_blob (int index, char const * ptr, std::size_t len, error * perr)
 {
-    auto sth = _d->native();
-    auto rc = sqlite3_bind_text(sth, index, value.c_str(), pfs::numeric_cast<int>(value.size()), SQLITE_TRANSIENT);
-
-    if (SQLITE_OK != rc) {
-        BIND_HELPER_BOILERPLATE_ON_FAILURE
-        return false;
-    }
-
-    return true;
-}
-
-template <>
-bool statement_t::bind (char const * placeholder, std::string && value, error * perr)
-{
-    auto sth = _d->native();
-    int index = sqlite3_bind_parameter_index(sth, placeholder);
-
-    if (index == 0) {
-        BIND_HELPER_BOILERPLATE_ON_INVALID_ARG
-        return false;
-    }
-
-    return bind(index, std::move(value), perr);
-}
-
-template <>
-bool statement_t::bind (int index, char const * ptr, std::size_t len, error * perr)
-{
-    auto sth = _d->native();
+    auto sth = native();
     int rc = SQLITE_OK;
 
     if (len > (std::numeric_limits<int>::max)())
@@ -247,61 +214,149 @@ bool statement_t::bind (int index, char const * ptr, std::size_t len, error * pe
         rc = sqlite3_bind_blob(sth, index, ptr, static_cast<int>(len), SQLITE_STATIC);
 
     if (SQLITE_OK != rc) {
-        BIND_HELPER_BOILERPLATE_ON_FAILURE
+        BIND_BOILERPLATE_ON_FAILURE
         return false;
     }
 
     return true;
 }
 
-template <>
-bool statement_t::bind (char const * placeholder, char const * ptr, std::size_t len, error * perr)
+bool statement_t::impl::bind_blob (char const * placeholder, char const * ptr, std::size_t len
+    , error * perr)
 {
-    auto sth = _d->native();
+    auto sth = native();
     int index = sqlite3_bind_parameter_index(sth, placeholder);
 
     if (index == 0) {
-        BIND_HELPER_BOILERPLATE_ON_INVALID_ARG
+        BIND_BOILERPLATE_ON_INVALID_ARG
         return false;
     }
 
-    return bind(index, ptr, len, perr);
+    return bind_blob(index, ptr, len, perr);
+}
+
+bool statement_t::impl::bind_null (int index, std::nullptr_t, error * perr)
+{
+    auto sth = native();
+    auto rc = sqlite3_bind_null(sth, index);
+
+    if (SQLITE_OK != rc) {
+        BIND_BOILERPLATE_ON_FAILURE
+        return false;
+    }
+
+    return true;
+}
+
+bool statement_t::impl::bind_null (char const * placeholder, std::nullptr_t, error * perr)
+{
+    auto sth = native();
+    int index = sqlite3_bind_parameter_index(sth, placeholder);
+
+    if (index == 0) {
+        BIND_BOILERPLATE_ON_INVALID_ARG
+        return false;
+    }
+
+    return bind_null(index, nullptr, perr);
+}
+
+#define DEBBY__INTEGRAL_BIND(t,itype)                              \
+    template <>                                                    \
+    template <>                                                    \
+    bool statement_t::bind<t> (itype index, t const & value, error * perr) \
+    {                                                              \
+        return _d->bind_int64(index, value, perr);                 \
+    }
+
+#define DEBBY__FLOATING_POINT_BIND(t,itype)                        \
+    template <>                                                    \
+    template <>                                                    \
+    bool statement_t::bind<t> (itype index, t const & value, error * perr) \
+    {                                                              \
+        return _d->bind_double(index, value, perr);                \
+    }
+
+DEBBY__INTEGRAL_BIND(bool, int)
+DEBBY__INTEGRAL_BIND(char, int)
+DEBBY__INTEGRAL_BIND(signed char, int)
+DEBBY__INTEGRAL_BIND(unsigned char, int)
+DEBBY__INTEGRAL_BIND(short, int)
+DEBBY__INTEGRAL_BIND(unsigned short, int)
+DEBBY__INTEGRAL_BIND(int, int)
+DEBBY__INTEGRAL_BIND(unsigned int, int)
+DEBBY__INTEGRAL_BIND(long, int)
+DEBBY__INTEGRAL_BIND(unsigned long, int)
+DEBBY__INTEGRAL_BIND(long long, int)
+DEBBY__INTEGRAL_BIND(unsigned long long, int)
+
+DEBBY__INTEGRAL_BIND(bool, char const *)
+DEBBY__INTEGRAL_BIND(char, char const *)
+DEBBY__INTEGRAL_BIND(signed char, char const *)
+DEBBY__INTEGRAL_BIND(unsigned char, char const *)
+DEBBY__INTEGRAL_BIND(short, char const *)
+DEBBY__INTEGRAL_BIND(unsigned short, char const *)
+DEBBY__INTEGRAL_BIND(int, char const *)
+DEBBY__INTEGRAL_BIND(unsigned int, char const *)
+DEBBY__INTEGRAL_BIND(long, char const *)
+DEBBY__INTEGRAL_BIND(unsigned long, char const *)
+DEBBY__INTEGRAL_BIND(long long, char const *)
+DEBBY__INTEGRAL_BIND(unsigned long long, char const *)
+
+DEBBY__FLOATING_POINT_BIND(float, int)
+DEBBY__FLOATING_POINT_BIND(double, int)
+DEBBY__FLOATING_POINT_BIND(float, char const *)
+DEBBY__FLOATING_POINT_BIND(double, char const *)
+
+template <>
+template <>
+bool statement_t::bind<std::string> (int index, std::string const & value, error * perr)
+{
+    return _d->bind_string(index, value.c_str(), value.size(), perr);
 }
 
 template <>
-bool statement_t::bind (int index, pfs::universal_id uuid, error * perr)
+template <>
+bool statement_t::bind<std::string> (char const * placeholder, std::string const & value
+    , error * perr)
 {
-    return bind(index, to_string(uuid), perr);
+    return _d->bind_string(placeholder, value.c_str(), value.size(), perr);
 }
 
 template <>
-bool statement_t::bind (char const * placeholder, pfs::universal_id uuid, error * perr)
+bool statement_t::bind (int index, std::nullptr_t, error * perr)
 {
-    return bind(placeholder, to_string(uuid), perr);
+    return _d->bind_null(index, nullptr, perr);
 }
 
 template <>
-bool statement_t::bind (int index, pfs::utc_time time, error * perr)
+bool statement_t::bind (char const * placeholder, std::nullptr_t, error * perr)
 {
-    return bind(index, time.to_millis().count(), perr);
+    return _d->bind_null(placeholder, nullptr, perr);
 }
 
 template <>
-bool statement_t::bind (char const * placeholder, pfs::utc_time time, error * perr)
+bool statement_t::bind (int index, char const * ptr, error * perr)
 {
-    return bind(placeholder, time.to_millis().count(), perr);
+    return _d->bind_string(index, ptr, std::strlen(ptr), perr);
 }
 
 template <>
-bool statement_t::bind (int index, pfs::local_time time, error * perr)
+bool statement_t::bind (char const * placeholder, char const * ptr, error * perr)
 {
-    return bind(index, time.to_millis().count(), perr);
+    return _d->bind_string(placeholder, ptr, std::strlen(ptr), perr);
 }
 
 template <>
-bool statement_t::bind (char const * placeholder, pfs::local_time time, error * perr)
+bool statement_t::bind (int index, char const * ptr, std::size_t len, error * perr)
 {
-    return bind(placeholder, time.to_millis().count(), perr);
+    return _d->bind_blob(index, ptr, len, perr);
+}
+
+template <>
+bool statement_t::bind (char const * placeholder, char const * ptr, std::size_t len, error * perr)
+{
+    return _d->bind_blob(placeholder, ptr, len, perr);
 }
 
 template <>

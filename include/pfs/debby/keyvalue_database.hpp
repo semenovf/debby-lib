@@ -12,11 +12,11 @@
 //                 Added support for custom types.
 ////////////////////////////////////////////////////////////////////////////////
 #pragma once
+#include "namespace.hpp"
 #include "affinity_traits.hpp"
 #include "backend_enum.hpp"
 #include "error.hpp"
 #include "exports.hpp"
-#include "namespace.hpp"
 #include "relational_database.hpp"
 #include "pfs/string_view.hpp"
 #include <cstdint>
@@ -91,7 +91,7 @@ public:
     std::enable_if_t<!std::is_arithmetic<T>::value, void>
     set (key_type const & key, T const & value, error * perr = nullptr)
     {
-        set(key, keyvalue_affinity<std::decay_t<T>>::cast(value), perr);
+        set(key, value_type_affinity<std::decay_t<T>>::cast(value), perr);
     }
 
     /**
@@ -127,7 +127,7 @@ public:
     std::enable_if_t<!std::is_arithmetic<T>::value && !std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
     get (key_type const & key, error * perr = nullptr)
     {
-        using affinity_type = typename keyvalue_affinity<std::decay_t<T>>::affinity_type;
+        using affinity_type = typename value_type_affinity<std::decay_t<T>>::affinity_type;
         error err;
         auto affinity_value = this->template get<affinity_type>(key, & err);
 
@@ -136,7 +136,7 @@ public:
             return T{};
         }
 
-        return keyvalue_affinity<std::decay_t<T>>::cast(affinity_value, perr);
+        return value_type_affinity<std::decay_t<T>>::cast(affinity_value, perr);
     }
 
     template <typename T>
@@ -148,11 +148,13 @@ public:
         if (!err)
             return result;
 
-        if (make_error_code(errc::bad_value) == err.code())
-            return default_value;
-
+        // Not an error
         if (make_error_code(errc::key_not_found) == err.code())
             return default_value;
+
+        // Error
+        // if (make_error_code(errc::bad_value) == err.code())
+        //     return default_value;
 
         pfs::throw_or(perr, std::move(err));
         return default_value;

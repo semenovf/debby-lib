@@ -1,5 +1,5 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2021-2024 Vladislav Trifochkin
+// Copyright (c) 2021-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
@@ -8,6 +8,7 @@
 //      2021.12.18 Reimplemented with new error handling.
 //      2022.03.12 Refactored.
 //      2024.10.29 V2 started.
+//      2025.09.30 Changed get implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #include "result_impl.hpp"
 #include "utils.hpp"
@@ -82,6 +83,8 @@ int result_t::column_count () const noexcept
 template <>
 std::string result_t::column_name (int column) const noexcept
 {
+    column--;
+
     if (column >= 0 && column < sqlite3_column_count(_d->sth))
         return std::string {sqlite3_column_name(_d->sth, column)};
 
@@ -136,34 +139,35 @@ void result_t::next ()
 }
 
 #define CHECK_COLUMN_INDEX_BOILERPLATE                                          \
-    if (column < 0 || column >= _d->column_count) {                             \
+    if (column < 1 || column > column_count) {                                  \
         pfs::throw_or(perr, error {                                             \
               make_error_code(errc::column_not_found)                           \
-            , tr::f_("bad column index: {}, expected greater or equal to 0 and" \
-                " less than {}", column, _d->column_count)                      \
+            , tr::f_("bad column index: {}, expected greater or equal to 1 and" \
+                " less or equal to {}", column, column_count)                   \
         });                                                                     \
         return pfs::nullopt;                                                    \
     }
 
 #define UNSUITABLE_ERROR_BOILERPLATE \
-    pfs::throw_or(perr, error {make_error_code(errc::bad_value)                 \
-        , tr::f_("unsuitable column type at index {}", column)});
+    pfs::throw_or(perr, error {make_error_code(errc::bad_value)       \
+        , tr::f_("unsuitable column type at index {}", column + 1)});
 
-template <>
-pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
+pfs::optional<std::int64_t> result_t::impl::get_int64 (int column, error * perr)
 {
     CHECK_COLUMN_INDEX_BOILERPLATE
 
-    auto column_type = sqlite3_column_type(_d->sth, column);
+    column--;
+
+    auto column_type = sqlite3_column_type(sth, column);
 
     switch (column_type) {
         case SQLITE_INTEGER:
-            return sqlite3_column_int64(_d->sth, column);
+            return sqlite3_column_int64(sth, column);
         case SQLITE_NULL:
             return pfs::nullopt;
         case SQLITE_BLOB: { // Used by key/value database
-            auto bytes = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
-            int size = sqlite3_column_bytes(_d->sth, column);
+            auto bytes = static_cast<char const *>(sqlite3_column_blob(sth, column));
+            int size = sqlite3_column_bytes(sth, column);
 
             switch (size) {
                 case 1: {
@@ -209,21 +213,22 @@ pfs::optional<std::int64_t> result_t::get_int64 (int column, error * perr)
     return pfs::nullopt;
 }
 
-template <>
-pfs::optional<double> result_t::get_double (int column, error * perr)
+pfs::optional<double> result_t::impl::get_double (int column, error * perr)
 {
     CHECK_COLUMN_INDEX_BOILERPLATE
 
-    auto column_type = sqlite3_column_type(_d->sth, column);
+    column--;
+
+    auto column_type = sqlite3_column_type(sth, column);
 
     switch (column_type) {
         case SQLITE_FLOAT:
-            return sqlite3_column_double(_d->sth, column);
+            return sqlite3_column_double(sth, column);
         case SQLITE_NULL:
             return pfs::nullopt;
         case SQLITE_BLOB: { // Used by key/value database
-            auto bytes = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
-            int size = sqlite3_column_bytes(_d->sth, column);
+            auto bytes = static_cast<char const *>(sqlite3_column_blob(sth, column));
+            int size = sqlite3_column_bytes(sth, column);
 
             if (size == sizeof(float)) {
                 fixed_packer<float> fx;
@@ -248,26 +253,27 @@ pfs::optional<double> result_t::get_double (int column, error * perr)
     return pfs::nullopt;
 }
 
-template <>
-pfs::optional<std::string> result_t::get_string (int column, error * perr)
+pfs::optional<std::string> result_t::impl::get_string (int column, error * perr)
 {
     CHECK_COLUMN_INDEX_BOILERPLATE
 
-    auto column_type = sqlite3_column_type(_d->sth, column);
+    column--;
+
+    auto column_type = sqlite3_column_type(sth, column);
 
     switch (column_type) {
         case SQLITE_INTEGER:
-            return std::to_string(sqlite3_column_int64(_d->sth, column));
+            return std::to_string(sqlite3_column_int64(sth, column));
         case SQLITE_FLOAT:
-            return std::to_string(sqlite3_column_double(_d->sth, column));
+            return std::to_string(sqlite3_column_double(sth, column));
         case SQLITE_TEXT: {
-            auto chars = reinterpret_cast<char const *>(sqlite3_column_text(_d->sth, column));
-            int size = sqlite3_column_bytes(_d->sth, column);
+            auto chars = reinterpret_cast<char const *>(sqlite3_column_text(sth, column));
+            int size = sqlite3_column_bytes(sth, column);
             return std::string(chars, size);
         }
         case SQLITE_BLOB: {
-            auto bytes = static_cast<char const *>(sqlite3_column_blob(_d->sth, column));
-            int size = sqlite3_column_bytes(_d->sth, column);
+            auto bytes = static_cast<char const *>(sqlite3_column_blob(sth, column));
+            int size = sqlite3_column_bytes(sth, column);
             return std::string(bytes, size);
         }
         case SQLITE_NULL:
@@ -280,43 +286,107 @@ pfs::optional<std::string> result_t::get_string (int column, error * perr)
     return pfs::nullopt;
 }
 
-template <>
-pfs::optional<std::int64_t> result_t::get_int64 (std::string const & column_name, error * perr)
+pfs::optional<std::int64_t> result_t::impl::get_int64 (std::string const & column_name, error * perr)
 {
-    auto index = _d->column_index(column_name);
+    auto index = column_index(column_name);
 
     if (index < 0) {
-        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
-        return 0;
+        pfs::throw_or(perr, make_error_code(errc::column_not_found)
+            , tr::f_("bad column name: {}", column_name));
+        return pfs::nullopt;
     }
 
-    return get_int64(index, perr);
+    return get_int64(index + 1, perr);
+}
+
+pfs::optional<double> result_t::impl::get_double (std::string const & column_name, error * perr)
+{
+    auto index = column_index(column_name);
+
+    if (index < 0) {
+        pfs::throw_or(perr, make_error_code(errc::column_not_found)
+            , tr::f_("bad column name: {}", column_name));
+        return pfs::nullopt;
+    }
+
+    return get_double(index + 1, perr);
+}
+
+pfs::optional<std::string> result_t::impl::get_string (std::string const & column_name, error * perr)
+{
+    auto index = column_index(column_name);
+
+    if (index < 0) {
+        pfs::throw_or(perr, make_error_code(errc::column_not_found)
+            , tr::f_("bad column name: {}", column_name));
+        return pfs::nullopt;
+    }
+
+    return get_string(index + 1, perr);
+}
+
+#define DEBBY__INTEGRAL_GET(t,ctype)                                          \
+    template <>                                                               \
+    template <>                                                               \
+    pfs::optional<t> result_t::get<t> (ctype column, error * perr)            \
+    {                                                                         \
+        auto opt = _d->get_int64(column, perr);                               \
+        return opt ? pfs::make_optional(static_cast<t>(*opt)) : pfs::nullopt; \
+    }
+
+#define DEBBY__FLOATING_POINT_GET(t,ctype)                                    \
+    template <>                                                               \
+    template <>                                                               \
+    pfs::optional<t> result_t::get<t> (ctype column, error * perr)            \
+    {                                                                         \
+        auto opt = _d->get_double(column, perr);                              \
+        return opt ? pfs::make_optional(static_cast<t>(*opt)) : pfs::nullopt; \
+    }
+
+DEBBY__INTEGRAL_GET(bool, int)
+DEBBY__INTEGRAL_GET(char, int)
+DEBBY__INTEGRAL_GET(signed char, int)
+DEBBY__INTEGRAL_GET(unsigned char, int)
+DEBBY__INTEGRAL_GET(short, int)
+DEBBY__INTEGRAL_GET(unsigned short, int)
+DEBBY__INTEGRAL_GET(int, int)
+DEBBY__INTEGRAL_GET(unsigned int, int)
+DEBBY__INTEGRAL_GET(long, int)
+DEBBY__INTEGRAL_GET(unsigned long, int)
+DEBBY__INTEGRAL_GET(long long, int)
+DEBBY__INTEGRAL_GET(unsigned long long, int)
+
+DEBBY__INTEGRAL_GET(bool, std::string const &)
+DEBBY__INTEGRAL_GET(char, std::string const &)
+DEBBY__INTEGRAL_GET(signed char, std::string const &)
+DEBBY__INTEGRAL_GET(unsigned char, std::string const &)
+DEBBY__INTEGRAL_GET(short, std::string const &)
+DEBBY__INTEGRAL_GET(unsigned short, std::string const &)
+DEBBY__INTEGRAL_GET(int, std::string const &)
+DEBBY__INTEGRAL_GET(unsigned int, std::string const &)
+DEBBY__INTEGRAL_GET(long, std::string const &)
+DEBBY__INTEGRAL_GET(unsigned long, std::string const &)
+DEBBY__INTEGRAL_GET(long long, std::string const &)
+DEBBY__INTEGRAL_GET(unsigned long long, std::string const &)
+
+DEBBY__FLOATING_POINT_GET(float, int)
+DEBBY__FLOATING_POINT_GET(double, int)
+
+DEBBY__FLOATING_POINT_GET(float, std::string const &)
+DEBBY__FLOATING_POINT_GET(double, std::string const &)
+
+template <>
+template <>
+pfs::optional<std::string> result_t::get<std::string> (int column, error * perr)
+{
+    return _d->get_string(column, perr);
 }
 
 template <>
-pfs::optional<double> result_t::get_double (std::string const & column_name, error * perr)
-{
-    auto index = _d->column_index(column_name);
-
-    if (index < 0) {
-        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
-        return 0;
-    }
-
-    return get_double(index, perr);
-}
-
 template <>
-pfs::optional<std::string> result_t::get_string (std::string const & column_name, error * perr)
+pfs::optional<std::string> result_t::get<std::string> (std::string const & column, error * perr)
 {
-    auto index = _d->column_index(column_name);
-
-    if (index < 0) {
-        pfs::throw_or(perr, make_error_code(errc::column_not_found), tr::f_("bad column name: {}", column_name));
-        return std::string{};
-    }
-
-    return get_string(index, perr);
+    return _d->get_string(column, perr);
 }
 
 DEBBY__NAMESPACE_END

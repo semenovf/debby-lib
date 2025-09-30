@@ -1,11 +1,12 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2023-2024 Vladislav Trifochkin
+// Copyright (c) 2023-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2023.11.25 Initial version.
 //      2024.10.29 V2 started.
+//      2025.09.30 Changed bind implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #include "result_impl.hpp"
 #include "statement_impl.hpp"
@@ -82,34 +83,52 @@ statement_t::~statement ()
     _d = nullptr;
 }
 
-template <>
-bool statement_t::bind_helper (int index, std::int64_t value, error *)
-{
-    return _d->bind_helper(index, value);
-}
+#define DEBBY__ARITHMETIC_BIND(t)                                   \
+    template <>                                                     \
+    template <>                                                     \
+    bool statement_t::bind<t> (int index, t const & value, error *) \
+    {                                                               \
+        return _d->bind_arithmetic<t>(index, value);                \
+    }
+
+DEBBY__ARITHMETIC_BIND(bool)
+DEBBY__ARITHMETIC_BIND(char)
+DEBBY__ARITHMETIC_BIND(signed char)
+DEBBY__ARITHMETIC_BIND(unsigned char)
+DEBBY__ARITHMETIC_BIND(short)
+DEBBY__ARITHMETIC_BIND(unsigned short)
+DEBBY__ARITHMETIC_BIND(int)
+DEBBY__ARITHMETIC_BIND(unsigned int)
+DEBBY__ARITHMETIC_BIND(long)
+DEBBY__ARITHMETIC_BIND(unsigned long)
+DEBBY__ARITHMETIC_BIND(long long)
+DEBBY__ARITHMETIC_BIND(unsigned long long)
+DEBBY__ARITHMETIC_BIND(float)
+DEBBY__ARITHMETIC_BIND(double)
 
 template <>
-bool statement_t::bind_helper (int index, double value, error *)
+template <>
+bool statement_t::bind<std::string> (int index, std::string const & value, error *)
 {
-    return _d->bind_helper(index, value);
+    return _d->bind_string(index, value.c_str(), value.size());
 }
 
 template <>
 bool statement_t::bind (int index, std::nullptr_t, error *)
 {
-    return _d->bind_helper(index, nullptr);
+    return _d->bind_null(index, nullptr);
 }
 
 template <>
-bool statement_t::bind (int index, std::string && value, error *)
+bool statement_t::bind (int index, char const * ptr, error *)
 {
-    return _d->bind_helper(index, std::move(value));
+    return _d->bind_string(index, ptr, std::strlen(ptr));
 }
 
 template <>
-bool statement_t::bind (int index, char const * data, std::size_t len, error *)
+bool statement_t::bind (int index, char const * ptr, std::size_t len, error *)
 {
-    return _d->bind_helper(index, data, len);
+    return _d->bind_blob(index, ptr, len);
 }
 
 template <>

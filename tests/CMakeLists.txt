@@ -12,10 +12,10 @@
 project(debby-TESTS CXX C)
 
 list(APPEND TESTS
-    keyvalue_database
     relational_database
     statement
-    data_definition)
+    data_definition
+    keyvalue_database)
 
 foreach (target ${TESTS})
     add_executable(${target} ${target}.cpp)

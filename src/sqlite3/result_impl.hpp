@@ -1,14 +1,16 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2024 Vladislav Trifochkin
+// Copyright (c) 2024-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2024.10.30 Initial version.
+//      2025.09.30 Changed get implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #include "sqlite3.h"
 #include "debby/namespace.hpp"
 #include "debby/result.hpp"
+#include <pfs/optional.hpp>
 #include <unordered_map>
 
 DEBBY__NAMESPACE_BEGIN
@@ -74,6 +76,16 @@ public:
     }
 
 public:
+    // NOTE result's API expects that column index starts from 1, but internally it starts from 0.
+    //
+    pfs::optional<std::int64_t> get_int64 (int column, error * perr);
+    pfs::optional<double> get_double (int column, error * perr);
+    pfs::optional<std::string> get_string (int column, error * perr);
+    pfs::optional<std::int64_t> get_int64 (std::string const & column_name, error * perr);
+    pfs::optional<double> get_double (std::string const & column_name, error * perr);
+    pfs::optional<std::string> get_string (std::string const & column_name, error * perr);
+
+private:
     /**
      * @return Column index started from 0 and -1 if column not found
      */

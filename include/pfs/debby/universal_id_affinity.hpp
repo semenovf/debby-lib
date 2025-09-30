@@ -27,7 +27,7 @@ inline char const * column_type_affinity<backend_enum::psql, pfs::universal_id>:
 }
 
 template <>
-struct keyvalue_affinity<pfs::universal_id>
+struct value_type_affinity<pfs::universal_id>
 {
     using affinity_type = std::string;
 

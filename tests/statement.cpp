@@ -24,6 +24,9 @@
 #   include "psql_support.hpp"
 #endif
 
+#include "pfs/debby/time_affinity.hpp"
+#include "pfs/debby/universal_id_affinity.hpp"
+
 namespace fs = pfs::filesystem;
 
 namespace {
@@ -46,23 +49,27 @@ std::string const CREATE_TABLE {
         ", float REAL"
         ", double DOUBLE PRECISION"
         ", text TEXT"
-        ", cstr TEXT)"
+        ", cstr TEXT"
+        ", uid TEXT"
+        ", utc_time INTEGER"
+        ", local_time INTEGER"
+    ")"
 };
 
 std::string const INSERT_SQLITE3 {
     "INSERT INTO {} (null_field, bool, int8min, uint8max"
         ", int16min, uint16max, int32min, uint32max"
         ", int64min, uint64max, int, uint"
-        ", float, double, text, cstr)"
-    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        ", float, double, text, cstr, uid, utc_time, local_time)"
+    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
 };
 
 std::string const INSERT_PSQL {
     "INSERT INTO {} (null_field, bool, int8min, uint8max"
         ", int16min, uint16max, int32min, uint32max"
         ", int64min, uint64max, int, uint"
-        ", float, double, text, cstr)"
-    " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)"
+        ", float, double, text, cstr, uid, utc_time, local_time)"
+    " VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)"
 };
 
 std::string const SELECT_ALL {
@@ -83,6 +90,9 @@ template <typename RelationalDatabaseType>
 void check (RelationalDatabaseType & db, std::string const & insert_statement_format)
 {
     db.remove_all();
+    auto uid = pfs::generate_uuid();
+    auto utc_time = pfs::utc_time {pfs::utc_time::now().to_millis()};
+    auto local_time = pfs::local_time {pfs::local_time::now().to_millis()};
 
     {
         auto stmt = db.prepare(fmt::format(CREATE_TABLE, TABLE_NAME));
@@ -130,6 +140,10 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
         stmt.bind(15, std::string{"Hello"});
         stmt.bind(16, "World");
 
+        stmt.bind(17, uid);
+        stmt.bind(18, utc_time);
+        stmt.bind(19, local_time);
+
         auto result = stmt.exec();
         REQUIRE(result.is_done());
         REQUIRE_EQ(db.rows_count(TABLE_NAME), 1);
@@ -144,27 +158,31 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
         REQUIRE(result.has_more());
         REQUIRE_FALSE(result.is_done());
 
-        CHECK_EQ(result.column_count(), 16);
+        CHECK_EQ(result.column_count(), 19);
 
         CHECK_EQ(result.column_name(-1), std::string{});
-        CHECK_EQ(result.column_name(16), std::string{});
+        CHECK_EQ(result.column_name(20), std::string{});
 
-        CHECK_EQ(result.column_name(0), std::string{"null_field"});
-        CHECK_EQ(result.column_name(1), std::string{"bool"});
-        CHECK_EQ(result.column_name(2), std::string{"int8min"});
-        CHECK_EQ(result.column_name(3), std::string{"uint8max"});
-        CHECK_EQ(result.column_name(4), std::string{"int16min"});
-        CHECK_EQ(result.column_name(5), std::string{"uint16max"});
-        CHECK_EQ(result.column_name(6), std::string{"int32min"});
-        CHECK_EQ(result.column_name(7), std::string{"uint32max"});
-        CHECK_EQ(result.column_name(8), std::string{"int64min"});
-        CHECK_EQ(result.column_name(9), std::string{"uint64max"});
-        CHECK_EQ(result.column_name(10), std::string{"int"});
-        CHECK_EQ(result.column_name(11), std::string{"uint"});
-        CHECK_EQ(result.column_name(12), std::string{"float"});
-        CHECK_EQ(result.column_name(13), std::string{"double"});
-        CHECK_EQ(result.column_name(14), std::string{"text"});
-        CHECK_EQ(result.column_name(15), std::string{"cstr"});
+        CHECK_EQ(result.column_name(1), std::string{"null_field"});
+        CHECK_EQ(result.column_name(2), std::string{"bool"});
+        CHECK_EQ(result.column_name(3), std::string{"int8min"});
+        CHECK_EQ(result.column_name(4), std::string{"uint8max"});
+        CHECK_EQ(result.column_name(5), std::string{"int16min"});
+        CHECK_EQ(result.column_name(6), std::string{"uint16max"});
+        CHECK_EQ(result.column_name(7), std::string{"int32min"});
+        CHECK_EQ(result.column_name(8), std::string{"uint32max"});
+        CHECK_EQ(result.column_name(9), std::string{"int64min"});
+        CHECK_EQ(result.column_name(10), std::string{"uint64max"});
+        CHECK_EQ(result.column_name(11), std::string{"int"});
+        CHECK_EQ(result.column_name(12), std::string{"uint"});
+        CHECK_EQ(result.column_name(13), std::string{"float"});
+        CHECK_EQ(result.column_name(14), std::string{"double"});
+        CHECK_EQ(result.column_name(15), std::string{"text"});
+        CHECK_EQ(result.column_name(16), std::string{"cstr"});
+
+        CHECK_EQ(result.column_name(17), std::string{"uid"});
+        CHECK_EQ(result.column_name(18), std::string{"utc_time"});
+        CHECK_EQ(result.column_name(19), std::string{"local_time"});
 
         while (result.has_more()) {
             {
@@ -193,9 +211,17 @@ void check (RelationalDatabaseType & db, std::string const & insert_statement_fo
             CHECK_EQ(result.template get_or<std::int64_t>("int", 0), -42);
             CHECK_EQ(result.template get_or<std::uint64_t>("uint", 0), 42);
 
-            CHECK(std::abs(result.template get_or<float>("float", 0) - float{3.14159}) < float{0.001});
-            CHECK(std::abs(result.template get_or<double>("double", 0) - double{3.14159}) < double{0.001});
+            CHECK_EQ(result.template get_or<float>("float", 0), float{3.14159});
+            CHECK_EQ(result.template get_or<double>("double", 0), double{3.14159});
             CHECK_EQ(result.template get_or<std::string>("text", ""), std::string{"Hello"});
+
+            CHECK_EQ(result.template get_or<pfs::universal_id>("uid", pfs::universal_id{}), uid);
+            CHECK_EQ(result.template get<pfs::universal_id>(17), uid);
+
+            CHECK_EQ(result.template get<pfs::utc_time>("utc_time"), utc_time);
+            CHECK_EQ(result.template get<pfs::utc_time>(18), utc_time);
+            CHECK_EQ(result.template get<pfs::local_time>("local_time"), local_time);
+            CHECK_EQ(result.template get<pfs::local_time>(19), local_time);
 
             result.next();
         }

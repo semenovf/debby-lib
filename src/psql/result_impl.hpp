@@ -1,13 +1,15 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2024 Vladislav Trifochkin
+// Copyright (c) 2024-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2024.11.02 Initial version.
+//      2025.09.30 Changed get implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/namespace.hpp"
 #include "debby/result.hpp"
+#include <pfs/optional.hpp>
 
 extern "C" {
 #include <libpq-fe.h>
@@ -56,6 +58,16 @@ public:
     }
 
 public:
+    // NOTE result's API expects that column index starts from 1, but internally it starts from 0.
+    //
+    pfs::optional<std::int64_t> get_int64 (int column, error * perr);
+    pfs::optional<double> get_double (int column, error * perr);
+    pfs::optional<std::string> get_string (int column, error * perr);
+    pfs::optional<std::int64_t> get_int64 (std::string const & column_name, error * perr);
+    pfs::optional<double> get_double (std::string const & column_name, error * perr);
+    pfs::optional<std::string> get_string (std::string const & column_name, error * perr);
+
+private:
     int column_index (std::string const & column_name)
     {
         for (int i = 0; i < column_count; i++) {

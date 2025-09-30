@@ -1,10 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////
-// Copyright (c) 2024 Vladislav Trifochkin
+// Copyright (c) 2024-2025 Vladislav Trifochkin
 //
 // This file is part of `debby-lib`.
 //
 // Changelog:
 //      2024.10.30 Initial version.
+//      2025.09.30 Changed bind implementation.
 ////////////////////////////////////////////////////////////////////////////////
 #include "debby/statement.hpp"
 #include "sqlite3.h"
@@ -57,6 +58,17 @@ public:
 
     void reset (error * perr);
     statement_t::result_type exec (bool move_handle_ownership, error * perr);
+
+    bool bind_int64 (int index, std::int64_t value, error * perr);
+    bool bind_int64 (char const * placeholder, std::int64_t value, error * perr);
+    bool bind_double (int index, double value, error * perr);
+    bool bind_double (char const * placeholder, double value, error * perr);
+    bool bind_string (int index, char const * ptr, std::size_t len, error * perr);
+    bool bind_string (char const * placeholder, char const * ptr, std::size_t len, error * perr);
+    bool bind_blob (int index, char const * ptr, std::size_t len, error * perr);
+    bool bind_blob (char const * placeholder, char const * ptr, std::size_t len, error * perr);
+    bool bind_null (int index, std::nullptr_t, error * perr);
+    bool bind_null (char const * placeholder, std::nullptr_t, error * perr);
 };
 
 DEBBY__NAMESPACE_END

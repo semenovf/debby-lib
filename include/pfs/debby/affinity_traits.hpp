@@ -19,6 +19,6 @@ struct column_type_affinity
 };
 
 template <typename T>
-struct keyvalue_affinity;
+struct value_type_affinity;
 
 DEBBY__NAMESPACE_END

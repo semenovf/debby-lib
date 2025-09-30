@@ -40,7 +40,7 @@ inline char const * column_type_affinity<backend_enum::psql, pfs::local_time>::t
 }
 
 template <>
-struct keyvalue_affinity<pfs::utc_time>
+struct value_type_affinity<pfs::utc_time>
 {
     using affinity_type = std::int64_t;
 
@@ -56,7 +56,7 @@ struct keyvalue_affinity<pfs::utc_time>
 };
 
 template <>
-struct keyvalue_affinity<pfs::local_time>
+struct value_type_affinity<pfs::local_time>
 {
     using affinity_type = std::int64_t;
 

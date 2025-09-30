@@ -46,7 +46,7 @@ relational_database<Backend>::rows_count (std::string const & table_name, error 
 
     if (res) {
         if (res.has_more()) {
-            count = *res.template get<std::size_t>(0);
+            count = *res.template get<std::size_t>(1);
 
             // May be `sql_error` exception
             res.next();
