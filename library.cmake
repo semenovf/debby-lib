@@ -109,3 +109,6 @@ endif()
 target_include_directories(debby
     PUBLIC ${CMAKE_CURRENT_LIST_DIR}/include
     PRIVATE ${CMAKE_CURRENT_LIST_DIR}/include/pfs)
+
+set_target_properties(debby PROPERTIES POSITION_INDEPENDENT_CODE ON)
+

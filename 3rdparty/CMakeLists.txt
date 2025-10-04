@@ -51,6 +51,8 @@ if (DEBBY__ENABLE_MDBX)
         FetchContent_MakeAvailable(libmdbx)
         message(STATUS "Fetching libmdbx complete")
     endif()
+
+    set_target_properties(mdbx-static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif(DEBBY__ENABLE_MDBX)
 
 if (DEBBY__ENABLE_LMDB)
@@ -79,6 +81,7 @@ if (DEBBY__ENABLE_LMDB)
         ${CMAKE_CURRENT_LIST_DIR}/lmdb/libraries/liblmdb/mdb.c
         ${CMAKE_CURRENT_LIST_DIR}/lmdb/libraries/liblmdb/midl.c)
     target_include_directories(lmdb-static PUBLIC ${CMAKE_CURRENT_LIST_DIR}/lmdb/libraries/liblmdb)
+    set_target_properties(lmdb-static PROPERTIES POSITION_INDEPENDENT_CODE ON)
 endif()
 
 if (DEBBY__ENABLE_PSQL)
