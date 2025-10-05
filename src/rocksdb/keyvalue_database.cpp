@@ -326,7 +326,7 @@ public:
     }
 
     template <typename T>
-    T get (std::string const & key, error * perr)
+    T get (std::string const & key, error * perr) const
     {
         PFS__TERMINATE(_dbh != nullptr, "");
         PFS__TERMINATE(_handles[1] != nullptr, "");
@@ -397,7 +397,7 @@ keyvalue_database_t::set (key_type const & key, T value, error * perr)
 template <>
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
-keyvalue_database_t::get (key_type const & key, error * perr)
+keyvalue_database_t::get (key_type const & key, error * perr) const
 {
     return _d->template get<std::decay_t<T>>(key, perr);
 }
@@ -443,7 +443,7 @@ bool wipe (fs::path const & path, error * perr)
     template void keyvalue_database_t::set<t> (key_type const & key, t value, error * perr);
 
 #define DEBBY__ROCKSDB_GET(t) \
-    template t keyvalue_database_t::get<t> (key_type const & key, error * perr);
+    template t keyvalue_database_t::get<t> (key_type const & key, error * perr) const;
 
 DEBBY__ROCKSDB_SET(bool)
 DEBBY__ROCKSDB_SET(char)

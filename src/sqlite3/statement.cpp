@@ -110,6 +110,18 @@ statement_t::~statement ()
     _d = nullptr;
 }
 
+template <>
+statement_t & statement_t::operator = (statement && other)
+{
+    if (this != & other) {
+        this->~statement();
+        _d = other._d;
+        other._d = nullptr;
+    }
+
+    return *this;
+}
+
 #define BIND_BOILERPLATE_ON_FAILURE                \
         pfs::throw_or(perr                         \
             , make_error_code(errc::backend_error) \

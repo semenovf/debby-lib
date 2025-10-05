@@ -121,11 +121,11 @@ public:
     template <typename T>
     DEBBY__EXPORT
     std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
-    get (key_type const & key, error * perr = nullptr);
+    get (key_type const & key, error * perr = nullptr) const;
 
     template <typename T>
     std::enable_if_t<!std::is_arithmetic<T>::value && !std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
-    get (key_type const & key, error * perr = nullptr)
+    get (key_type const & key, error * perr = nullptr) const
     {
         using affinity_type = typename value_type_affinity<std::decay_t<T>>::affinity_type;
         error err;
@@ -140,7 +140,7 @@ public:
     }
 
     template <typename T>
-    T get_or (key_type const & key, T const & default_value, error * perr = nullptr)
+    T get_or (key_type const & key, T const & default_value, error * perr = nullptr) const
     {
         error err;
         auto result = get<T>(key, & err);

@@ -83,6 +83,18 @@ statement_t::~statement ()
     _d = nullptr;
 }
 
+template <>
+statement_t & statement_t::operator = (statement && other)
+{
+    if (this != & other) {
+        this->~statement();
+        _d = other._d;
+        other._d = nullptr;
+    }
+
+    return *this;
+}
+
 #define DEBBY__ARITHMETIC_BIND(t)                                   \
     template <>                                                     \
     template <>                                                     \
@@ -135,6 +147,12 @@ template <>
 statement_t::result_type statement_t::exec (error * perr)
 {
     return _d->exec(perr);
+}
+
+template <>
+void statement_t::reset (error *)
+{
+    // Nothing to do
 }
 
 DEBBY__NAMESPACE_END

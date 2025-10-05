@@ -93,7 +93,7 @@ std::vector<std::string> database_t::tables (std::string const & pattern, error 
         std::regex rx {pattern.empty() ? ".*" : pattern};
 
         while (res.has_more()) {
-            auto opt_name = res.get<std::string>(0);
+            auto opt_name = res.get<std::string>(1);
 
             if (pattern.empty()) {
                 list.push_back(*opt_name);

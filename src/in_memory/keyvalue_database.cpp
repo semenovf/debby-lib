@@ -110,7 +110,7 @@ public:
     }
 
     template <typename T>
-    T get (std::string const & key, error * perr)
+    T get (std::string const & key, error * perr) const
     {
         lock_guard locker{_mtx};
         auto pos = _dbh.find(key);
@@ -188,7 +188,7 @@ keyvalue_database<Backend>::set (key_type const & key, T value, error * perr)
 template <backend_enum Backend>
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
-keyvalue_database<Backend>::get (key_type const & key, error * perr)
+keyvalue_database<Backend>::get (key_type const & key, error * perr) const
 {
     return _d->template get<std::decay_t<T>>(key, perr);
 }
@@ -231,7 +231,7 @@ template class keyvalue_database<backend_enum::map_mt>;
     template void keyvalue_database<backend_enum::map_st>::set<t> (key_type const & key, t value, error * perr);
 
 #define DEBBY__MAP_ST_GET(t) \
-    template t keyvalue_database<backend_enum::map_st>::get<t> (key_type const & key, error * perr);
+    template t keyvalue_database<backend_enum::map_st>::get<t> (key_type const & key, error * perr) const;
 
 DEBBY__MAP_ST_SET(bool)
 DEBBY__MAP_ST_SET(char)
@@ -268,7 +268,7 @@ DEBBY__MAP_ST_GET(std::string)
     template void keyvalue_database<backend_enum::map_mt>::set<t> (key_type const & key, t value, error * perr);
 
 #define DEBBY__MAP_MT_GET(t) \
-    template t keyvalue_database<backend_enum::map_mt>::get<t> (key_type const & key, error * perr);
+    template t keyvalue_database<backend_enum::map_mt>::get<t> (key_type const & key, error * perr) const;
 
 DEBBY__MAP_MT_SET(bool)
 DEBBY__MAP_MT_SET(char)
@@ -311,7 +311,7 @@ template class keyvalue_database<backend_enum::unordered_map_mt>;
     template void keyvalue_database<backend_enum::unordered_map_st>::set<t> (key_type const & key, t value, error * perr);
 
 #define DEBBY__UNORDEREDMAP_ST_GET(t) \
-    template t keyvalue_database<backend_enum::unordered_map_st>::get<t> (key_type const & key, error * perr);
+    template t keyvalue_database<backend_enum::unordered_map_st>::get<t> (key_type const & key, error * perr) const;
 
 DEBBY__UNORDEREDMAP_ST_SET(bool)
 DEBBY__UNORDEREDMAP_ST_SET(char)
@@ -348,7 +348,7 @@ DEBBY__UNORDEREDMAP_ST_GET(std::string)
     template void keyvalue_database<backend_enum::unordered_map_mt>::set<t> (key_type const & key, t value, error * perr);
 
 #define DEBBY__UNORDEREDMAP_MT_GET(t) \
-    template t keyvalue_database<backend_enum::unordered_map_mt>::get<t> (key_type const & key, error * perr);
+    template t keyvalue_database<backend_enum::unordered_map_mt>::get<t> (key_type const & key, error * perr) const;
 
 DEBBY__UNORDEREDMAP_MT_SET(bool)
 DEBBY__UNORDEREDMAP_MT_SET(char)

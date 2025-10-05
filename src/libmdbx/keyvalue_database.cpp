@@ -42,44 +42,6 @@ decltype(MDBX_val::iov_base) iov_base_cast (T p)
     return iov_base_caster<T>::cast(p);
 }
 
-// template <typename T>
-// static bool assign (T & result, MDBX_val const & val);
-//
-// template <>
-// inline bool assign<std::int64_t> (std::int64_t & result, MDBX_val const & val)
-// {
-//     if (val.iov_len > sizeof(std::int64_t))
-//         return false;
-//
-//     fixed_packer<std::int64_t> p;
-//     std::memset(p.bytes, 0, sizeof(p.bytes));
-//     std::memcpy(p.bytes/* + (sizeof(std::int64_t) - val.mv_size)*/, val.iov_base, val.iov_len);
-//     result = p.value;
-//     return true;
-// }
-//
-// template <>
-// inline bool assign<double> (double & result, MDBX_val const & val)
-// {
-//     if (val.iov_len != sizeof(double))
-//         return false;
-//
-//     fixed_packer<double> p;
-//     std::memcpy(p.bytes, val.iov_base, val.iov_len);
-//
-//     if (std::isnan(p.value))
-//         return false;
-//
-//     result = p.value;
-//     return true;
-// }
-//
-// template <>
-// inline bool assign<std::string> (std::string & result, MDBX_val const & val)
-// {
-//     result = std::string(static_cast< char const *>(val.iov_base), val.iov_len);
-//     return true;
-// }
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value, bool>
 assign (T & result, MDBX_val const & val)
@@ -357,7 +319,6 @@ public:
     T get (std::string const & key, error * perr)
     {
         T result;
-
         auto rc = perform_transaction([this, & key, & result] (MDBX_txn * txn) -> int {
             MDBX_val k;
             MDBX_val val;
@@ -436,7 +397,7 @@ keyvalue_database_t::set (key_type const & key, T value, error * perr)
 template <>
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
-keyvalue_database_t::get (key_type const & key, error * perr)
+keyvalue_database_t::get (key_type const & key, error * perr) const
 {
     return _d->template get<std::decay_t<T>>(key, perr);
 }
@@ -487,7 +448,7 @@ bool wipe (fs::path const & path, error * perr)
     template void keyvalue_database_t::set<t> (key_type const & key, t value, error * perr);
 
 #define DEBBY__MDBX_GET(t) \
-    template t keyvalue_database_t::get<t> (key_type const & key, error * perr);
+    template t keyvalue_database_t::get<t> (key_type const & key, error * perr) const;
 
 DEBBY__MDBX_SET(bool)
 DEBBY__MDBX_SET(char)

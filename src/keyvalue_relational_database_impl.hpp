@@ -25,12 +25,24 @@ private:
 
 private:
     std::string _table_name;
+    statement<Backend> _put_stmt;
+    mutable statement<Backend> _get_stmt;
 
 public:
     impl (relational_database<Backend> && db, std::string && table_name)
         : relational_database<Backend>(std::move(db))
         , _table_name(std::move(table_name))
-    {}
+    {
+        {
+            std::string sql = fmt::format(PUT_SQL, _table_name);
+            _put_stmt = this->prepare(sql);
+        }
+
+        {
+            std::string sql = fmt::format(GET_SQL, _table_name);
+            _get_stmt = this->prepare(sql);
+        }
+    }
 
 public:
     std::string const & table_name () const
@@ -68,15 +80,14 @@ public:
             remove(key, perr);
 
         error err;
-        std::string sql = fmt::format(PUT_SQL, _table_name);
-        auto stmt = this->prepare(sql, & err);
+        _put_stmt.reset(& err);
 
         if (!err) {
-            stmt.bind(1, key.c_str(), key.size(), & err)
-                && stmt.bind(2, data, len, & err);
+            _put_stmt.bind(1, key.c_str(), key.size(), & err)
+                && _put_stmt.bind(2, data, len, & err);
 
             if (!err)
-                stmt.exec(& err);
+                _put_stmt.exec(& err);
 
             if (!err)
                 return true;
@@ -87,21 +98,20 @@ public:
     }
 
     template <typename T>
-    T get (std::string const & key, error * perr)
+    T get (std::string const & key, error * perr) const
     {
         error err;
-        std::string sql = fmt::format(GET_SQL, _table_name);
-        auto stmt = this->prepare(sql, & err);
+        _get_stmt.reset(& err);
 
         if (!err) {
-            stmt.bind(1, key.c_str(), key.size(), & err);
+            _get_stmt.bind(1, key.c_str(), key.size(), & err);
 
             if (!err) {
-                auto res = stmt.exec(& err);
+                auto res = _get_stmt.exec(& err);
 
                 if (!err) {
                     if (res.has_more()) {
-                        auto opt = res.template get<T>(0, & err);
+                        auto opt = res.template get<T>(1, & err);
 
                         if (opt) {
                             return *opt;
@@ -156,7 +166,7 @@ keyvalue_database<Backend>::set (key_type const & key, T value, error * perr)
 template <backend_enum Backend>
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
-keyvalue_database<Backend>::get (key_type const & key, error * perr)
+keyvalue_database<Backend>::get (key_type const & key, error * perr) const
 {
     return _d->template get<std::decay_t<T>>(key, perr);
 }

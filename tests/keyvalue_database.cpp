@@ -226,7 +226,7 @@ TEST_CASE("lmdb set/get") {
 #endif
 
 #if DEBBY__MDBX_ENABLED
-TEST_CASE("dbmx set/get") {
+TEST_CASE("mdbx set/get") {
     using database_t = debby::keyvalue_database<debby::backend_enum::mdbx>;
     auto db_path = fs::temp_directory_path() / PFS__LITERAL_PATH("debby-mdbx-kv.db");
     auto db = database_t::make(db_path, true);

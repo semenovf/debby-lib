@@ -77,9 +77,9 @@ void check (RelationalDatabaseType & db_opened)
         std::int64_t i64 = 10000000042L;
 
         while (res.has_more()) {
-            auto x = res.template get<std::int16_t>(0);
-            auto y = res.template get<std::int32_t>(1);
-            auto z = res.template get<std::int64_t>(2);
+            auto x = res.template get<std::int16_t>(1);
+            auto y = res.template get<std::int32_t>(2);
+            auto z = res.template get<std::int64_t>(3);
             CHECK_EQ(*x, i16++);
             CHECK_EQ(*y, i32++);
             CHECK_EQ(*z, i64++);
@@ -95,8 +95,8 @@ void check (RelationalDatabaseType & db_opened)
         auto res = db.exec("SELECT * from two");
 
         while (res.has_more()) {
-            auto x = res.template get<float>(0);
-            auto y = res.template get<double>(1);
+            auto x = res.template get<float>(1);
+            auto y = res.template get<double>(2);
             CHECK_EQ(*x, float{3.14159});
             CHECK_EQ(*y, double{3.14159});
             res.next();

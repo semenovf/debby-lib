@@ -78,7 +78,7 @@ public:
     }
 
     template <typename T>
-    T get (key_type const & key, T const & default_value = T{}, error * perr = nullptr)
+    T get (key_type const & key, T const & default_value = T{}, error * perr = nullptr) const
     {
         return _db.template get_or<T>(key, default_value, perr);
     }

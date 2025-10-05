@@ -387,7 +387,7 @@ keyvalue_database_t::set (key_type const & key, T value, error * perr)
 template <>
 template <typename T>
 std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>
-keyvalue_database_t::get (key_type const & key, error * perr)
+keyvalue_database_t::get (key_type const & key, error * perr) const
 {
     return _d->template get<std::decay_t<T>>(key, perr);
 }
@@ -441,7 +441,7 @@ bool wipe (fs::path const & path, error * perr)
     template void keyvalue_database_t::set<t> (key_type const & key, t value, error * perr);
 
 #define DEBBY__LMDB_GET(t) \
-    template t keyvalue_database_t::get<t> (key_type const & key, error * perr);
+    template t keyvalue_database_t::get<t> (key_type const & key, error * perr) const;
 
 DEBBY__LMDB_SET(bool)
 DEBBY__LMDB_SET(char)

@@ -40,10 +40,9 @@ public:
     DEBBY__EXPORT statement (impl && d);
     DEBBY__EXPORT statement (statement && other) noexcept;
     DEBBY__EXPORT ~statement ();
+    DEBBY__EXPORT statement & operator = (statement && other);
 
     statement (statement const & other) = delete;
-    statement & operator = (statement const & other) = delete;
-    statement & operator = (statement && other) = delete;
 
 public:
     inline operator bool () const noexcept
@@ -124,25 +123,6 @@ public:
     DEBBY__EXPORT bool bind (int index, char const * ptr, error * perr = nullptr);
 
     DEBBY__EXPORT bool bind (char const * placeholder, char const * ptr, error * perr = nullptr);
-
-    // /**
-    //  * Set the @a placeholder to be bound to string @a value in the prepared statement.
-    //  *
-    //  * @details Placeholder mark (e.g :) must be included when specifying the
-    //  *          placeholder name.
-    //  *
-    //  * @note Not all databases support placeholder. In this case an exception (@c errc::unsupported)
-    //  * is thrown or an error is returned in @a *perr.
-    //  */
-    // DEBBY__EXPORT bool bind (char const * placeholder, std::string && value, error * perr = nullptr);
-    //
-    // DEBBY__EXPORT bool bind (int index, pfs::universal_id uuid, error * perr = nullptr);
-    // DEBBY__EXPORT bool bind (char const * placeholder, pfs::universal_id uuid, error * perr = nullptr);
-    // DEBBY__EXPORT bool bind (int index, pfs::utc_time time, error * perr = nullptr);
-    // DEBBY__EXPORT bool bind (char const * placeholder, pfs::utc_time time, error * perr = nullptr);
-    // DEBBY__EXPORT bool bind (int index, pfs::local_time time, error * perr = nullptr);
-    // DEBBY__EXPORT bool bind (char const * placeholder, pfs::local_time time, error * perr = nullptr);
-
 };
 
 DEBBY__NAMESPACE_END

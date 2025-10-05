@@ -37,7 +37,7 @@ template void keyvalue_database_t::set (key_type const & key, char const * value
     template void keyvalue_database<backend_enum::psql>::set<t> (key_type const & key, t value, error * perr);
 
 #define DEBBY__PSQL_GET(t) \
-    template t keyvalue_database<backend_enum::psql>::get<t> (key_type const & key, error * perr);
+    template t keyvalue_database<backend_enum::psql>::get<t> (key_type const & key, error * perr) const;
 
 DEBBY__PSQL_SET(bool)
 DEBBY__PSQL_SET(char)
