@@ -78,18 +78,18 @@ public:
 public:
     // NOTE result's API expects that column index starts from 1, but internally it starts from 0.
     //
-    pfs::optional<std::int64_t> get_int64 (int column, error * perr);
-    pfs::optional<double> get_double (int column, error * perr);
-    pfs::optional<std::string> get_string (int column, error * perr);
-    pfs::optional<std::int64_t> get_int64 (std::string const & column_name, error * perr);
-    pfs::optional<double> get_double (std::string const & column_name, error * perr);
-    pfs::optional<std::string> get_string (std::string const & column_name, error * perr);
+    pfs::optional<std::int64_t> get_int64 (int column, error * perr) const;
+    pfs::optional<double> get_double (int column, error * perr) const;
+    pfs::optional<std::string> get_string (int column, error * perr) const;
+    pfs::optional<std::int64_t> get_int64 (std::string const & column_name, error * perr) const;
+    pfs::optional<double> get_double (std::string const & column_name, error * perr) const;
+    pfs::optional<std::string> get_string (std::string const & column_name, error * perr) const;
 
 private:
     /**
      * @return Column index started from 0 and -1 if column not found
      */
-    int column_index (std::string const & column_name)
+    int column_index (std::string const & column_name) const
     {
         if (column_mapping.empty()) {
             for (int i = 0; i < column_count; i++)

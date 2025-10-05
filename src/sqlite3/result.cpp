@@ -152,7 +152,7 @@ void result_t::next ()
     pfs::throw_or(perr, error {make_error_code(errc::bad_value)       \
         , tr::f_("unsuitable column type at index {}", column + 1)});
 
-pfs::optional<std::int64_t> result_t::impl::get_int64 (int column, error * perr)
+pfs::optional<std::int64_t> result_t::impl::get_int64 (int column, error * perr) const
 {
     CHECK_COLUMN_INDEX_BOILERPLATE
 
@@ -213,7 +213,7 @@ pfs::optional<std::int64_t> result_t::impl::get_int64 (int column, error * perr)
     return pfs::nullopt;
 }
 
-pfs::optional<double> result_t::impl::get_double (int column, error * perr)
+pfs::optional<double> result_t::impl::get_double (int column, error * perr) const
 {
     CHECK_COLUMN_INDEX_BOILERPLATE
 
@@ -253,7 +253,7 @@ pfs::optional<double> result_t::impl::get_double (int column, error * perr)
     return pfs::nullopt;
 }
 
-pfs::optional<std::string> result_t::impl::get_string (int column, error * perr)
+pfs::optional<std::string> result_t::impl::get_string (int column, error * perr) const
 {
     CHECK_COLUMN_INDEX_BOILERPLATE
 
@@ -286,7 +286,7 @@ pfs::optional<std::string> result_t::impl::get_string (int column, error * perr)
     return pfs::nullopt;
 }
 
-pfs::optional<std::int64_t> result_t::impl::get_int64 (std::string const & column_name, error * perr)
+pfs::optional<std::int64_t> result_t::impl::get_int64 (std::string const & column_name, error * perr) const
 {
     auto index = column_index(column_name);
 
@@ -299,7 +299,7 @@ pfs::optional<std::int64_t> result_t::impl::get_int64 (std::string const & colum
     return get_int64(index + 1, perr);
 }
 
-pfs::optional<double> result_t::impl::get_double (std::string const & column_name, error * perr)
+pfs::optional<double> result_t::impl::get_double (std::string const & column_name, error * perr) const
 {
     auto index = column_index(column_name);
 
@@ -312,7 +312,7 @@ pfs::optional<double> result_t::impl::get_double (std::string const & column_nam
     return get_double(index + 1, perr);
 }
 
-pfs::optional<std::string> result_t::impl::get_string (std::string const & column_name, error * perr)
+pfs::optional<std::string> result_t::impl::get_string (std::string const & column_name, error * perr) const
 {
     auto index = column_index(column_name);
 
@@ -328,7 +328,7 @@ pfs::optional<std::string> result_t::impl::get_string (std::string const & colum
 #define DEBBY__INTEGRAL_GET(t,ctype)                                          \
     template <>                                                               \
     template <>                                                               \
-    pfs::optional<t> result_t::get<t> (ctype column, error * perr)            \
+    pfs::optional<t> result_t::get<t> (ctype column, error * perr) const      \
     {                                                                         \
         auto opt = _d->get_int64(column, perr);                               \
         return opt ? pfs::make_optional(static_cast<t>(*opt)) : pfs::nullopt; \
@@ -337,7 +337,7 @@ pfs::optional<std::string> result_t::impl::get_string (std::string const & colum
 #define DEBBY__FLOATING_POINT_GET(t,ctype)                                    \
     template <>                                                               \
     template <>                                                               \
-    pfs::optional<t> result_t::get<t> (ctype column, error * perr)            \
+    pfs::optional<t> result_t::get<t> (ctype column, error * perr) const      \
     {                                                                         \
         auto opt = _d->get_double(column, perr);                              \
         return opt ? pfs::make_optional(static_cast<t>(*opt)) : pfs::nullopt; \
@@ -377,14 +377,14 @@ DEBBY__FLOATING_POINT_GET(double, std::string const &)
 
 template <>
 template <>
-pfs::optional<std::string> result_t::get<std::string> (int column, error * perr)
+pfs::optional<std::string> result_t::get<std::string> (int column, error * perr) const
 {
     return _d->get_string(column, perr);
 }
 
 template <>
 template <>
-pfs::optional<std::string> result_t::get<std::string> (std::string const & column, error * perr)
+pfs::optional<std::string> result_t::get<std::string> (std::string const & column, error * perr) const
 {
     return _d->get_string(column, perr);
 }

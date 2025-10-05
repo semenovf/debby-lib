@@ -92,16 +92,16 @@ public:
     template <typename T>
     DEBBY__EXPORT
     pfs::optional<std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>>
-    get (int column, error * perr = nullptr);
+    get (int column, error * perr = nullptr) const;
 
     template <typename T>
     DEBBY__EXPORT
     pfs::optional<std::enable_if_t<std::is_arithmetic<T>::value || std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>>
-    get (std::string const & column, error * perr = nullptr);
+    get (std::string const & column, error * perr = nullptr) const;
 
     template <typename T>
     pfs::optional<std::enable_if_t<!std::is_arithmetic<T>::value && !std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>>
-    get (int const & column, error * perr = nullptr)
+    get (int const & column, error * perr = nullptr) const
     {
         using affinity_type = typename value_type_affinity<std::decay_t<T>>::affinity_type;
         error err;
@@ -120,7 +120,7 @@ public:
 
     template <typename T>
     pfs::optional<std::enable_if_t<!std::is_arithmetic<T>::value && !std::is_same<std::decay_t<T>, std::string>::value, std::decay_t<T>>>
-    get (std::string const & column, error * perr = nullptr)
+    get (std::string const & column, error * perr = nullptr) const
     {
         using affinity_type = typename value_type_affinity<std::decay_t<T>>::affinity_type;
         error err;
@@ -141,7 +141,7 @@ public:
      * @return Column content or @a default_value if column contains null value.
      */
     template <typename T, typename ColumnType>
-    T get_or (ColumnType const & column, T const & default_value, error * perr = nullptr)
+    T get_or (ColumnType const & column, T const & default_value, error * perr = nullptr) const
     {
         error err;
         auto valopt = get<T>(column, & err);
