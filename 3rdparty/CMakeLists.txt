@@ -19,10 +19,10 @@ if (DEBBY__ENABLE_ROCKSDB)
             GIT_TAG v6.29.5  # Last version compatible with C++11
             GIT_SHALLOW 1
             PATCH_COMMAND git apply --ignore-space-change --ignore-whitespace
-                "${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb-v6.29.5.patch"
+                "${CMAKE_CURRENT_LIST_DIR}/rocksdb-v6.29.5.patch"
 
-            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/3rdparty/rocksdb
-            SUBBUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/3rdparty/rocksdb)
+            SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/rocksdb)
+#            SUBBUILD_DIR ${CMAKE_CURRENT_BINARY_DIR}/rocksdb)
 
         if (NOT rocksdb_POPULATED)
             FetchContent_Populate(rocksdb)
@@ -95,7 +95,7 @@ if (DEBBY__ENABLE_PSQL)
             GIT_REPOSITORY https://github.com/postgres/postgres.git
             GIT_TAG REL_16_1
             GIT_SHALLOW 1
-            SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/postgres)
+            SOURCE_DIR ${CMAKE_CURRENT_LIST_DIR}/postgres)
 
         FetchContent_GetProperties(postgres)
 

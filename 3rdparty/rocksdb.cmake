@@ -8,8 +8,6 @@
 #      2021.11.29 Renamed variables.
 #      2021.12.09 Became the part of debby-lib and refactored totally.
 ################################################################################
-cmake_minimum_required (VERSION 3.5)
-
 if (EXISTS ${CMAKE_CURRENT_LIST_DIR}/rocksdb/CMakeLists.txt)
     message(STATUS "RocksDB found at: ${CMAKE_CURRENT_LIST_DIR}/rocksdb" )
     #
