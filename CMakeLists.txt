@@ -21,7 +21,7 @@ option(DEBBY__DISABLE_FETCH_CONTENT "Disable fetch content if sources of depende
 option(DEBBY__BUILD_SHARED "Enable build shared library" OFF)
 option(DEBBY__ENABLE_SQLITE3 "Enable `Sqlite3` backend" ON)
 option(DEBBY__ENABLE_SQLITE_FTS5 "Enable support for `FTS5` in `Sqlite3` backend" OFF)
-option(DEBBY__ENABLE_ROCKSDB "Enable `RocksDb` backend" OFF)
+option(DEBBY__ENABLE_ROCKSDB_CXX11 "Enable `RocksDb` backend" OFF)
 option(DEBBY__ENABLE_MDBX "Enable `libmdbx` backend" OFF)
 option(DEBBY__ENABLE_LMDB "Enable `LMDB` backend" OFF)
 option(DEBBY__ENABLE_PSQL "Enable `PostgreSQL` front-end backend" OFF)

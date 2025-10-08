@@ -8,7 +8,7 @@
 ################################################################################
 include(FetchContent)
 
-if (DEBBY__ENABLE_ROCKSDB)
+if (DEBBY__ENABLE_ROCKSDB_CXX11)
     if (DEBBY__DISABLE_FETCH_CONTENT AND EXISTS ${CMAKE_CURRENT_LIST_DIR}/rocksdb/.git)
         include(${CMAKE_CURRENT_LIST_DIR}/rocksdb.cmake)
     else()
@@ -31,7 +31,7 @@ if (DEBBY__ENABLE_ROCKSDB)
 
         include(${CMAKE_CURRENT_LIST_DIR}/rocksdb.cmake)
     endif()
-endif(DEBBY__ENABLE_ROCKSDB)
+endif(DEBBY__ENABLE_ROCKSDB_CXX11)
 
 if (DEBBY__ENABLE_MDBX)
     set(MDBX_BUILD_SHARED_LIBRARY OFF CACHE BOOL "Enable/disable build shared `libmdbx` library")
