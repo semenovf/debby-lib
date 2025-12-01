@@ -121,6 +121,23 @@ void check (RelationalDatabaseType & db_opened)
         CHECK_EQ(std::find(tables.begin(), tables.end(), "ten"), std::end(tables));
     }
 
+    // Check drop all records from table
+    {
+        int count = 100;
+        std::string const sql = R"(CREATE TABLE IF NOT EXISTS drop_all_records (text TEXT))";
+        db.query(sql);
+
+        for (int i = 0; i < count; i++)
+            db.query("INSERT INTO drop_all_records (text) VALUES (\"Hello, Debby\")");
+
+        auto res = db.exec("SELECT COUNT(*) FROM drop_all_records");
+        REQUIRE(res.has_more());
+        CHECK_EQ(res.template get<int>(1), count);
+
+        auto res1 = db.exec("DELETE FROM drop_all_records");
+        CHECK_EQ(res1.rows_affected(), count);
+    }
+
     db.remove("two");
     REQUIRE_FALSE(db.exists("two"));
 
