@@ -101,6 +101,11 @@ public:
         return _columns.back();
     }
 
+    std::string const & name () const noexcept
+    {
+        return _name;
+    }
+
     DEBBY__EXPORT void build (std::ostream & out);
     DEBBY__EXPORT std::string build ();
 };
